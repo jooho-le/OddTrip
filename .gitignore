@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+.vite/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+node_modules/.tmp/
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Capacitor native projects
+android/
+ios/
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# temporary files
+tmp/
+temp/
