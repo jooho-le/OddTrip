@@ -6,11 +6,6 @@
 이 모듈은 OddTrip backend의 config.py에 의존하지 않습니다.
 환경변수에서 직접 키를 읽어 자체 동작합니다.
 
-팀장님 통합 시:
-  이 파일은 삭제하시고, src/clients/*.py 와 src/planner/*.py의
-  `from ..config import settings` 만 OddTrip backend의 config로 바꾸시면 됩니다.
-  (예: `from app.config import settings`)
-
 ──────────────────────────────────────
 환경변수
 ──────────────────────────────────────
@@ -31,9 +26,6 @@ from dataclasses import dataclass
 @dataclass
 class Settings:
     """전역 설정 객체.
-
-    OddTrip backend의 Pydantic BaseSettings와 동일한 인터페이스를 제공해서,
-    팀장님이 통합하실 때 코드 변경 없이 바로 교체 가능합니다.
     """
     openai_api_key: str = ""
     kakao_rest_api_key: str = ""

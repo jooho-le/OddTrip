@@ -118,19 +118,6 @@ python demo/run_demo.py
 
 ---
 
-## 🔌 팀장님 통합 절차
-
-자세한 내용은 [`INTEGRATION_GUIDE.md`](./INTEGRATION_GUIDE.md) 참고. 요약하면:
-
-1. `src/clients/`, `src/planner/` 폴더를 `backend/app/`에 복사
-2. `src/config.py`는 **삭제** (OddTrip backend의 기존 `config.py` 사용)
-3. 각 파일에서 `from ..config import settings` 그대로 유지 (자동 매칭됨)
-4. `backend/app/services/itinerary_service.py`에서 새 planner 호출
-5. Attraction(SQLAlchemy) → InputPlace 변환 어댑터 한 줄 추가
-6. DB 마이그레이션: Attraction에 lat/lng 컬럼 추가
-7. `.env`에 외부 API 키 추가 (선택, 없으면 mock 모드)
-
----
 
 ## ⚙️ 핵심 설계 결정
 
@@ -156,9 +143,7 @@ python demo/run_demo.py
 
 ## 📚 추가 문서
 
-- [`INTEGRATION_GUIDE.md`](./INTEGRATION_GUIDE.md) — 팀장님 통합 작업 가이드
 - [`ALGORITHM_NOTES.md`](./ALGORITHM_NOTES.md) — Held-Karp TSP, 클러스터링 등 알고리즘 상세
-- [`PR_MESSAGE_TEMPLATE.md`](./PR_MESSAGE_TEMPLATE.md) — PR 작성/메신저 메시지 템플릿
 - [`demo/README.md`](./demo/README.md) — 데모 실행 가이드
 
 ---
