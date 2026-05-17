@@ -1,7 +1,6 @@
 # 🧭 OddTrip — AI 일정 자동 생성 + 동선 최적화
 
 > OddTrip 백엔드에 추가될 5번/6번 기능의 **단독 실행 가능한 로직 모듈**입니다.
-> 회원님이 직접 실행해서 검증한 뒤, 팀장님께서 OddTrip backend에 통합하시는 흐름입니다.
 
 ---
 
@@ -47,9 +46,7 @@ python demo/run_demo.py jeju
 ```
 oddtrip-itinerary-feature/
 ├── README.md                   ← 이 파일 (시작점)
-├── INTEGRATION_GUIDE.md        ← 팀장님 통합 가이드
 ├── ALGORITHM_NOTES.md          ← 알고리즘 상세 (Held-Karp 등)
-├── PR_MESSAGE_TEMPLATE.md      ← PR 메시지 템플릿
 │
 ├── src/                        ← 로직 모듈 (팀장이 통합할 부분)
 │   ├── config.py               ← 환경변수 로더 (통합 시 삭제 예정)
