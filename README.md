@@ -1,155 +1,160 @@
-# 🧭 OddTrip — AI 일정 자동 생성 + 동선 최적화
+# oddtrip
 
-> OddTrip 백엔드에 추가될 5번/6번 기능의 **단독 실행 가능한 로직 모듈**입니다.
-> 회원님이 직접 실행해서 검증한 뒤, 팀장님께서 OddTrip backend에 통합하시는 흐름입니다.
+혼자 여행하는 사람을 위한 AI 여행 매칭 서비스 프론트엔드입니다.  
+핵심 아이디어는 단순히 “비슷한 사람”을 붙이는 게 아니라, TTI 진단으로 여행 성향을 읽고 나와 반대되는 장점을 가진 사람과 같이 여행을 설계하게 만드는 것입니다.
 
----
+지금 버전은 발표와 시연을 먼저 생각해서 만들었습니다. 백엔드는 아직 없다는 전제로 mock data와 service layer를 분리해 두었고, 나중에 Spring Boot API가 붙어도 화면 코드를 크게 흔들지 않게 해뒀습니다.
 
-## 🎯 무엇을 만드는가
-
-**5. AI 일정 자동 생성 기능**
-- 관광지, 축제, 숙소, 이동 동선을 시간대별로 자동 배치
-- 운영시간, 휴무일, 날씨, 자외선 지수, 재난 정보까지 반영
-- 단순 추천 리스트가 아닌 **실제로 실행 가능한** 여행 플랜
-
-**6. 동선 최적화 기능**
-- 카카오 길찾기 API 활용해 이동시간 계산
-- TSP 알고리즘(Held-Karp)으로 관광 순서를 효율적으로 정리
-
----
-
-## ⚡ 빠른 시작 (3분)
+## 실행 방법
 
 ```bash
-# 1. 의존성 설치
-pip install -r demo/requirements.txt
-
-# 2. OpenAI 키 설정 (선택 - 없으면 템플릿 모드)
-cp demo/.env.example demo/.env
-# demo/.env 열어서 OPENAI_API_KEY 입력
-
-# 3. 실행
-python demo/run_demo.py
+npm install
+npm run dev
 ```
 
-→ 콘솔에 3일짜리 서울 여행 일정이 출력됩니다.
-
-다른 시나리오:
-```bash
-python demo/run_demo.py busan
-python demo/run_demo.py jeju
-```
-
----
-
-## 📁 파일 구조
-
-```
-oddtrip-itinerary-feature/
-├── README.md                   ← 이 파일 (시작점)
-├── INTEGRATION_GUIDE.md        ← 팀장님 통합 가이드
-├── ALGORITHM_NOTES.md          ← 알고리즘 상세 (Held-Karp 등)
-├── PR_MESSAGE_TEMPLATE.md      ← PR 메시지 템플릿
-│
-├── src/                        ← 로직 모듈 (팀장이 통합할 부분)
-│   ├── config.py               ← 환경변수 로더 (통합 시 삭제 예정)
-│   ├── clients/                ← 외부 API 어댑터 4개
-│   │   ├── kakao_client.py     좌표 검색 + 길찾기
-│   │   ├── weather_client.py   기상청 날씨/자외선
-│   │   ├── disaster_client.py  행안부 재난문자
-│   │   └── place_info_client.py LLM 기반 운영시간 추론
-│   └── planner/                ← 일정 생성 알고리즘
-│       ├── models.py           도메인 객체 (InputPlace/PlannedDay/Slot)
-│       ├── enricher.py         Step 1: 외부 데이터로 보강
-│       ├── day_assigner.py     Step 2: 일자별 분배 (그리디 클러스터링)
-│       ├── route_optimizer.py  Step 3: TSP 동선 최적화 ⭐
-│       ├── time_scheduler.py   Step 4: 영업시간 만족 시간 배치
-│       ├── llm_narrator.py     Step 5: GPT batch 설명 생성
-│       └── planner.py          전체 오케스트레이터
-│
-├── demo/                       ← 단독 실행 환경 (회원님 검증용)
-│   ├── README.md
-│   ├── .env.example
-│   ├── requirements.txt
-│   ├── sample_data.py          서울/부산/제주 샘플
-│   └── run_demo.py             콘솔 실행 스크립트
-│
-└── tests/                      ← 단위 테스트 (자동 검증)
-    ├── conftest.py
-    ├── test_route_optimizer.py  TSP 정확해 검증
-    ├── test_day_assigner.py     일자 분배 검증
-    └── test_time_scheduler.py   시간 제약 검증
-```
-
----
-
-## 🧪 검증 방법
-
-### 1. 단위 테스트 실행
+프로덕션 빌드는 아래 명령으로 확인합니다.
 
 ```bash
-pip install pytest
-python -m pytest tests/ -v
+npm run build
 ```
 
-기대 결과:
-```
-tests/test_route_optimizer.py::test_empty_input PASSED
-tests/test_route_optimizer.py::test_held_karp_4_cities_optimal PASSED
-tests/test_day_assigner.py::test_six_places_two_days PASSED
-tests/test_day_assigner.py::test_avoid_closed_day PASSED
-tests/test_time_scheduler.py::test_lunch_slot_inserted PASSED
-... (15개 테스트 모두 PASSED)
+## 사용 기술
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- Zustand
+- Capacitor 설정 파일 포함
+
+## 큰 구조
+
+```txt
+src/
+  app/          앱 라우터와 전체 레이아웃
+  pages/        실제 화면 단위 폴더
+  components/   여러 화면에서 같이 쓰는 앱 컴포넌트
+  shared/       버튼, 카드 같은 공통 UI와 작은 유틸
+  entities/     전역 상태 저장소
+  services/     API 호출 추상화 계층
+  mocks/        백엔드 대신 쓰는 시연용 데이터
+  types/        서비스 도메인 타입
+  styles/       전역 스타일과 애니메이션
+  features/     기능 단위로 커질 때 옮겨갈 자리
+  hooks/        여러 곳에서 재사용할 훅 자리
 ```
 
-### 2. 데모 실행 (눈으로 확인)
+## 페이지 폴더
+
+페이지는 한 파일씩 흩어두지 않고 화면별 폴더로 나눴습니다. 지금은 각 폴더 안에 `index.tsx`만 있지만, 화면이 커지면 같은 폴더 안에 `components.tsx`, `hooks.ts`, `constants.ts`처럼 붙여서 키우면 됩니다.
+
+| 경로 | 의미 |
+| --- | --- |
+| `src/pages/landing/index.tsx` | 첫 진입 화면입니다. oddtrip의 핵심 메시지, 카드뉴스형 소개, 움직이는 매칭/일정 프리뷰가 들어 있습니다. |
+| `src/pages/tti-start/index.tsx` | TTI 진단 시작 화면입니다. 진단 축과 소요시간, 진행 방식을 설명합니다. |
+| `src/pages/tti-questions/index.tsx` | 12문항 TTI 진단 화면입니다. 한 문항씩 보여주고 진행률과 이전/다음 흐름을 관리합니다. |
+| `src/pages/tti-result/index.tsx` | TTI 결과 화면입니다. 유형 코드, 축별 점수, 반대 유형, 매칭 CTA를 보여줍니다. |
+| `src/pages/matches/index.tsx` | 반대 성향 매칭 추천 목록입니다. 후보 카드, 추천도, 수락/보류/다시 추천 흐름을 담당합니다. |
+| `src/pages/match-detail/index.tsx` | 선택한 매칭 상대 상세 화면입니다. 내 성향과 상대 성향 차이, 보완점, 공동 일정 CTA가 있습니다. |
+| `src/pages/decision/index.tsx` | 공동 의사결정 화면입니다. 장소, 활동, 음식, 일정 강도, 예산, AI 조정 제안을 다룹니다. |
+| `src/pages/attractions/index.tsx` | 관광지 추천 화면입니다. 필터, 저장/제외 상태, 지도 보기 CTA를 보여줍니다. |
+| `src/pages/itinerary/index.tsx` | 3일 일정 생성 결과 화면입니다. 날짜별 타임라인, 날씨 배너, 일정 상세 진입이 있습니다. |
+| `src/pages/itinerary-detail/index.tsx` | 일정 상세 화면입니다. 장소 설명, 이동 시간, 추천 이유, 지도 placeholder, 변경 옵션이 들어 있습니다. |
+| `src/pages/safety/index.tsx` | 알림/안전 화면입니다. 날씨 변화, 재난성 알림, 일정 조정 필요 여부를 카드로 보여줍니다. |
+| `src/pages/my-trip/index.tsx` | 마이페이지 성격의 내 여행 화면입니다. 내 유형, 저장한 여행지, 생성 일정, 최근 매칭 기록을 모읍니다. |
+
+## 주요 파일 설명
+
+| 파일 | 역할 |
+| --- | --- |
+| `src/main.tsx` | React 앱을 DOM에 붙이는 시작점입니다. 전역 CSS도 여기서 불러옵니다. |
+| `src/app/App.tsx` | 전체 라우팅을 정의합니다. URL과 페이지 컴포넌트가 여기서 연결됩니다. |
+| `src/app/AppLayout.tsx` | 공통 앱 레이아웃입니다. 상단 헤더, 웹 사이드 내비게이션, 모바일 하단 탭을 감쌉니다. |
+| `src/components/AppHeader.tsx` | 앱 상단 헤더입니다. 뒤로가기, 현재 화면명, 안전 알림 진입을 처리합니다. |
+| `src/components/BottomTabs.tsx` | 모바일 하단 탭입니다. Capacitor 앱으로 감쌌을 때도 자연스럽게 쓰기 위한 내비게이션입니다. |
+| `src/components/DesktopNav.tsx` | 웹 화면에서 보이는 사이드 내비게이션입니다. 모바일 하단 탭과 역할을 나눕니다. |
+| `src/components/CardNewsRail.tsx` | 카드뉴스 느낌의 소개 블록입니다. 발표용 화면에서 서비스 흐름을 짧게 보여줄 때 씁니다. |
+| `src/components/MapPlaceholder.tsx` | 실제 지도 API를 붙이기 전까지 사용하는 지도 영역 대체 컴포넌트입니다. |
+| `src/shared/ui/Button.tsx` | 공통 버튼입니다. primary, secondary, ghost, danger 스타일을 가지고 있습니다. |
+| `src/shared/ui/Card.tsx` | 공통 카드입니다. 현재 디자인 톤에 맞춰 반투명 웜 톤과 hover 효과를 기본으로 둡니다. |
+| `src/shared/ui/Badge.tsx` | 추천도, 유형, 태그 같은 작은 정보를 보여주는 뱃지입니다. |
+| `src/shared/ui/SectionTitle.tsx` | 페이지나 섹션 제목을 통일해서 보여주는 컴포넌트입니다. |
+| `src/shared/ui/AxisBar.tsx` | TTI 축별 점수를 시각화하는 바입니다. |
+| `src/shared/ui/StateView.tsx` | loading, empty, error 상태를 화면마다 일관되게 보여주는 컴포넌트입니다. |
+| `src/shared/lib/classNames.ts` | 조건부 className을 합치는 작은 유틸입니다. |
+| `src/entities/tripStore.ts` | Zustand 전역 상태입니다. 사용자, TTI 답변/결과, 매칭, 선호값, 관광지, 일정, 안전 알림을 관리합니다. |
+| `src/services/oddtripService.ts` | 프론트와 API 사이의 경계입니다. 지금은 mock을 반환하지만, 실제 백엔드 연결 시 이 파일을 기준으로 교체하면 됩니다. |
+| `src/mocks/tti.ts` | TTI 질문 12개와 일부 유형 설명 샘플이 들어 있습니다. |
+| `src/mocks/data.ts` | 사용자, 매칭 후보, 관광지, 일정, 안전 알림 mock 데이터입니다. |
+| `src/types/index.ts` | TTI 코드, 매칭 후보, 관광지, 일정, 알림 등 서비스에서 쓰는 타입을 모아둔 곳입니다. |
+| `src/styles/globals.css` | Tailwind 기본 설정 위에 전역 배경, safe-area, 카드 애니메이션, 티커 애니메이션을 정의합니다. |
+| `capacitor.config.ts` | 나중에 iOS/Android 앱으로 감쌀 때 쓰는 Capacitor 설정입니다. |
+
+## 상태 흐름
+
+상태는 `src/entities/tripStore.ts` 하나에 모아두었습니다. 아직 백엔드가 없기 때문에 화면은 store를 호출하고, store는 service layer를 통해 mock 데이터를 가져옵니다.
+
+대략 이런 흐름입니다.
+
+```txt
+Page -> Zustand store -> oddtripService -> mocks
+```
+
+실제 API가 생기면 아래처럼 바꾸면 됩니다.
+
+```txt
+Page -> Zustand store -> httpOddtripService -> Spring Boot API
+```
+
+이렇게 해둔 이유는 페이지 컴포넌트 안에 fetch 로직이 흩어지는 걸 막기 위해서입니다. 지금은 시연용 데이터지만, 나중에 API 주소와 응답 형식만 맞추면 화면은 거의 그대로 갈 수 있습니다.
+
+## 백엔드 붙일 때 먼저 볼 곳
+
+가장 먼저 볼 파일은 `src/services/oddtripService.ts`입니다.  
+여기에 있는 `OddtripService` 인터페이스가 현재 프론트가 기대하는 API 모양입니다.
+
+현재 필요한 API는 이 정도입니다.
+
+- 현재 사용자 조회
+- TTI 질문 조회
+- TTI 결과 계산
+- 매칭 후보 조회
+- 관광지 추천 조회
+- 일정 생성 결과 조회
+- 날씨/재난/안전 알림 조회
+
+Spring Boot API가 준비되면 `mockOddtripService` 대신 `httpOddtripService`를 만들고, store에서 주입받도록 바꾸면 됩니다.
+
+## 디자인 메모
+
+초기 버전은 흰 카드가 많아서 데모 화면이 다소 평평해 보일 수 있었습니다. 그래서 현재 버전은 웜 베이지 배경, 틸/코랄 포인트, 카드뉴스형 블록, float/reveal/ticker 애니메이션을 넣어 발표 화면에서 서비스 성격이 더 빨리 보이도록 조정했습니다.
+
+너무 장식적인 랜딩페이지가 아니라, 실제 앱 첫 화면처럼 동작하는 흐름을 유지하는 쪽으로 맞췄습니다.
+
+## Capacitor 연동
+
+웹에서 먼저 동작하고, 나중에 앱으로 감싸는 구조입니다. 기본 설정은 `capacitor.config.ts`에 있습니다.
+
+앱 프로젝트를 추가할 때는 보통 아래 순서로 진행합니다.
 
 ```bash
-python demo/run_demo.py
+npm run build
+npx cap add ios
+npx cap add android
+npx cap sync
 ```
 
-콘솔에 출력된 일정에서:
-- ✅ 시간이 단조 증가하는가
-- ✅ 영업시간 안에 방문이 배치되었는가
-- ✅ 점심/저녁 슬롯이 자동 삽입되었는가
-- ✅ 이동 시간이 합리적인가
-- ✅ 일자별 장소 수가 균등한가
-- ✅ aiReason이 자연스러운가 (OpenAI 키 있을 때)
+safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 처리해두었습니다. 상단 헤더와 하단 탭이 이 값을 사용하기 때문에 iPhone 노치나 홈 인디케이터 영역에서도 레이아웃이 무너지지 않게 의도했습니다.
 
----
+## 앞으로 정리하면 좋은 것
 
+지금은 발표 가능한 mock 중심 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
 
-## ⚙️ 핵심 설계 결정
-
-### 1. "알고리즘 = 사실 / LLM = 설명" 분리
-- 시간/거리는 검증 가능한 수치이므로 알고리즘이 결정
-- 자연스러운 설명은 LLM이 작성 (단, 사실 변경 불가)
-- 결과: LLM 환각으로 잘못된 일정 발생 불가
-
-### 2. Mock 모드 기본 지원
-- 외부 API 키가 없어도 결정론적 mock 반환
-- 로컬 개발/데모/온보딩 시 외부 의존성 0
-
-### 3. DB 모델 의존성 분리 (InputPlace)
-- SQLAlchemy `Attraction` 대신 자체 dataclass `InputPlace` 사용
-- standalone 동작 + 테스트 용이 + 결합도 낮음
-- 통합 시 어댑터 한 줄로 변환
-
-### 4. 비용 효율적인 LLM 사용
-- 1 trip = 1 API call (batch 처리)
-- gpt-4o-mini 사용 → 1 trip당 약 $0.001
-
----
-
-## 📚 추가 문서
-
-- [`ALGORITHM_NOTES.md`](./ALGORITHM_NOTES.md) — Held-Karp TSP, 클러스터링 등 알고리즘 상세
-- [`demo/README.md`](./demo/README.md) — 데모 실행 가이드
-
----
-
-## 🛡️ 보안 주의
-
-⚠️ **`.env` 파일에 API 키를 입력하셨다면 절대 git/슬랙/이메일로 공유하지 마세요.**
-회원님 명의로 청구되어 큰 금액이 나올 수 있습니다.
-키 공유가 필요하면 1Password 같은 비밀번호 관리자나 직접 만나서 전달하세요.
+1. `services`에 실제 HTTP client 추가
+2. TTI 계산을 백엔드로 완전히 이동
+3. 매칭 수락/보류 액션 API 연결
+4. 관광지 저장/제외 상태를 서버에 저장
+5. 일정 재조정 요청 API 추가
+6. 실제 지도 SDK 연결
+7. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인

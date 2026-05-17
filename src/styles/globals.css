@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #17201f;
+  background: #eef4ed;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(249, 115, 91, 0.22), transparent 28rem),
+    radial-gradient(circle at 88% 4%, rgba(20, 184, 166, 0.22), transparent 30rem),
+    linear-gradient(135deg, #eef4ed 0%, #f4f0e6 46%, #e7f3ef 100%);
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+.safe-top {
+  padding-top: max(0.75rem, var(--safe-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(0.75rem, var(--safe-bottom));
+}
+
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(15, 118, 110, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 118, 110, 0.05) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent 72%);
+}
+
+.content-layer {
+  position: relative;
+  z-index: 1;
+}
+
+.surface-glass {
+  background: rgba(255, 252, 245, 0.78);
+  backdrop-filter: blur(18px);
+}
+
+.reveal-card {
+  animation: reveal-up 520ms ease both;
+}
+
+.float-slow {
+  animation: float-slow 5.8s ease-in-out infinite;
+}
+
+.float-delay {
+  animation: float-slow 6.4s ease-in-out 900ms infinite;
+}
+
+.ticker-track {
+  animation: ticker 22s linear infinite;
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1deg);
+  }
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
