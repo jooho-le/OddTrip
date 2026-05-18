@@ -111,14 +111,28 @@ class TimeScheduler:
                 continue  # 너무 짧으면 실질 방문 불가
 
             # ─── 4. 장소 슬롯 추가 ───
+            slot_type = "place"
+            title = place.name
+            description = place.description
+            if _is_food_place(place):
+                slot_type = "meal"
+                title = f"식사: {place.name}"
+                description = place.description or "동선 안에서 자연스럽게 배치한 식사 후보입니다."
+                stay = min(stay, 75)
+            elif _is_lodging_place(place):
+                slot_type = "rest"
+                title = f"숙소 체크인/휴식: {place.name}"
+                description = place.description or "하루 이동 피로를 줄이기 위한 숙소 기준 휴식 구간입니다."
+                stay = min(stay, 45)
+
             slots.append(
                 PlannedSlot(
-                    slot_type="place",
-                    title=place.name,
+                    slot_type=slot_type,
+                    title=title,
                     location=place.category,
                     start_time=current.time(),
                     duration_minutes=stay,
-                    description=place.description,
+                    description=description,
                     place_ref=place,
                 )
             )
@@ -240,6 +254,16 @@ def _make_day_title(places: list[PlannedPlace]) -> str:
     if len(places) == 1:
         return f"{places[0].name} 중심의 하루"
     return f"{places[0].name}와 {places[-1].name} 사이"
+
+
+def _is_food_place(place: PlannedPlace) -> bool:
+    text = f"{place.category} {place.name}"
+    return any(keyword in text for keyword in ("음식", "식당", "맛집", "레스토랑", "카페"))
+
+
+def _is_lodging_place(place: PlannedPlace) -> bool:
+    text = f"{place.category} {place.name}"
+    return any(keyword in text for keyword in ("숙박", "숙소", "호텔", "게스트하우스", "리조트", "펜션"))
 
 
 def _make_caution(

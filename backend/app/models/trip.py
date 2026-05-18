@@ -36,6 +36,23 @@ class Attraction(Base):
     famous: Mapped[bool] = mapped_column(Boolean, default=False)
     saved: Mapped[bool] = mapped_column(Boolean, default=False)
     excluded: Mapped[bool] = mapped_column(Boolean, default=False)
+    content_id: Mapped[str | None] = mapped_column(String(50))
+    content_type_id: Mapped[str | None] = mapped_column(String(20))
+    source: Mapped[str | None] = mapped_column(String(50))
+    addr1: Mapped[str | None] = mapped_column(String(500))
+    addr2: Mapped[str | None] = mapped_column(String(500))
+    map_x: Mapped[str | None] = mapped_column(String(50))
+    map_y: Mapped[str | None] = mapped_column(String(50))
+    area_code: Mapped[str | None] = mapped_column(String(20))
+    sigungu_code: Mapped[str | None] = mapped_column(String(20))
+    tel: Mapped[str | None] = mapped_column(String(100))
+    homepage: Mapped[str | None] = mapped_column(Text)
+    opening_hours_json: Mapped[dict | None] = mapped_column(JSON)
+    closed_days_json: Mapped[list | None] = mapped_column(JSON)
+    congestion_score: Mapped[int | None] = mapped_column(Integer)
+    hidden_score: Mapped[int | None] = mapped_column(Integer)
+    related_rank: Mapped[int | None] = mapped_column(Integer)
+    raw_json: Mapped[dict | None] = mapped_column(JSON)
 
 
 class ItineraryItem(Base):

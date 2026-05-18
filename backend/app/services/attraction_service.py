@@ -22,7 +22,7 @@ CONTENT_TYPE_LABELS = {
     "39": "음식점",
 }
 
-DEFAULT_CONTENT_TYPES = ["12", "14", "15", "28", "39"]
+DEFAULT_CONTENT_TYPES = ["12", "14", "15", "28", "32", "39"]
 
 
 async def get_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]:
@@ -44,6 +44,22 @@ async def get_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]
             famous=r.famous,
             saved=r.saved,
             excluded=r.excluded,
+            content_id=r.content_id,
+            content_type_id=r.content_type_id,
+            source=r.source,
+            addr1=r.addr1,
+            addr2=r.addr2,
+            map_x=r.map_x,
+            map_y=r.map_y,
+            area_code=r.area_code,
+            sigungu_code=r.sigungu_code,
+            tel=r.tel,
+            homepage=r.homepage,
+            opening_hours=r.opening_hours_json,
+            closed_days=r.closed_days_json or [],
+            congestion_score=r.congestion_score,
+            hidden_score=r.hidden_score,
+            related_rank=r.related_rank,
         )
         for r in rows
     ]
@@ -92,6 +108,7 @@ async def generate_attractions(db: AsyncSession, trip_id: str) -> list[Attractio
             indoor=item.get("indoor", False),
             active=item.get("active", False),
             famous=item.get("famous", False),
+            source="OpenAI",
         )
         db.add(attr)
         attractions.append(attr)
@@ -168,6 +185,23 @@ async def generate_public_attractions(
             indoor=normalized["indoor"],
             active=normalized["active"],
             famous=normalized["famous"],
+            content_id=normalized["content_id"],
+            content_type_id=normalized["content_type_id"],
+            source="TourAPI",
+            addr1=normalized["addr1"],
+            addr2=normalized["addr2"],
+            map_x=normalized["map_x"],
+            map_y=normalized["map_y"],
+            area_code=normalized["area_code"],
+            sigungu_code=normalized["sigungu_code"],
+            tel=normalized["tel"],
+            homepage=normalized["homepage"],
+            opening_hours_json=normalized["opening_hours"],
+            closed_days_json=normalized["closed_days"],
+            congestion_score=normalized["congestion_score"],
+            hidden_score=normalized["hidden_score"],
+            related_rank=normalized["related_rank"],
+            raw_json=item,
         )
         db.add(attr)
         attractions.append(attr)
@@ -207,6 +241,22 @@ async def toggle_attraction(
         famous=attr.famous,
         saved=attr.saved,
         excluded=attr.excluded,
+        content_id=attr.content_id,
+        content_type_id=attr.content_type_id,
+        source=attr.source,
+        addr1=attr.addr1,
+        addr2=attr.addr2,
+        map_x=attr.map_x,
+        map_y=attr.map_y,
+        area_code=attr.area_code,
+        sigungu_code=attr.sigungu_code,
+        tel=attr.tel,
+        homepage=attr.homepage,
+        opening_hours=attr.opening_hours_json,
+        closed_days=attr.closed_days_json or [],
+        congestion_score=attr.congestion_score,
+        hidden_score=attr.hidden_score,
+        related_rank=attr.related_rank,
     )
 
 
@@ -239,16 +289,11 @@ async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -
         if isinstance(result, list):
             candidates.extend(result)
 
-    try:
-        hub_items = await tour_api_client.hub_attractions(
-            area_code=request.area_code,
-            sigungu_code=request.sigungu_code,
-            rows=30,
-        )
-    except Exception:
-        hub_items = []
+    hub_items, related_items, trend_items, concentration_items = await _collect_context_data(request)
 
     hub_names = {_normalize_name(_get_value(item, "rlteTatsNm", "hubTatsNm", "title", "name")) for item in hub_items}
+    related_ranks = _build_related_ranks(related_items)
+    congestion_hint = _congestion_hint(trend_items, concentration_items)
     deduped: dict[str, dict[str, Any]] = {}
     for item in candidates:
         key = str(_get_value(item, "contentid", "contentId", "title", "name"))
@@ -257,9 +302,27 @@ async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -
         merged = {**deduped.get(key, {}), **item}
         title = _normalize_name(_get_value(merged, "title", "name"))
         merged["_is_hub"] = bool(title and title in hub_names)
+        merged["_related_rank"] = related_ranks.get(title)
+        merged["_congestion_hint"] = congestion_hint
         deduped[key] = merged
 
     return list(deduped.values())
+
+
+async def _collect_context_data(request: PublicAttractionGenerateRequest) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    async def safe(coro):
+        try:
+            return await coro
+        except Exception:
+            return []
+
+    keyword = request.keywords[0] if request.keywords else "관광"
+    return await asyncio.gather(
+        safe(tour_api_client.hub_attractions(area_code=request.area_code, sigungu_code=request.sigungu_code, rows=50)),
+        safe(tour_api_client.related_attractions_by_keyword(keyword=keyword, rows=50)),
+        safe(tour_api_client.visitor_trend(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
+        safe(tour_api_client.concentration_prediction(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
+    )
 
 
 async def _enrich_public_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -296,11 +359,13 @@ def _rank_public_candidates(
         content_type_id = str(_get_value(item, "contenttypeid", "contentTypeId", ""))
         score = 50
         tags = _public_tags(item)
+        hidden_score = _hidden_score(item)
+        congestion_score = _congestion_score(item)
 
         if item.get("_is_hub"):
             score += 12
         if hidden_preferred and "숨은 명소 후보" in tags:
-            score += 14
+            score += 8 + hidden_score // 10
         if indoor_preferred and "실내" in tags:
             score += 12
         if pace >= 60 and content_type_id in {"15", "28"}:
@@ -311,9 +376,14 @@ def _rank_public_candidates(
             score += 6
         if _get_value(item, "firstimage", "firstImage", "firstimage2"):
             score += 4
+        if item.get("_related_rank"):
+            score += max(0, 12 - int(item["_related_rank"] or 99) // 5)
+        score -= max(0, congestion_score - 65) // 8
 
         copied = dict(item)
         copied["_oddtrip_score"] = score
+        copied["_hidden_score"] = hidden_score
+        copied["_congestion_score"] = congestion_score
         scored.append(copied)
 
     return sorted(scored, key=lambda item: item.get("_oddtrip_score", 0), reverse=True)
@@ -327,6 +397,7 @@ def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:
     tags = _public_tags(item)
     category = CONTENT_TYPE_LABELS.get(content_type_id, "관광지")
     description = overview or address or "한국관광공사 TourAPI 기반으로 수집한 추천 후보입니다."
+    opening_hours, closed_days = _extract_opening_hours(item, content_type_id)
 
     return {
         "name": title,
@@ -337,6 +408,21 @@ def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:
         "indoor": "실내" in tags,
         "active": content_type_id in {"15", "28"},
         "famous": bool(item.get("_is_hub") or content_type_id in {"12", "15"}),
+        "content_id": str(_get_value(item, "contentid", "contentId", "") or ""),
+        "content_type_id": content_type_id,
+        "addr1": str(_get_value(item, "addr1", "address", "") or ""),
+        "addr2": str(_get_value(item, "addr2", "") or ""),
+        "map_x": str(_get_value(item, "mapx", "mapX", "") or ""),
+        "map_y": str(_get_value(item, "mapy", "mapY", "") or ""),
+        "area_code": str(_get_value(item, "areacode", "areaCode", "") or ""),
+        "sigungu_code": str(_get_value(item, "sigungucode", "sigunguCode", "") or ""),
+        "tel": str(_get_value(item, "tel", "") or ""),
+        "homepage": str(_get_value(item, "homepage", "") or ""),
+        "opening_hours": opening_hours,
+        "closed_days": closed_days,
+        "congestion_score": _congestion_score(item),
+        "hidden_score": _hidden_score(item),
+        "related_rank": item.get("_related_rank"),
     }
 
 
@@ -358,6 +444,13 @@ def _public_tags(item: dict[str, Any]) -> list[str]:
         tags.append("후속 코스 좋음")
     else:
         tags.append("숨은 명소 후보")
+    congestion = _congestion_score(item)
+    if congestion >= 70:
+        tags.append("혼잡 주의")
+    elif congestion <= 35:
+        tags.append("혼잡 낮음")
+    if item.get("_related_rank"):
+        tags.append(f"연관 {item['_related_rank']}위")
 
     return tags
 
@@ -399,6 +492,22 @@ def _attraction_out(attr: Attraction) -> AttractionOut:
         famous=attr.famous,
         saved=attr.saved,
         excluded=attr.excluded,
+        content_id=attr.content_id,
+        content_type_id=attr.content_type_id,
+        source=attr.source,
+        addr1=attr.addr1,
+        addr2=attr.addr2,
+        map_x=attr.map_x,
+        map_y=attr.map_y,
+        area_code=attr.area_code,
+        sigungu_code=attr.sigungu_code,
+        tel=attr.tel,
+        homepage=attr.homepage,
+        opening_hours=attr.opening_hours_json,
+        closed_days=attr.closed_days_json or [],
+        congestion_score=attr.congestion_score,
+        hidden_score=attr.hidden_score,
+        related_rank=attr.related_rank,
     )
 
 
@@ -411,6 +520,69 @@ def _get_value(item: dict[str, Any], *keys: str) -> Any:
 
 def _normalize_name(value: Any) -> str:
     return str(value or "").strip().replace(" ", "")
+
+
+def _build_related_ranks(items: list[dict[str, Any]]) -> dict[str, int]:
+    ranks: dict[str, int] = {}
+    for idx, item in enumerate(items, start=1):
+        name = _normalize_name(_get_value(item, "rlteTatsNm", "rlteTatsName", "title", "name"))
+        if name and name not in ranks:
+            raw_rank = _get_value(item, "rlteRank", "rank", "rlteTatsRank")
+            try:
+                ranks[name] = int(raw_rank)
+            except (TypeError, ValueError):
+                ranks[name] = idx
+    return ranks
+
+
+def _congestion_hint(trend_items: list[dict[str, Any]], concentration_items: list[dict[str, Any]]) -> int:
+    values = []
+    for item in trend_items + concentration_items:
+        for key in ("touNum", "visitorCnt", "visitCnt", "cnctrRate", "congestion", "predictValue"):
+            value = _get_value(item, key)
+            try:
+                values.append(float(str(value).replace(",", "")))
+            except (TypeError, ValueError):
+                continue
+    if not values:
+        return 45
+    avg = sum(values) / len(values)
+    if avg <= 1:
+        return int(avg * 100)
+    return max(20, min(85, int(avg) % 100))
+
+
+def _congestion_score(item: dict[str, Any]) -> int:
+    hint = int(item.get("_congestion_hint") or 45)
+    if item.get("_is_hub"):
+        hint += 20
+    if item.get("_related_rank") and int(item["_related_rank"]) <= 10:
+        hint += 10
+    return max(10, min(95, hint))
+
+
+def _hidden_score(item: dict[str, Any]) -> int:
+    score = 72
+    if item.get("_is_hub"):
+        score -= 35
+    rank = item.get("_related_rank")
+    if rank:
+        score -= max(0, 20 - int(rank))
+    score -= max(0, _congestion_score(item) - 55) // 2
+    if not _get_value(item, "firstimage", "firstImage", "firstimage2"):
+        score -= 8
+    return max(5, min(95, score))
+
+
+def _extract_opening_hours(item: dict[str, Any], content_type_id: str) -> tuple[dict | None, list[str]]:
+    raw = " ".join(str(_get_value(item, key) or "") for key in ("usetime", "usetimefestival", "opentime", "restdate", "restdateleports"))
+    closed_days = []
+    for label in ("월", "화", "수", "목", "금", "토", "일"):
+        if f"{label}요일 휴" in raw or f"{label} 휴" in raw:
+            closed_days.append(label)
+    if not raw.strip():
+        return None, closed_days
+    return {"raw": raw.strip(), "contentTypeId": content_type_id}, closed_days
 
 
 def _types_are_opposite(user_a_code: str, user_b_code: str) -> bool:

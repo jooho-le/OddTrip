@@ -2,6 +2,7 @@
 import asyncio
 
 from sqlalchemy import select
+from sqlalchemy.engine import Connection
 
 from .database import async_session, engine, Base
 from .models.tti import TtiQuestion, TravelType
@@ -88,6 +89,7 @@ SAMPLE_USERS = [
 async def seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_attraction_columns)
 
     async with async_session() as session:
         # Seed questions
@@ -116,6 +118,41 @@ async def seed():
 
         await session.commit()
         print("Seed completed successfully!")
+
+
+def _ensure_attraction_columns(conn: Connection) -> None:
+    """SQLite local DB helper.
+
+    `create_all` does not add columns to an existing table. For local demo DBs,
+    add newly introduced public-data columns if they are missing. Production
+    should use Alembic migrations.
+    """
+    if conn.dialect.name != "sqlite":
+        return
+
+    existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(attractions)").fetchall()}
+    column_sql = {
+        "content_id": "VARCHAR(50)",
+        "content_type_id": "VARCHAR(20)",
+        "source": "VARCHAR(50)",
+        "addr1": "VARCHAR(500)",
+        "addr2": "VARCHAR(500)",
+        "map_x": "VARCHAR(50)",
+        "map_y": "VARCHAR(50)",
+        "area_code": "VARCHAR(20)",
+        "sigungu_code": "VARCHAR(20)",
+        "tel": "VARCHAR(100)",
+        "homepage": "TEXT",
+        "opening_hours_json": "JSON",
+        "closed_days_json": "JSON",
+        "congestion_score": "INTEGER",
+        "hidden_score": "INTEGER",
+        "related_rank": "INTEGER",
+        "raw_json": "JSON",
+    }
+    for name, ddl in column_sql.items():
+        if name not in existing:
+            conn.exec_driver_sql(f"ALTER TABLE attractions ADD COLUMN {name} {ddl}")
 
 
 if __name__ == "__main__":

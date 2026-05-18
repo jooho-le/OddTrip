@@ -4,7 +4,7 @@
 사용 예
 ──────────────────────────────────────
     from datetime import date
-    from src.planner import ItineraryPlanner, PlanRequest, InputPlace
+    from app.planner import ItineraryPlanner, PlanRequest, InputPlace
 
     places = [
         InputPlace(id="p1", name="국립현대미술관", category="박물관", famous=True),

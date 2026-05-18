@@ -43,6 +43,13 @@ export function AttractionsPage() {
             <div className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-brand-700">{item.category}</p><h2 className="text-lg font-bold">{item.name}</h2></div><Badge>{item.saved ? '저장됨' : '추천'}</Badge></div>
               <p className="text-sm leading-6 text-slate-600">{item.description}</p>
+              <div className="grid grid-cols-3 gap-2">
+                <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" />
+                <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" />
+                <Metric label="연관" value={item.relatedRank ?? null} suffix="위" />
+              </div>
+              {item.addr1 ? <p className="text-xs font-semibold text-slate-500">{item.addr1}</p> : null}
+              {item.openingHours?.raw ? <p className="rounded-lg bg-amber-50 p-2 text-xs font-semibold text-amber-900">운영 정보: {String(item.openingHours.raw)}</p> : null}
               <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{item.reason}</p>
               <div className="flex flex-wrap gap-2">{item.tags.map((tag) => <Badge key={tag} className="bg-slate-100 text-slate-700">{tag}</Badge>)}</div>
               <div className="grid grid-cols-2 gap-2"><Button variant="secondary" onClick={() => toggleAttraction(item.id, 'excluded')}>제외하기</Button><Button onClick={() => toggleAttraction(item.id, 'saved')}>{item.saved ? '저장 취소' : '저장하기'}</Button></div>
@@ -51,6 +58,15 @@ export function AttractionsPage() {
         ))}
       </div>
       <div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" icon={<Map className="h-4 w-4" />}>지도 보기</Button><Link to="/itinerary" onClick={() => void loadItinerary()}><Button className="w-full sm:w-auto">일정 결과 보기</Button></Link></div>
+    </div>
+  );
+}
+
+function Metric({ label, value, suffix }: { label: string; value: number | null; suffix: string }) {
+  return (
+    <div className="rounded-lg bg-white/70 p-2">
+      <p className="text-[11px] font-bold text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-black text-ink">{value === null ? '-' : `${value}${suffix}`}</p>
     </div>
   );
 }

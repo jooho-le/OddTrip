@@ -10,11 +10,11 @@ from datetime import date, time, timedelta
 
 import pytest
 
-from src.clients.kakao_client import Coordinate
-from src.clients.place_info_client import PlaceInfo
-from src.clients.weather_client import WeatherForecast
-from src.planner.day_assigner import DayAssigner
-from src.planner.models import PlannedPlace
+from backend.app.clients.kakao_client import Coordinate
+from backend.app.clients.place_info_client import PlaceInfo
+from backend.app.clients.weather_client import WeatherForecast
+from backend.app.planner.day_assigner import DayAssigner
+from backend.app.planner.models import PlannedPlace
 
 
 def make_place(

@@ -87,6 +87,22 @@ export interface Attraction {
   famous: boolean;
   saved: boolean;
   excluded: boolean;
+  contentId?: string | null;
+  contentTypeId?: string | null;
+  source?: string | null;
+  addr1?: string | null;
+  addr2?: string | null;
+  mapX?: string | null;
+  mapY?: string | null;
+  areaCode?: string | null;
+  sigunguCode?: string | null;
+  tel?: string | null;
+  homepage?: string | null;
+  openingHours?: Record<string, unknown> | null;
+  closedDays?: string[];
+  congestionScore?: number | null;
+  hiddenScore?: number | null;
+  relatedRank?: number | null;
 }
 
 export type ItineraryItemType = 'place' | 'move' | 'meal' | 'rest';

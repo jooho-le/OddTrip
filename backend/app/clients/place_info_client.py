@@ -195,6 +195,11 @@ _CATEGORY_DEFAULTS: dict[str, PlaceInfo] = {
         avg_stay_minutes=60,
         indoor=True,
     ),
+    "음식점": PlaceInfo(
+        opening_hours=[(time(11, 0), time(21, 0))] * 7,
+        avg_stay_minutes=60,
+        indoor=True,
+    ),
     "축제": PlaceInfo(
         opening_hours=[(time(11, 0), time(22, 0))] * 7,
         avg_stay_minutes=120,

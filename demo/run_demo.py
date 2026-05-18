@@ -33,10 +33,10 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
-# src 모듈을 import할 수 있게 경로 추가
+# backend 모듈을 import할 수 있게 경로 추가
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.planner import ItineraryPlanner, PlanRequest, PlannedDay
+from backend.app.planner import ItineraryPlanner, PlanRequest, PlannedDay
 from demo.sample_data import SAMPLES
 
 

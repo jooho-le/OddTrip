@@ -15,6 +15,22 @@ class AttractionOut(BaseModel):
     famous: bool = False
     saved: bool = False
     excluded: bool = False
+    content_id: str | None = None
+    content_type_id: str | None = None
+    source: str | None = None
+    addr1: str | None = None
+    addr2: str | None = None
+    map_x: str | None = None
+    map_y: str | None = None
+    area_code: str | None = None
+    sigungu_code: str | None = None
+    tel: str | None = None
+    homepage: str | None = None
+    opening_hours: dict | None = None
+    closed_days: list[str] = []
+    congestion_score: int | None = None
+    hidden_score: int | None = None
+    related_rank: int | None = None
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 

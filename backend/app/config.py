@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     tour_api_hub_base_url: str = "https://apis.data.go.kr/B551011/LocgoHubTarService1"
     tour_api_bigdata_base_url: str = "https://apis.data.go.kr/B551011/DataLabService"
     tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TarCongestionService"
+    kakao_rest_api_key: str = ""
+    kma_api_key: str = ""
+    mois_api_key: str = ""
 
     model_config = {"env_file": str(_env_path), "env_file_encoding": "utf-8", "extra": "ignore"}
 

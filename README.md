@@ -146,7 +146,6 @@ safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 
 지금은 실제 API 호출 기반 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
 
 1. 실제 로그인/인증 추가
-2. TourAPI 응답의 `contentId`, 좌표, 혼잡도 등을 DB 컬럼으로 확장
-3. 일정 재조정 요청 API 추가
-4. 실제 지도 SDK 연결
-5. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
+2. 일정 재조정 요청 API 추가
+3. 실제 지도 SDK 연결
+4. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
