@@ -8,7 +8,7 @@ import { SectionTitle } from '../../shared/ui/SectionTitle';
 
 export function MatchDetailPage() {
   const { id } = useParams();
-  const { matches, selectedMatch, selectMatch, loadMatches, result } = useTripStore();
+  const { matches, selectedMatch, selectMatch, loadMatches, result, ensureTrip, status } = useTripStore();
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
@@ -34,7 +34,7 @@ export function MatchDetailPage() {
         <Card><h2 className="mb-3 font-bold">보완되는 점</h2>{match.complements.map((item) => <p key={item} className="mb-2 rounded-lg bg-brand-50 p-3 text-sm text-brand-900">{item}</p>)}</Card>
       </div>
       <Card><h2 className="font-bold">함께 어울릴 여행 방식</h2><p className="mt-2 text-sm leading-6 text-slate-600">오전에는 대표 명소를 예약 기반으로 확인하고, 오후에는 카페와 골목을 선택형으로 열어두는 하이브리드 일정이 적합합니다.</p></Card>
-      <Link to="/decision"><Button className="w-full md:w-auto">공동 일정 만들기</Button></Link>
+      <Link to="/decision" onClick={() => void ensureTrip()}><Button className="w-full md:w-auto" disabled={status.trip === 'loading'}>{status.trip === 'loading' ? '공동 여행 생성 중' : '공동 일정 만들기'}</Button></Link>
     </div>
   );
 }

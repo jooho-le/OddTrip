@@ -39,7 +39,7 @@ export function AttractionsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((item, index) => (
           <Card key={item.id} className="reveal-card overflow-hidden p-0" style={{ animationDelay: `${index * 90}ms` }}>
-            <img src={item.imageUrl} alt={item.name} className="h-44 w-full object-cover" />
+            <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'} alt={item.name} className="h-44 w-full object-cover" />
             <div className="space-y-3 p-4">
               <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-brand-700">{item.category}</p><h2 className="text-lg font-bold">{item.name}</h2></div><Badge>{item.saved ? '저장됨' : '추천'}</Badge></div>
               <p className="text-sm leading-6 text-slate-600">{item.description}</p>

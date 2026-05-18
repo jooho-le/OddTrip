@@ -43,3 +43,7 @@ temp/
 # Python
 __pycache__/
 *.pyc
+.venv/
+backend/.venv/
+*.db
+backend/*.db

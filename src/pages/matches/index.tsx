@@ -26,7 +26,7 @@ export function MatchesPage() {
         {matches.map((match, index) => (
           <Card key={match.id} className="reveal-card flex flex-col gap-4" style={{ animationDelay: `${index * 110}ms` }}>
             <div className="flex items-center gap-3">
-              <img src={match.avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+              <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80'} alt="" className="h-14 w-14 rounded-full object-cover" />
               <div className="min-w-0">
                 <h2 className="font-bold">{match.nickname}</h2>
                 <p className="text-xs text-slate-500">{match.ageRange} · {match.region} · {match.ttiCode}</p>

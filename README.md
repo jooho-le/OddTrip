@@ -1,15 +1,21 @@
 # oddtrip
 
-혼자 여행하는 사람을 위한 AI 여행 매칭 서비스 프론트엔드입니다.  
+혼자 여행하는 사람을 위한 AI 여행 매칭 서비스입니다.  
 핵심 아이디어는 단순히 “비슷한 사람”을 붙이는 게 아니라, TTI 진단으로 여행 성향을 읽고 나와 반대되는 장점을 가진 사람과 같이 여행을 설계하게 만드는 것입니다.
 
-지금 버전은 발표와 시연을 먼저 생각해서 만들었습니다. 백엔드는 아직 없다는 전제로 mock data와 service layer를 분리해 두었고, 나중에 Spring Boot API가 붙어도 화면 코드를 크게 흔들지 않게 해뒀습니다.
+현재 프론트는 mock 데이터를 쓰지 않고 `http://localhost:8000`의 FastAPI 백엔드를 호출합니다. TTI 질문, 결과 계산, 매칭, Trip 생성, 공동 선호 저장, 공공데이터 기반 관광지 추천, 일정/안전 알림 조회가 API를 통해 이어집니다.
 
 ## 실행 방법
 
 ```bash
 npm install
 npm run dev
+```
+
+프론트가 호출할 백엔드 주소는 `.env`로 바꿀 수 있습니다.
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 프로덕션 빌드는 아래 명령으로 확인합니다.
@@ -37,12 +43,9 @@ src/
   components/   여러 화면에서 같이 쓰는 앱 컴포넌트
   shared/       버튼, 카드 같은 공통 UI와 작은 유틸
   entities/     전역 상태 저장소
-  services/     API 호출 추상화 계층
-  mocks/        백엔드 대신 쓰는 시연용 데이터
+  services/     실제 백엔드 API 호출 계층
   types/        서비스 도메인 타입
   styles/       전역 스타일과 애니메이션
-  features/     기능 단위로 커질 때 옮겨갈 자리
-  hooks/        여러 곳에서 재사용할 훅 자리
 ```
 
 ## 페이지 폴더
@@ -84,47 +87,38 @@ src/
 | `src/shared/ui/StateView.tsx` | loading, empty, error 상태를 화면마다 일관되게 보여주는 컴포넌트입니다. |
 | `src/shared/lib/classNames.ts` | 조건부 className을 합치는 작은 유틸입니다. |
 | `src/entities/tripStore.ts` | Zustand 전역 상태입니다. 사용자, TTI 답변/결과, 매칭, 선호값, 관광지, 일정, 안전 알림을 관리합니다. |
-| `src/services/oddtripService.ts` | 프론트와 API 사이의 경계입니다. 지금은 mock을 반환하지만, 실제 백엔드 연결 시 이 파일을 기준으로 교체하면 됩니다. |
-| `src/mocks/tti.ts` | TTI 질문 12개와 일부 유형 설명 샘플이 들어 있습니다. |
-| `src/mocks/data.ts` | 사용자, 매칭 후보, 관광지, 일정, 안전 알림 mock 데이터입니다. |
+| `src/services/oddtripService.ts` | 프론트와 FastAPI 백엔드 사이의 API 호출 계층입니다. 사용자 생성, TTI, 매칭, 관광지, 일정, 안전 알림을 호출합니다. |
 | `src/types/index.ts` | TTI 코드, 매칭 후보, 관광지, 일정, 알림 등 서비스에서 쓰는 타입을 모아둔 곳입니다. |
 | `src/styles/globals.css` | Tailwind 기본 설정 위에 전역 배경, safe-area, 카드 애니메이션, 티커 애니메이션을 정의합니다. |
 | `capacitor.config.ts` | 나중에 iOS/Android 앱으로 감쌀 때 쓰는 Capacitor 설정입니다. |
 
 ## 상태 흐름
 
-상태는 `src/entities/tripStore.ts` 하나에 모아두었습니다. 아직 백엔드가 없기 때문에 화면은 store를 호출하고, store는 service layer를 통해 mock 데이터를 가져옵니다.
+상태는 `src/entities/tripStore.ts` 하나에 모아두었습니다. 화면은 store를 호출하고, store는 `src/services/oddtripService.ts`를 통해 백엔드 API를 호출합니다.
 
 대략 이런 흐름입니다.
 
 ```txt
-Page -> Zustand store -> oddtripService -> mocks
+Page -> Zustand store -> oddtripService -> FastAPI backend -> MySQL / TourAPI / OpenAI
 ```
 
-실제 API가 생기면 아래처럼 바꾸면 됩니다.
+이렇게 해둔 이유는 페이지 컴포넌트 안에 fetch 로직이 흩어지는 걸 막기 위해서입니다.
 
-```txt
-Page -> Zustand store -> httpOddtripService -> Spring Boot API
-```
+## 백엔드 연결
 
-이렇게 해둔 이유는 페이지 컴포넌트 안에 fetch 로직이 흩어지는 걸 막기 위해서입니다. 지금은 시연용 데이터지만, 나중에 API 주소와 응답 형식만 맞추면 화면은 거의 그대로 갈 수 있습니다.
+프론트는 처음 실행될 때 `/api/users`로 임시 사용자를 만들고, 받은 `id`를 localStorage에 저장합니다. 이후 인증이 필요한 요청에는 `X-User-Id` 헤더를 붙입니다.
 
-## 백엔드 붙일 때 먼저 볼 곳
+연결된 API 흐름:
 
-가장 먼저 볼 파일은 `src/services/oddtripService.ts`입니다.  
-여기에 있는 `OddtripService` 인터페이스가 현재 프론트가 기대하는 API 모양입니다.
-
-현재 필요한 API는 이 정도입니다.
-
-- 현재 사용자 조회
-- TTI 질문 조회
-- TTI 결과 계산
-- 매칭 후보 조회
-- 관광지 추천 조회
-- 일정 생성 결과 조회
-- 날씨/재난/안전 알림 조회
-
-Spring Boot API가 준비되면 `mockOddtripService` 대신 `httpOddtripService`를 만들고, store에서 주입받도록 바꾸면 됩니다.
+- `/api/users`
+- `/api/tti/questions`
+- `/api/tti/calculate`
+- `/api/matches`
+- `/api/matches/{matchedUserId}/accept`
+- `/api/trips/{tripId}/preferences`
+- `/api/trips/{tripId}/attractions/generate-public`
+- `/api/trips/{tripId}/itinerary/generate`
+- `/api/trips/{tripId}/safety`
 
 ## 디자인 메모
 
@@ -149,12 +143,10 @@ safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 
 
 ## 앞으로 정리하면 좋은 것
 
-지금은 발표 가능한 mock 중심 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
+지금은 실제 API 호출 기반 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
 
-1. `services`에 실제 HTTP client 추가
-2. TTI 계산을 백엔드로 완전히 이동
-3. 매칭 수락/보류 액션 API 연결
-4. 관광지 저장/제외 상태를 서버에 저장
-5. 일정 재조정 요청 API 추가
-6. 실제 지도 SDK 연결
-7. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
+1. 실제 로그인/인증 추가
+2. TourAPI 응답의 `contentId`, 좌표, 혼잡도 등을 DB 컬럼으로 확장
+3. 일정 재조정 요청 API 추가
+4. 실제 지도 SDK 연결
+5. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
