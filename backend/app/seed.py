@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from .database import async_session, engine, Base
 from .models.tti import TtiQuestion, TravelType
+from .models.user import User
 
 
 TTI_QUESTIONS = [
@@ -41,6 +42,48 @@ TRAVEL_TYPES = [
     {"code": "PCAS", "title": "실용적 관광객", "description": "검증된 유명 코스를 즉흥적이면서 활동적으로 즐기는 타입입니다.", "keywords_json": ["즉흥", "안정", "명소", "활동"]},
 ]
 
+SAMPLE_USERS = [
+    {
+        "id": "sample-user-doyun",
+        "nickname": "도윤",
+        "avatar_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
+        "home_region": "Busan",
+        "tti_code": "WCAS",
+        "tti_scores_json": [
+            {"axis": "PW", "leftLetter": "P", "rightLetter": "W", "score": 2},
+            {"axis": "NC", "leftLetter": "N", "rightLetter": "C", "score": 2},
+            {"axis": "FA", "leftLetter": "F", "rightLetter": "A", "score": 2},
+            {"axis": "HS", "leftLetter": "H", "rightLetter": "S", "score": 2},
+        ],
+    },
+    {
+        "id": "sample-user-seoa",
+        "nickname": "서아",
+        "avatar_url": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=240&q=80",
+        "home_region": "Jeju",
+        "tti_code": "WCAH",
+        "tti_scores_json": [
+            {"axis": "PW", "leftLetter": "P", "rightLetter": "W", "score": 2},
+            {"axis": "NC", "leftLetter": "N", "rightLetter": "C", "score": 2},
+            {"axis": "FA", "leftLetter": "F", "rightLetter": "A", "score": 2},
+            {"axis": "HS", "leftLetter": "H", "rightLetter": "S", "score": -2},
+        ],
+    },
+    {
+        "id": "sample-user-junho",
+        "nickname": "준호",
+        "avatar_url": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80",
+        "home_region": "Gangneung",
+        "tti_code": "PCAH",
+        "tti_scores_json": [
+            {"axis": "PW", "leftLetter": "P", "rightLetter": "W", "score": -2},
+            {"axis": "NC", "leftLetter": "N", "rightLetter": "C", "score": 2},
+            {"axis": "FA", "leftLetter": "F", "rightLetter": "A", "score": 2},
+            {"axis": "HS", "leftLetter": "H", "rightLetter": "S", "score": -2},
+        ],
+    },
+]
+
 
 async def seed():
     async with engine.begin() as conn:
@@ -62,6 +105,14 @@ async def seed():
             )
             if not existing.scalar_one_or_none():
                 session.add(TravelType(**t_data))
+
+        # Seed demo users so the real matching API has candidates immediately.
+        for user_data in SAMPLE_USERS:
+            existing = await session.execute(
+                select(User).where(User.id == user_data["id"])
+            )
+            if not existing.scalar_one_or_none():
+                session.add(User(**user_data))
 
         await session.commit()
         print("Seed completed successfully!")

@@ -22,3 +22,14 @@ class AttractionOut(BaseModel):
 class AttractionToggle(BaseModel):
     saved: bool | None = None
     excluded: bool | None = None
+
+
+class PublicAttractionGenerateRequest(BaseModel):
+    area_code: str = "1"
+    sigungu_code: str | None = None
+    keywords: list[str] = []
+    content_type_ids: list[str] = []
+    rows_per_type: int = 12
+    limit: int = 8
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)

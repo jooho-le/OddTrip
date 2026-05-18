@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -13,7 +13,8 @@ const options = {
 };
 
 export function DecisionPage() {
-  const { preferences, updatePreferences } = useTripStore();
+  const navigate = useNavigate();
+  const { preferences, updatePreferences, savePreferences, status } = useTripStore();
 
   const toggle = (key: 'places' | 'activities' | 'foods', value: string) => {
     const current = preferences[key];
@@ -39,7 +40,16 @@ export function DecisionPage() {
         <div className="space-y-4">
           <Card><h2 className="mb-3 font-bold">충돌 요소</h2><div className="flex flex-wrap gap-2"><Badge className="bg-red-50 text-red-700">일정 강도 차이</Badge><Badge className="bg-red-50 text-red-700">유명 명소 선호 차이</Badge><Badge className="bg-red-50 text-red-700">비 오는 날 야외 코스</Badge></div></Card>
           <Card className="border-brand-100 bg-brand-50"><Sparkles className="mb-3 h-6 w-6 text-brand-800" /><h2 className="font-bold text-brand-950">AI 조정 제안</h2><p className="mt-2 text-sm leading-6 text-brand-900">오전에는 대표 명소를 짧게 방문하고, 오후에는 실내 전시와 카페를 배치하세요. 활동 체험은 2일차 오전 1회로 제한하면 피로도가 낮아집니다.</p></Card>
-          <Link to="/attractions"><Button className="w-full">이 조건으로 일정 생성</Button></Link>
+          <Button
+            className="w-full"
+            disabled={status.preferences === 'loading'}
+            onClick={async () => {
+              await savePreferences();
+              navigate('/attractions');
+            }}
+          >
+            {status.preferences === 'loading' ? '저장 중' : '이 조건으로 일정 생성'}
+          </Button>
         </div>
       </div>
     </div>

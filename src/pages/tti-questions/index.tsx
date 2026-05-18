@@ -1,21 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ttiQuestions } from '../../mocks/tti';
 import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { SectionTitle } from '../../shared/ui/SectionTitle';
 import { cn } from '../../shared/lib/classNames';
+import { ErrorView, LoadingView } from '../../shared/ui/StateView';
 
 const values = [-2, -1, 0, 1, 2];
 
 export function TtiQuestionsPage() {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
-  const { answers, setAnswer, calculateResult, status } = useTripStore();
-  const question = ttiQuestions[index];
+  const { questions, answers, setAnswer, calculateResult, loadQuestions, status } = useTripStore();
+
+  useEffect(() => {
+    void loadQuestions();
+  }, [loadQuestions]);
+
+  if (status.questions === 'loading') return <LoadingView label="TTI 질문을 불러오는 중입니다" />;
+  if (status.questions === 'error') return <ErrorView label="TTI 질문을 불러오지 못했습니다. 백엔드와 DB seed를 확인해주세요." />;
+  if (!questions.length) return <Card>표시할 TTI 질문이 없습니다.</Card>;
+
+  const question = questions[index];
   const answer = answers.find((item) => item.questionId === question.id);
-  const progress = Math.round(((index + 1) / ttiQuestions.length) * 100);
+  const progress = Math.round(((index + 1) / questions.length) * 100);
 
   const complete = async () => {
     const result = await calculateResult();
@@ -24,7 +33,7 @@ export function TtiQuestionsPage() {
 
   return (
     <div className="space-y-5">
-      <SectionTitle title="나의 여행 선택 방식" description={`${index + 1} / ${ttiQuestions.length} 문항`} />
+      <SectionTitle title="나의 여행 선택 방식" description={`${index + 1} / ${questions.length} 문항`} />
       <div className="h-3 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-brand-700 transition-all" style={{ width: `${progress}%` }} /></div>
       <Card className="space-y-6">
         <div>
@@ -41,7 +50,7 @@ export function TtiQuestionsPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" disabled={index === 0} onClick={() => setIndex((current) => current - 1)}>이전</Button>
-          {index < ttiQuestions.length - 1 ? (
+          {index < questions.length - 1 ? (
             <Button className="flex-1" disabled={!answer} onClick={() => setIndex((current) => current + 1)}>다음</Button>
           ) : (
             <Button className="flex-1" disabled={!answer || status.tti === 'loading'} onClick={complete}>{status.tti === 'loading' ? '계산 중' : '결과 보기'}</Button>

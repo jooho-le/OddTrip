@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_db
 from ..models.user import User
-from ..schemas.attraction import AttractionToggle
+from ..schemas.attraction import AttractionToggle, PublicAttractionGenerateRequest
 from ..services import attraction_service
 
 router = APIRouter()
@@ -27,6 +27,20 @@ async def generate_attractions(
 ):
     try:
         data = await attraction_service.generate_attractions(db, trip_id)
+        return {"data": [a.model_dump(by_alias=True) for a in data], "error": None}
+    except RateLimitError:
+        raise HTTPException(status_code=429, detail="AI 서비스가 바쁩니다. 잠시 후 다시 시도해주세요.")
+
+
+@router.post("/{trip_id}/attractions/generate-public", response_model=dict)
+async def generate_public_attractions(
+    trip_id: str,
+    body: PublicAttractionGenerateRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        data = await attraction_service.generate_public_attractions(db, trip_id, body)
         return {"data": [a.model_dump(by_alias=True) for a in data], "error": None}
     except RateLimitError:
         raise HTTPException(status_code=429, detail="AI 서비스가 바쁩니다. 잠시 후 다시 시도해주세요.")

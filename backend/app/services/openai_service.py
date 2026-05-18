@@ -6,7 +6,7 @@ from ..config import settings
 
 client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
 
-MODEL = "gpt-4o-mini"
+MODEL = settings.openai_model
 
 
 async def generate_attractions(

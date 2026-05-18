@@ -13,7 +13,7 @@ export function MyTripPage() {
     <div className="space-y-5">
       <SectionTitle title="내 여행" description="유형, 저장한 여행지, 생성된 일정, 최근 매칭 기록을 모아봅니다." />
       <Card className="flex items-center gap-4">
-        <img src={user?.avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
+        <img src={user?.avatarUrl ?? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80'} alt="" className="h-16 w-16 rounded-full object-cover" />
         <div><h2 className="text-xl font-bold">{user?.nickname ?? '여행자'}</h2><p className="text-sm text-slate-500">{user?.homeRegion ?? 'Seoul'} · {result?.code ?? user?.ttiCode ?? 'TTI 미완료'}</p></div>
       </Card>
       <div className="grid gap-4 md:grid-cols-3">

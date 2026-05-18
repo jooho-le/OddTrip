@@ -5,8 +5,8 @@ export type TtiCode = `${'P' | 'W'}${'N' | 'C'}${'F' | 'A'}${'H' | 'S'}`;
 export interface UserProfile {
   id: string;
   nickname: string;
-  avatarUrl: string;
-  homeRegion: string;
+  avatarUrl?: string | null;
+  homeRegion?: string | null;
   ttiCode?: TtiCode;
 }
 
@@ -54,7 +54,7 @@ export interface MatchCandidate {
   nickname: string;
   ageRange: string;
   region: string;
-  avatarUrl: string;
+  avatarUrl?: string | null;
   ttiCode: TtiCode;
   summary: string;
   compatibility: string;
@@ -78,9 +78,9 @@ export interface Attraction {
   id: string;
   name: string;
   category: string;
-  imageUrl: string;
-  description: string;
-  reason: string;
+  imageUrl?: string | null;
+  description?: string | null;
+  reason?: string | null;
   tags: string[];
   indoor: boolean;
   active: boolean;
