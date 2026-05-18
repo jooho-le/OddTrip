@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/cjw/Downloads/odd_trip status)",
+      "Bash(git -C /Users/cjw/Downloads/odd_trip log --oneline -5)"
+    ]
+  }
+}
