@@ -10,10 +10,10 @@ import asyncio
 
 import pytest
 
-from src.clients.kakao_client import KakaoLocalClient, Coordinate
-from src.clients.place_info_client import PlaceInfo
-from src.planner.models import PlannedPlace
-from src.planner.route_optimizer import RouteOptimizer, _held_karp, _total_cost
+from backend.app.clients.kakao_client import KakaoLocalClient, Coordinate
+from backend.app.clients.place_info_client import PlaceInfo
+from backend.app.planner.models import PlannedPlace
+from backend.app.planner.route_optimizer import RouteOptimizer, _held_karp, _total_cost
 
 
 # ══════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ def test_held_karp_4_cities_optimal() -> None:
     Brute force: 모든 순열 (4! = 24개)을 다 확인하고 최소 비용 찾기.
     """
     from itertools import permutations
-    from src.clients.kakao_client import RouteResult
+    from backend.app.clients.kakao_client import RouteResult
 
     # 임의의 4x4 비용 매트릭스
     costs = [

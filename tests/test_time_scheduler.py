@@ -10,13 +10,13 @@ from datetime import date, time
 
 import pytest
 
-from src.clients.kakao_client import Coordinate, RouteResult
-from src.clients.place_info_client import PlaceInfo
-from src.clients.weather_client import WeatherForecast
-from src.planner.day_assigner import AssignmentResult
-from src.planner.models import PlannedPlace
-from src.planner.route_optimizer import OptimizedRoute
-from src.planner.time_scheduler import TimeScheduler
+from backend.app.clients.kakao_client import Coordinate, RouteResult
+from backend.app.clients.place_info_client import PlaceInfo
+from backend.app.clients.weather_client import WeatherForecast
+from backend.app.planner.day_assigner import AssignmentResult
+from backend.app.planner.models import PlannedPlace
+from backend.app.planner.route_optimizer import OptimizedRoute
+from backend.app.planner.time_scheduler import TimeScheduler
 
 
 # ══════════════════════════════════════════════════════

@@ -96,7 +96,7 @@ export const oddtripService: OddtripService = {
       body: {
         areaCode: '1',
         keywords: ['전시', '골목', '카페'],
-        contentTypeIds: ['12', '14', '15', '28', '39'],
+        contentTypeIds: ['12', '14', '15', '28', '32', '39'],
         rowsPerType: 10,
         limit: 8,
         ...requestBody

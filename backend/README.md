@@ -13,6 +13,10 @@ DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
 OPENAI_API_KEY=sk-your-real-key-here
 OPENAI_MODEL=gpt-4o-mini
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
+TOUR_API_SERVICE_KEY=
+KAKAO_REST_API_KEY=
+KMA_API_KEY=
+MOIS_API_KEY=
 ```
 
 예시 파일은 `backend/.env.example`입니다.
@@ -54,6 +58,12 @@ API 문서는 서버 실행 후 여기서 확인합니다.
 
 ```txt
 http://localhost:8000/docs
+```
+
+플래너 단위 테스트는 아래처럼 실행합니다.
+
+```bash
+python -m pytest ../tests/test_day_assigner.py ../tests/test_route_optimizer.py ../tests/test_time_scheduler.py
 ```
 
 ## 현재 API 경계
@@ -143,6 +153,18 @@ backend/app/services/
 비즈니스 로직입니다. TTI 계산, 매칭 점수, 관광지 생성, 일정 생성 같은 흐름이 여기에 들어갑니다.
 
 ```txt
+backend/app/clients/
+```
+
+외부 API 클라이언트입니다. 카카오 좌표/길찾기, 기상청 날씨/자외선, 행안부 재난 알림, 장소 운영시간 추론을 담당합니다. API 키가 없으면 개발용 fallback 데이터로 동작합니다.
+
+```txt
+backend/app/planner/
+```
+
+실행 가능한 일정표 생성 파이프라인입니다. 장소 좌표/운영시간 보강, 날짜별 분배, 동선 최적화, 시간대 배치, 날씨/재난 주의사항, AI 설명 생성을 처리합니다.
+
+```txt
 backend/app/seed.py
 ```
 
@@ -189,3 +211,48 @@ TOUR_API_CONCENTRATION_SERVICE_KEY=
 ```txt
 POST /api/trips/{tripId}/attractions/generate-public
 ```
+
+현재 저장하는 공공데이터:
+
+- `contentId`, `contentTypeId`
+- 주소, 전화번호, 홈페이지
+- 위도/경도 좌표
+- 지역 코드, 시군구 코드
+- 운영시간/휴무일 추론값
+- 혼잡 회피 점수
+- 숨은 명소 점수
+- 연관 관광지 순위
+- 원본 TourAPI 응답 일부
+
+## AI 일정 자동 생성
+
+일정 생성 endpoint는 아래입니다.
+
+```txt
+POST /api/trips/{tripId}/itinerary/generate
+```
+
+현재 동작:
+
+1. 저장한 관광지가 있으면 저장한 관광지를 우선 사용
+2. 저장한 관광지가 없으면 제외되지 않은 추천 관광지 전체 사용
+3. 장소명으로 좌표 보강
+4. 장소 운영시간/휴무일 추론
+5. 여행 기간별 날씨/자외선 정보 수집
+6. 재난/안전 알림 수집
+7. 날짜별 장소 분배
+8. 카카오 길찾기 기반 이동시간 계산 또는 fallback 이동시간 계산
+9. 운영시간 안에서 시간대별 슬롯 배치
+10. AI 또는 템플릿으로 추천 이유 생성
+
+지도 화면 렌더링은 아직 프론트에서 `MapPlaceholder`를 사용합니다. 지도 UI 연동은 별도 작업입니다.
+
+선택 환경변수:
+
+```env
+KAKAO_REST_API_KEY=
+KMA_API_KEY=
+MOIS_API_KEY=
+```
+
+값이 비어 있으면 mock/fallback 로직으로 동작합니다.

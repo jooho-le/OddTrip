@@ -8,7 +8,7 @@
 - BUSAN_SAMPLE: 부산 2일 여행 (해운대, 감천문화마을, 광안리 등)
 - JEJU_SAMPLE: 제주 3일 여행 (성산일출봉, 우도, 한라산 등)
 """
-from src.planner import InputPlace
+from backend.app.planner import InputPlace
 
 
 # ══════════════════════════════════════════════════════
