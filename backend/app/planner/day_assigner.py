@@ -20,7 +20,7 @@ import math
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from ..clients.kakao_client import Coordinate
+from ..clients.google_maps_client import Coordinate
 from ..clients.weather_client import WeatherForecast
 from .models import PlannedPlace
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
 import { oddtripService } from '../services/oddtripService';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
@@ -14,8 +14,10 @@ interface TripState {
   activeTripId?: string;
   preferences: JointPreference;
   attractions: Attraction[];
+  agentRun?: AgentRunResponse;
   itinerary: ItineraryDay[];
   alerts: SafetyAlert[];
+  decisionSuggestion?: string;
   status: Record<string, Status>;
   error?: string;
   bootstrap: () => Promise<void>;
@@ -27,7 +29,9 @@ interface TripState {
   ensureTrip: () => Promise<string | undefined>;
   updatePreferences: (patch: Partial<JointPreference>) => void;
   savePreferences: () => Promise<void>;
+  resolveDecisionConflict: (conflicts: string[]) => Promise<void>;
   loadAttractions: () => Promise<void>;
+  runTravelAgent: () => Promise<void>;
   toggleAttraction: (id: string, key: 'saved' | 'excluded') => Promise<void>;
   loadItinerary: () => Promise<void>;
   loadAlerts: () => Promise<void>;
@@ -135,11 +139,37 @@ export const useTripStore = create<TripState>((set, get) => ({
       set((state) => ({ error: '공동 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
     }
   },
+  async resolveDecisionConflict(conflicts) {
+    const tripId = await get().ensureTrip();
+    if (!tripId) return;
+
+    set((state) => ({ status: { ...state.status, conflict: 'loading' } }));
+    try {
+      await oddtripService.savePreferences(tripId, get().preferences);
+      const response = await oddtripService.resolveConflict(tripId, conflicts);
+      set((state) => ({
+        decisionSuggestion: response.data.suggestion,
+        status: { ...state.status, conflict: 'success', preferences: 'success' }
+      }));
+    } catch {
+      set((state) => ({
+        error: 'AI 조정안을 생성하지 못했습니다.',
+        status: { ...state.status, conflict: 'error' }
+      }));
+    }
+  },
   async loadAttractions() {
+    const current = get();
+    if (current.status.attractions === 'loading') return;
+    if (current.attractions.length) return;
+
     set((state) => ({ status: { ...state.status, attractions: 'loading' } }));
     try {
       const tripId = await get().ensureTrip();
-      if (!tripId) return;
+      if (!tripId) {
+        set((state) => ({ status: { ...state.status, attractions: 'error' } }));
+        return;
+      }
       let response = await oddtripService.getAttractions(tripId);
       if (!response.data.length) {
         response = await oddtripService.generatePublicAttractions(tripId);
@@ -147,6 +177,36 @@ export const useTripStore = create<TripState>((set, get) => ({
       set((state) => ({ attractions: response.data, status: { ...state.status, attractions: 'success' } }));
     } catch {
       set((state) => ({ error: '관광지 추천을 불러오지 못했습니다.', status: { ...state.status, attractions: 'error' } }));
+    }
+  },
+  async runTravelAgent() {
+    const current = get();
+    if (current.status.agent === 'loading') return;
+
+    set((state) => ({ status: { ...state.status, agent: 'loading' } }));
+    try {
+      const tripId = await get().ensureTrip();
+      if (!tripId) {
+        set((state) => ({ status: { ...state.status, agent: 'error' } }));
+        return;
+      }
+
+      const response = await oddtripService.runTravelAgent(tripId, {
+        keywords: [...get().preferences.places, ...get().preferences.activities, ...get().preferences.foods].slice(0, 4),
+        budget: get().preferences.budget,
+        pace: get().preferences.pace
+      });
+      const attractionsResponse = await oddtripService.getAttractions(tripId);
+      set((state) => ({
+        agentRun: response.data,
+        attractions: attractionsResponse.data,
+        status: { ...state.status, agent: 'success', attractions: 'success' }
+      }));
+    } catch {
+      set((state) => ({
+        error: 'AI 에이전트 추천을 실행하지 못했습니다.',
+        status: { ...state.status, agent: 'error' }
+      }));
     }
   },
   async toggleAttraction(id, key) {
@@ -172,10 +232,17 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async loadItinerary() {
+    const current = get();
+    if (current.status.itinerary === 'loading') return;
+    if (current.itinerary.length) return;
+
     set((state) => ({ status: { ...state.status, itinerary: 'loading' } }));
     try {
       const tripId = await get().ensureTrip();
-      if (!tripId) return;
+      if (!tripId) {
+        set((state) => ({ status: { ...state.status, itinerary: 'error' } }));
+        return;
+      }
       let response = await oddtripService.getItinerary(tripId);
       if (!response.data.length) {
         response = await oddtripService.generateItinerary(tripId);

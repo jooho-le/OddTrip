@@ -1,4 +1,4 @@
-import type { ApiResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 const USER_ID_STORAGE_KEY = 'oddtrip.userId';
@@ -15,6 +15,7 @@ interface PublicAttractionRequest {
   contentTypeIds?: string[];
   rowsPerType?: number;
   limit?: number;
+  fast?: boolean;
 }
 
 export interface OddtripService {
@@ -24,8 +25,10 @@ export interface OddtripService {
   getMatches(): Promise<ApiResponse<MatchCandidate[]>>;
   acceptMatch(matchedUserId: string): Promise<ApiResponse<AcceptMatchResponse>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
+  resolveConflict(tripId: string, conflicts: string[]): Promise<ApiResponse<ConflictResolution>>;
   getAttractions(tripId: string): Promise<ApiResponse<Attraction[]>>;
   generatePublicAttractions(tripId: string, request?: PublicAttractionRequest): Promise<ApiResponse<Attraction[]>>;
+  runTravelAgent(tripId: string, request?: AgentRunRequest): Promise<ApiResponse<AgentRunResponse>>;
   toggleAttraction(tripId: string, attractionId: string, patch: Partial<Pick<Attraction, 'saved' | 'excluded'>>): Promise<ApiResponse<Attraction>>;
   getItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
   generateItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
@@ -85,6 +88,14 @@ export const oddtripService: OddtripService = {
     });
   },
 
+  resolveConflict(tripId, conflicts) {
+    return request<ConflictResolution>(`/api/trips/${tripId}/resolve-conflict`, {
+      method: 'POST',
+      auth: true,
+      body: { conflicts }
+    });
+  },
+
   getAttractions(tripId) {
     return request<Attraction[]>(`/api/trips/${tripId}/attractions`);
   },
@@ -95,10 +106,27 @@ export const oddtripService: OddtripService = {
       auth: true,
       body: {
         areaCode: '1',
-        keywords: ['전시', '골목', '카페'],
+        keywords: ['전시', '카페'],
         contentTypeIds: ['12', '14', '15', '28', '32', '39'],
-        rowsPerType: 10,
-        limit: 8,
+        rowsPerType: 5,
+        limit: 6,
+        fast: true,
+        ...requestBody
+      }
+    });
+  },
+
+  runTravelAgent(tripId, requestBody = {}) {
+    return request<AgentRunResponse>(`/api/trips/${tripId}/agent/run`, {
+      method: 'POST',
+      auth: true,
+      body: {
+        areaCode: '1',
+        keywords: ['전시', '카페'],
+        contentTypeIds: ['12', '14', '15', '28', '32', '39'],
+        days: 3,
+        budget: 60,
+        pace: 55,
         ...requestBody
       }
     });

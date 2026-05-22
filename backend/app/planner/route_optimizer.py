@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..clients.kakao_client import KakaoLocalClient, RouteResult
+from ..clients.google_maps_client import GoogleMapsClient, RouteResult
 from .models import PlannedPlace
 
 
@@ -50,8 +50,8 @@ class RouteOptimizer:
 
     EXACT_SOLVE_THRESHOLD = 9
 
-    def __init__(self, kakao: KakaoLocalClient) -> None:
-        self.kakao = kakao
+    def __init__(self, google_maps: GoogleMapsClient) -> None:
+        self.google_maps = google_maps
 
     async def optimize(
         self,
@@ -77,7 +77,7 @@ class RouteOptimizer:
             )
 
         # 1. 거리 매트릭스 구축
-        matrix = await self.kakao.build_distance_matrix(
+        matrix = await self.google_maps.build_distance_matrix(
             [p.coord for p in places]
         )
 

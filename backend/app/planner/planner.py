@@ -29,7 +29,7 @@ from typing import Sequence
 
 from ..clients import (
     DisasterClient,
-    KakaoLocalClient,
+    GoogleMapsClient,
     PlaceInfoClient,
     WeatherClient,
 )
@@ -76,13 +76,13 @@ class ItineraryPlanner:
 
     def __init__(
         self,
-        kakao: KakaoLocalClient,
+        google_maps: GoogleMapsClient,
         weather: WeatherClient,
         disaster: DisasterClient,
         place_info: PlaceInfoClient,
         narrator: LLMNarrator,
     ) -> None:
-        self.kakao = kakao
+        self.google_maps = google_maps
         self.weather = weather
         self.disaster = disaster
         self.place_info = place_info
@@ -92,7 +92,7 @@ class ItineraryPlanner:
     def create_default(cls) -> "ItineraryPlanner":
         """기본 클라이언트들로 초기화."""
         return cls(
-            kakao=KakaoLocalClient(),
+            google_maps=GoogleMapsClient(),
             weather=WeatherClient(),
             disaster=DisasterClient(),
             place_info=PlaceInfoClient(),
@@ -106,7 +106,7 @@ class ItineraryPlanner:
             return []
 
         # ─── Step 1: 장소 정보 보강 ───
-        enricher = PlaceEnricher(self.kakao, self.place_info)
+        enricher = PlaceEnricher(self.google_maps, self.place_info)
         planned_places = await enricher.enrich_many(request.places)
         if not planned_places:
             return []
@@ -143,7 +143,7 @@ class ItineraryPlanner:
         )
 
         # ─── Step 5: 각 날짜별 동선 최적화 + 시간 배치 ───
-        optimizer = RouteOptimizer(self.kakao)
+        optimizer = RouteOptimizer(self.google_maps)
         scheduler = TimeScheduler(pace=request.pace)
         planned_days: list[PlannedDay] = []
 

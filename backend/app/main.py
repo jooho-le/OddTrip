@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import attractions, decision, itinerary, matches, safety, tti, users
+from .routers import agent, attractions, decision, itinerary, matches, safety, tti, users
 
 
 @asynccontextmanager
@@ -30,3 +30,4 @@ app.include_router(decision.router, prefix="/api/trips", tags=["decision"])
 app.include_router(attractions.router, prefix="/api/trips", tags=["attractions"])
 app.include_router(itinerary.router, prefix="/api/trips", tags=["itinerary"])
 app.include_router(safety.router, prefix="/api/trips", tags=["safety"])
+app.include_router(agent.router, prefix="/api/trips", tags=["agent"])

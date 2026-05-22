@@ -5,21 +5,23 @@ FastAPI 기반 OddTrip 백엔드입니다.
 
 ## 환경 변수
 
-백엔드는 `backend/.env`를 읽습니다. 루트 `.env`가 아닙니다.  
-실제 키는 `backend/.env`에만 넣고, Git에는 올리지 않습니다.
+백엔드는 프로젝트 루트의 `.env`를 읽습니다. `backend/.env`가 아닙니다.  
+프론트 키와 백엔드 키를 루트 `.env` 하나에 같이 넣고, Git에는 올리지 않습니다.
 
 ```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_GOOGLE_MAPS_API_KEY=
 DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
 OPENAI_API_KEY=sk-your-real-key-here
 OPENAI_MODEL=gpt-4o-mini
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 TOUR_API_SERVICE_KEY=
-KAKAO_REST_API_KEY=
+GOOGLE_MAPS_API_KEY=
 KMA_API_KEY=
 MOIS_API_KEY=
 ```
 
-예시 파일은 `backend/.env.example`입니다.
+예시 파일은 루트 `.env.example`입니다.
 
 ## 실행 준비
 
@@ -156,7 +158,7 @@ backend/app/services/
 backend/app/clients/
 ```
 
-외부 API 클라이언트입니다. 카카오 좌표/길찾기, 기상청 날씨/자외선, 행안부 재난 알림, 장소 운영시간 추론을 담당합니다. API 키가 없으면 개발용 fallback 데이터로 동작합니다.
+외부 API 클라이언트입니다. Google Maps 좌표/이동시간, 기상청 날씨/자외선, 행안부 재난 알림, 장소 운영시간 추론을 담당합니다. API 키가 없으면 개발용 fallback 데이터로 동작합니다.
 
 ```txt
 backend/app/planner/
@@ -241,16 +243,16 @@ POST /api/trips/{tripId}/itinerary/generate
 5. 여행 기간별 날씨/자외선 정보 수집
 6. 재난/안전 알림 수집
 7. 날짜별 장소 분배
-8. 카카오 길찾기 기반 이동시간 계산 또는 fallback 이동시간 계산
+8. Google Maps 기반 이동시간 계산 또는 fallback 이동시간 계산
 9. 운영시간 안에서 시간대별 슬롯 배치
 10. AI 또는 템플릿으로 추천 이유 생성
 
-지도 화면 렌더링은 아직 프론트에서 `MapPlaceholder`를 사용합니다. 지도 UI 연동은 별도 작업입니다.
+프론트 지도는 루트 `.env`에 `VITE_GOOGLE_MAPS_API_KEY`를 넣으면 Google Maps JavaScript API로 렌더링됩니다. 키가 없거나 Google Cloud Console의 HTTP referrer 제한이 빠져 있으면 placeholder가 보입니다.
 
 선택 환경변수:
 
 ```env
-KAKAO_REST_API_KEY=
+GOOGLE_MAPS_API_KEY=
 KMA_API_KEY=
 MOIS_API_KEY=
 ```

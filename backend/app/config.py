@@ -2,7 +2,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
-_env_path = Path(__file__).resolve().parent.parent / ".env"
+_env_path = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     tour_api_hub_base_url: str = "https://apis.data.go.kr/B551011/LocgoHubTarService1"
     tour_api_bigdata_base_url: str = "https://apis.data.go.kr/B551011/DataLabService"
     tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TarCongestionService"
-    kakao_rest_api_key: str = ""
+    google_maps_api_key: str = ""
     kma_api_key: str = ""
     mois_api_key: str = ""
 

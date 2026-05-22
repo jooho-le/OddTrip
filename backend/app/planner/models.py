@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 from datetime import date, time
 from typing import Optional
 
-from ..clients.kakao_client import Coordinate
+from ..clients.google_maps_client import Coordinate
 from ..clients.place_info_client import PlaceInfo
 from ..clients.weather_client import WeatherForecast
 from ..clients.disaster_client import DisasterAlert
