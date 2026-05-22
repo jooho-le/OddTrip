@@ -157,16 +157,17 @@ async def generate_public_attractions(
         raw_candidates = []
 
     if not raw_candidates:
-        return await generate_attractions(db, trip_id)
+        raw_candidates = _fallback_public_candidates(request)
 
     ranked = _rank_public_candidates(
         raw_candidates,
         preferences=trip.preferences_json or {},
         user_a_code=user_a.tti_code or "",
         user_b_code=user_b.tti_code or "",
+        midpoint_scores=_calc_midpoint_scores(user_a.tti_scores_json or [], user_b.tti_scores_json or []),
     )[: request.limit]
 
-    enriched = await _enrich_public_candidates(ranked)
+    enriched = ranked if request.fast else await _enrich_public_candidates(ranked)
 
     await _delete_existing_attractions(db, trip_id)
 
@@ -260,8 +261,53 @@ async def toggle_attraction(
     )
 
 
+async def collect_public_context(
+    request: PublicAttractionGenerateRequest,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    return await _collect_context_data_fast(request)
+
+
 async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -> list[dict[str, Any]]:
     content_type_ids = request.content_type_ids or DEFAULT_CONTENT_TYPES
+
+    if request.fast:
+        tasks = [
+            tour_api_client.area_based_list(
+                area_code=request.area_code,
+                sigungu_code=request.sigungu_code,
+                rows=max(20, request.limit * 4),
+            )
+        ]
+        if request.keywords:
+            tasks.append(
+                tour_api_client.search_keyword(
+                    keyword=request.keywords[0],
+                    area_code=request.area_code,
+                    sigungu_code=request.sigungu_code,
+                    rows=max(10, request.limit * 2),
+                )
+            )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        candidates = []
+        for result in results:
+            if isinstance(result, list):
+                candidates.extend(result)
+
+        hub_items, related_items, trend_items, concentration_items = await _collect_context_data_fast(request)
+        return _dedupe_candidates(
+            candidates,
+            hub_items=hub_items,
+            related_items=related_items,
+            trend_items=trend_items,
+            concentration_items=concentration_items,
+        )
+
+    keyword_content_type_ids = [
+        content_type_id
+        for content_type_id in content_type_ids
+        if content_type_id in {"12", "14", "39"}
+    ] or content_type_ids[:3]
     area_tasks = [
         tour_api_client.area_based_list(
             area_code=request.area_code,
@@ -279,8 +325,8 @@ async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -
             content_type_id=content_type_id,
             rows=max(3, request.rows_per_type // 2),
         )
-        for keyword in request.keywords[:3]
-        for content_type_id in content_type_ids
+        for keyword in request.keywords[:2]
+        for content_type_id in keyword_content_type_ids
     ]
 
     results = await asyncio.gather(*area_tasks, *keyword_tasks, return_exceptions=True)
@@ -290,6 +336,27 @@ async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -
             candidates.extend(result)
 
     hub_items, related_items, trend_items, concentration_items = await _collect_context_data(request)
+    return _dedupe_candidates(
+        candidates,
+        hub_items=hub_items,
+        related_items=related_items,
+        trend_items=trend_items,
+        concentration_items=concentration_items,
+    )
+
+
+def _dedupe_candidates(
+    candidates: list[dict[str, Any]],
+    *,
+    hub_items: list[dict[str, Any]] | None = None,
+    related_items: list[dict[str, Any]] | None = None,
+    trend_items: list[dict[str, Any]] | None = None,
+    concentration_items: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    hub_items = hub_items or []
+    related_items = related_items or []
+    trend_items = trend_items or []
+    concentration_items = concentration_items or []
 
     hub_names = {_normalize_name(_get_value(item, "rlteTatsNm", "hubTatsNm", "title", "name")) for item in hub_items}
     related_ranks = _build_related_ranks(related_items)
@@ -309,6 +376,72 @@ async def _collect_public_candidates(request: PublicAttractionGenerateRequest) -
     return list(deduped.values())
 
 
+def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> list[dict[str, Any]]:
+    area_code = request.area_code or "1"
+    return [
+        {
+            "contentid": f"fallback-{area_code}-1",
+            "contenttypeid": "14",
+            "title": "국립현대미술관 서울",
+            "addr1": "서울특별시 종로구 삼청로 30",
+            "mapx": "126.980003",
+            "mapy": "37.578631",
+            "firstimage": "https://images.unsplash.com/photo-1545987796-200677ee1011?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 42,
+        },
+        {
+            "contentid": f"fallback-{area_code}-2",
+            "contenttypeid": "12",
+            "title": "북촌 한옥마을 골목",
+            "addr1": "서울특별시 종로구 계동길 37",
+            "mapx": "126.986923",
+            "mapy": "37.582604",
+            "firstimage": "https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 58,
+        },
+        {
+            "contentid": f"fallback-{area_code}-3",
+            "contenttypeid": "39",
+            "title": "익선동 한옥 카페 거리",
+            "addr1": "서울특별시 종로구 익선동",
+            "mapx": "126.989851",
+            "mapy": "37.572209",
+            "firstimage": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 47,
+        },
+        {
+            "contentid": f"fallback-{area_code}-4",
+            "contenttypeid": "28",
+            "title": "청계천 산책로",
+            "addr1": "서울특별시 종로구 청계천로",
+            "mapx": "126.978388",
+            "mapy": "37.569107",
+            "firstimage": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 33,
+        },
+        {
+            "contentid": f"fallback-{area_code}-5",
+            "contenttypeid": "15",
+            "title": "서울빛초롱축제 권역",
+            "addr1": "서울특별시 종로구 세종대로",
+            "mapx": "126.976837",
+            "mapy": "37.572006",
+            "firstimage": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 68,
+        },
+        {
+            "contentid": f"fallback-{area_code}-6",
+            "contenttypeid": "32",
+            "title": "종로 부티크 스테이",
+            "addr1": "서울특별시 종로구 수표로",
+            "mapx": "126.991773",
+            "mapy": "37.570387",
+            "firstimage": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
+            "_congestion_hint": 29,
+        },
+    ][: request.limit]
+
+
 async def _collect_context_data(request: PublicAttractionGenerateRequest) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     async def safe(coro):
         try:
@@ -323,6 +456,13 @@ async def _collect_context_data(request: PublicAttractionGenerateRequest) -> tup
         safe(tour_api_client.visitor_trend(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
         safe(tour_api_client.concentration_prediction(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
     )
+
+
+async def _collect_context_data_fast(request: PublicAttractionGenerateRequest) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    try:
+        return await asyncio.wait_for(_collect_context_data(request), timeout=2.0)
+    except Exception:
+        return [], [], [], []
 
 
 async def _enrich_public_candidates(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -349,10 +489,12 @@ def _rank_public_candidates(
     preferences: dict[str, Any],
     user_a_code: str,
     user_b_code: str,
+    midpoint_scores: dict[str, float] | None = None,
 ) -> list[dict[str, Any]]:
     hidden_preferred = bool(preferences.get("hiddenSpots", True))
     indoor_preferred = bool(preferences.get("indoorPreferred", False))
     pace = int(preferences.get("pace", 50) or 50)
+    midpoint_scores = midpoint_scores or {}
 
     scored = []
     for item in candidates:
@@ -374,6 +516,7 @@ def _rank_public_candidates(
             score += 10
         if _types_are_opposite(user_a_code, user_b_code) and content_type_id in {"12", "14"}:
             score += 6
+        score += _midpoint_fit_score(item, midpoint_scores)
         if _get_value(item, "firstimage", "firstImage", "firstimage2"):
             score += 4
         if item.get("_related_rank"):
@@ -387,6 +530,62 @@ def _rank_public_candidates(
         scored.append(copied)
 
     return sorted(scored, key=lambda item: item.get("_oddtrip_score", 0), reverse=True)
+
+
+def _calc_midpoint_scores(user_a_scores: list[dict], user_b_scores: list[dict]) -> dict[str, float]:
+    by_axis_b = {str(score.get("axis")): score for score in user_b_scores}
+    midpoint: dict[str, float] = {}
+    for score_a in user_a_scores:
+        axis = str(score_a.get("axis") or "")
+        if not axis:
+            continue
+        score_b = by_axis_b.get(axis, score_a)
+        try:
+            value_a = float(score_a.get("score", 0))
+            value_b = float(score_b.get("score", 0))
+        except (TypeError, ValueError):
+            value_a = 0
+            value_b = 0
+        midpoint[axis] = round((value_a + value_b) / 2, 2)
+    return midpoint
+
+
+def _midpoint_fit_score(item: dict[str, Any], midpoint_scores: dict[str, float]) -> int:
+    if not midpoint_scores:
+        return 0
+
+    content_type_id = str(_get_value(item, "contenttypeid", "contentTypeId", ""))
+    hidden_score = _hidden_score(item)
+    congestion_score = _congestion_score(item)
+    score = 0
+
+    nc = midpoint_scores.get("NC", 0)
+    fa = midpoint_scores.get("FA", 0)
+    hs = midpoint_scores.get("HS", 0)
+
+    # NC: negative means novelty-seeking, positive means proven/conservative.
+    if nc < -0.5 and hidden_score >= 55:
+        score += 8
+    if nc > 0.5 and (item.get("_is_hub") or content_type_id in {"12", "14", "39"}):
+        score += 6
+
+    # FA: negative means slower/restful, positive means active.
+    if fa < -0.5 and content_type_id in {"14", "32", "39"}:
+        score += 8
+    if fa > 0.5 and content_type_id in {"15", "28", "12"}:
+        score += 8
+
+    # HS: negative means hidden/local, positive means famous/sightseeing.
+    if hs < -0.5 and hidden_score >= 60 and congestion_score <= 65:
+        score += 8
+    if hs > 0.5 and (item.get("_is_hub") or content_type_id in {"12", "15"}):
+        score += 8
+
+    # Midpoint near zero means a compromise candidate is better than an extreme one.
+    if abs(nc) <= 0.5 and abs(fa) <= 0.5 and abs(hs) <= 0.5:
+        score += 6
+
+    return score
 
 
 def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:

@@ -47,5 +47,6 @@ class PublicAttractionGenerateRequest(BaseModel):
     content_type_ids: list[str] = []
     rows_per_type: int = 12
     limit: int = 8
+    fast: bool = True
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)

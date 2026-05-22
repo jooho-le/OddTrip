@@ -14,7 +14,7 @@ DEFAULT_MOBILE_APP = "OddTrip"
 class TourApiClient:
     """Async client for Korea Tourism Organization public tourism APIs."""
 
-    def __init__(self, timeout: float = 10.0):
+    def __init__(self, timeout: float = 2.5):
         self.service_key = settings.tour_api_service_key
         self.related_service_key = settings.tour_api_related_service_key or settings.tour_api_service_key
         self.hub_service_key = settings.tour_api_hub_service_key or settings.tour_api_service_key

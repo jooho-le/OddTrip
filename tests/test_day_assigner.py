@@ -10,7 +10,7 @@ from datetime import date, time, timedelta
 
 import pytest
 
-from backend.app.clients.kakao_client import Coordinate
+from backend.app.clients.google_maps_client import Coordinate
 from backend.app.clients.place_info_client import PlaceInfo
 from backend.app.clients.weather_client import WeatherForecast
 from backend.app.planner.day_assigner import DayAssigner

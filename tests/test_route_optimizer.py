@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from backend.app.clients.kakao_client import KakaoLocalClient, Coordinate
+from backend.app.clients.google_maps_client import GoogleMapsClient, Coordinate
 from backend.app.clients.place_info_client import PlaceInfo
 from backend.app.planner.models import PlannedPlace
 from backend.app.planner.route_optimizer import RouteOptimizer, _held_karp, _total_cost
@@ -34,7 +34,7 @@ def make_place(name: str, lat: float, lng: float) -> PlannedPlace:
 # ══════════════════════════════════════════════════════
 def test_empty_input() -> None:
     """장소 0개면 빈 결과."""
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
     result = asyncio.run(optimizer.optimize([]))
     assert result.order == []
     assert result.total_duration_minutes == 0
@@ -43,7 +43,7 @@ def test_empty_input() -> None:
 def test_single_place() -> None:
     """장소 1개면 자기 자신만."""
     places = [make_place("A", 37.5, 127.0)]
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
     result = asyncio.run(optimizer.optimize(places))
     assert result.order == [0]
     assert result.total_duration_minutes == 0
@@ -59,7 +59,7 @@ def test_held_karp_4_cities_optimal() -> None:
     Brute force: 모든 순열 (4! = 24개)을 다 확인하고 최소 비용 찾기.
     """
     from itertools import permutations
-    from backend.app.clients.kakao_client import RouteResult
+    from backend.app.clients.google_maps_client import RouteResult
 
     # 임의의 4x4 비용 매트릭스
     costs = [
@@ -100,7 +100,7 @@ def test_held_karp_5_cities_grid() -> None:
     # 직선상에 있으므로 최적해는 일직선으로 통과 (또는 역순)
     places = [make_place(f"P{i}", 37.5, 127.0 + i * 0.1) for i in range(5)]
 
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
     result = asyncio.run(optimizer.optimize(places))
 
     # 시작점에서 끝점까지 일직선이거나 역순이어야 함
@@ -119,7 +119,7 @@ def test_fixed_start_constraint() -> None:
         make_place("C", 37.7, 127.2),
         make_place("D", 37.8, 127.3),
     ]
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
     result = asyncio.run(optimizer.optimize(places, fixed_start=True))
     assert result.order[0] == 0, f"Expected order to start with 0, got {result.order}"
 
@@ -133,7 +133,7 @@ def test_heuristic_10_cities() -> None:
         make_place(f"P{i}", 37.5 + (i % 3) * 0.1, 127.0 + (i // 3) * 0.1)
         for i in range(10)
     ]
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
     result = asyncio.run(optimizer.optimize(places))
 
     # 모든 장소가 정확히 한 번씩 방문되어야 함
@@ -151,7 +151,7 @@ def test_deterministic_with_mock() -> None:
         make_place(f"P{i}", 37.5 + i * 0.05, 127.0 + i * 0.05)
         for i in range(5)
     ]
-    optimizer = RouteOptimizer(KakaoLocalClient())
+    optimizer = RouteOptimizer(GoogleMapsClient())
 
     result1 = asyncio.run(optimizer.optimize(places))
     result2 = asyncio.run(optimizer.optimize(places))

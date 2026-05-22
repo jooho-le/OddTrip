@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 from typing import Iterable
 
-from ..clients import KakaoLocalClient, PlaceInfoClient
+from ..clients import GoogleMapsClient, PlaceInfoClient
 from .models import InputPlace, PlannedPlace
 
 
@@ -17,10 +17,10 @@ class PlaceEnricher:
 
     def __init__(
         self,
-        kakao: KakaoLocalClient,
+        google_maps: GoogleMapsClient,
         place_info: PlaceInfoClient,
     ) -> None:
-        self.kakao = kakao
+        self.google_maps = google_maps
         self.place_info = place_info
 
     async def enrich_many(
@@ -38,7 +38,7 @@ class PlaceEnricher:
     async def _enrich_one(self, place: InputPlace) -> PlannedPlace | None:
         """한 장소를 보강. 좌표/운영시간 동시 호출 (병렬)."""
         # 좌표 검색
-        coord_task = self.kakao.search_coordinate(
+        coord_task = self.google_maps.search_coordinate(
             f"{place.name} {place.category}"
         )
         # 운영시간 추론

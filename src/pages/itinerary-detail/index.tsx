@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/tripStore';
-import { MapPlaceholder } from '../../components/MapPlaceholder';
+import { GoogleMap } from '../../components/GoogleMap';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -9,14 +9,25 @@ import { SectionTitle } from '../../shared/ui/SectionTitle';
 
 export function ItineraryDetailPage() {
   const { id } = useParams();
-  const { itinerary, loadItinerary } = useTripStore();
+  const { itinerary, attractions, loadAttractions, loadItinerary } = useTripStore();
 
   useEffect(() => {
     if (!itinerary.length) void loadItinerary();
   }, [itinerary.length, loadItinerary]);
 
+  useEffect(() => {
+    if (!attractions.length) void loadAttractions();
+  }, [attractions.length, loadAttractions]);
+
   const item = itinerary.flatMap((day) => day.items).find((entry) => entry.id === id);
   if (!item) return <Card>일정 상세 정보를 찾을 수 없습니다.</Card>;
+
+  const matchedAttraction = attractions.find((attraction) => (
+    attraction.name === item.location ||
+    attraction.name === item.title ||
+    item.title.includes(attraction.name) ||
+    item.location.includes(attraction.name)
+  ));
 
   return (
     <div className="space-y-5">
@@ -26,7 +37,17 @@ export function ItineraryDetailPage() {
         <p className="text-sm leading-6 text-slate-700">{item.description}</p>
         <div className="rounded-lg bg-brand-50 p-3"><p className="text-sm font-bold text-brand-950">AI 추천 이유</p><p className="mt-1 text-sm leading-6 text-brand-900">{item.aiReason}</p></div>
       </Card>
-      <MapPlaceholder label={`${item.location} 지도 영역`} />
+      <GoogleMap
+        label={`${item.location} 지도 영역`}
+        keyword={item.location || item.title}
+        points={matchedAttraction ? [{
+          id: matchedAttraction.id,
+          name: matchedAttraction.name,
+          lat: matchedAttraction.mapY,
+          lng: matchedAttraction.mapX,
+          address: matchedAttraction.addr1,
+        }] : []}
+      />
       <Card><h2 className="mb-3 font-bold">변경 옵션</h2><div className="grid gap-2 sm:grid-cols-3"><Button variant="secondary">시간 변경</Button><Button variant="secondary">대체 장소</Button><Button variant="secondary">휴식 추가</Button></div></Card>
     </div>
   );

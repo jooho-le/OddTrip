@@ -74,6 +74,10 @@ export interface JointPreference {
   hiddenSpots: boolean;
 }
 
+export interface ConflictResolution {
+  suggestion: string;
+}
+
 export interface Attraction {
   id: string;
   name: string;
@@ -103,6 +107,31 @@ export interface Attraction {
   congestionScore?: number | null;
   hiddenScore?: number | null;
   relatedRank?: number | null;
+}
+
+export interface AgentRunRequest {
+  areaCode?: string;
+  sigunguCode?: string | null;
+  keywords?: string[];
+  contentTypeIds?: string[];
+  days?: number;
+  budget?: number;
+  pace?: number;
+}
+
+export interface AgentToolStep {
+  tool: string;
+  reason: string;
+  args: Record<string, unknown>;
+  resultCount: number;
+}
+
+export interface AgentRunResponse {
+  mode: 'tool-calling' | 'deterministic-fallback' | string;
+  summary: string;
+  steps: AgentToolStep[];
+  recommendedAttractionIds: string[];
+  nextActions: string[];
 }
 
 export type ItineraryItemType = 'place' | 'move' | 'meal' | 'rest';

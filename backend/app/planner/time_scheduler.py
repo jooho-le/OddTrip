@@ -11,7 +11,7 @@ RouteOptimizer가 결정한 순서대로 장소를 방문할 때, 각 장소에 
 - 영업 시작 전 도착 → 대기 슬롯 자동 삽입
 - 점심 슬롯: 12:00~14:00 사이 자동 (60분)
 - 저녁 슬롯: 18:00~20:00 사이 자동 (90분)
-- 이동시간: 카카오 API 결과 그대로
+- 이동시간: Google API 결과 그대로
 - 22시 이후 일정 끌지 않음
 """
 from __future__ import annotations
@@ -185,7 +185,7 @@ def _make_move_slot(start_t: time, duration: int, dest_name: str) -> PlannedSlot
         start_time=start_t,
         duration_minutes=duration,
         move_duration_minutes=duration,
-        description=f"카카오 길찾기 기준 약 {duration}분 소요됩니다.",
+        description=f"Google 길찾기 기준 약 {duration}분 소요됩니다.",
     )
 
 

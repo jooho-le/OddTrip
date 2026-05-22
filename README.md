@@ -12,10 +12,15 @@ npm install
 npm run dev
 ```
 
-프론트가 호출할 백엔드 주소는 `.env`로 바꿀 수 있습니다.
+프론트와 백엔드는 프로젝트 루트의 `.env` 하나를 같이 읽습니다.
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
+VITE_GOOGLE_MAPS_API_KEY=Google_Maps_Browser_Key
+DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
+OPENAI_API_KEY=sk-your-key-here
+TOUR_API_SERVICE_KEY=공공데이터_키
+GOOGLE_MAPS_API_KEY=Google_Maps_Server_Key
 ```
 
 프로덕션 빌드는 아래 명령으로 확인합니다.
@@ -79,6 +84,7 @@ src/
 | `src/components/DesktopNav.tsx` | 웹 화면에서 보이는 사이드 내비게이션입니다. 모바일 하단 탭과 역할을 나눕니다. |
 | `src/components/CardNewsRail.tsx` | 카드뉴스 느낌의 소개 블록입니다. 발표용 화면에서 서비스 흐름을 짧게 보여줄 때 씁니다. |
 | `src/components/MapPlaceholder.tsx` | 실제 지도 API를 붙이기 전까지 사용하는 지도 영역 대체 컴포넌트입니다. |
+| `src/components/GoogleMap.tsx` | Google Maps 브라우저 키가 있으면 실제 지도를 띄우고, 없으면 placeholder로 내려가는 지도 컴포넌트입니다. |
 | `src/shared/ui/Button.tsx` | 공통 버튼입니다. primary, secondary, ghost, danger 스타일을 가지고 있습니다. |
 | `src/shared/ui/Card.tsx` | 공통 카드입니다. 현재 디자인 톤에 맞춰 반투명 웜 톤과 hover 효과를 기본으로 둡니다. |
 | `src/shared/ui/Badge.tsx` | 추천도, 유형, 태그 같은 작은 정보를 보여주는 뱃지입니다. |
@@ -147,5 +153,4 @@ safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 
 
 1. 실제 로그인/인증 추가
 2. 일정 재조정 요청 API 추가
-3. 실제 지도 SDK 연결
-4. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
+3. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
