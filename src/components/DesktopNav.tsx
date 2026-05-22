@@ -12,10 +12,10 @@ const links = [
 
 export function DesktopNav() {
   return (
-    <aside className="surface-glass sticky top-24 hidden h-fit rounded-lg border border-white/70 p-3 shadow-soft md:block">
-      <nav className="flex w-44 flex-col gap-1">
+    <aside className="sticky top-28 hidden h-fit md:block">
+      <nav className="flex w-48 flex-col gap-2 border-l-4 border-black/10 pl-4">
         {links.map((link) => (
-          <NavLink key={link.to} to={link.to} className={({ isActive }) => cn('rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50', isActive && 'bg-brand-50 text-brand-900')}>
+          <NavLink key={link.to} to={link.to} className={({ isActive }) => cn('rounded-lg px-4 py-3 text-base font-black text-slate-500 hover:bg-white/70', isActive && 'bg-white text-ink shadow-soft')}>
             {link.label}
           </NavLink>
         ))}

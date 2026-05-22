@@ -1,4 +1,4 @@
-import { ChevronLeft, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Search, ShieldCheck } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const titles: Record<string, string> = {
@@ -20,17 +20,20 @@ export function AppHeader() {
   const title = titles[location.pathname] ?? (location.pathname.startsWith('/matches/') ? '매칭 상세' : location.pathname.startsWith('/itinerary/') ? '일정 상세' : 'oddtrip');
 
   return (
-    <header className="safe-top sticky top-0 z-30 border-b border-white/60 bg-[#fffaf0]/80 px-4 backdrop-blur-xl md:px-8">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between">
+    <header className="safe-top sticky top-0 z-30 border-b border-black/5 bg-white/92 px-4 backdrop-blur-xl md:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between">
         <div className="flex items-center gap-3">
-          {!isHome ? <button aria-label="뒤로가기" onClick={() => navigate(-1)} className="rounded-full p-2 hover:bg-slate-100"><ChevronLeft className="h-5 w-5" /></button> : null}
-          <Link to="/" className="flex items-center gap-2 font-black text-brand-900">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-700 text-white">o</span>
-            <span className="hidden sm:inline">oddtrip</span>
+          {!isHome ? <button aria-label="뒤로가기" onClick={() => navigate(-1)} className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100"><ChevronLeft className="h-6 w-6" /></button> : null}
+          <Link to="/" className="flex items-center gap-3 font-black text-ink">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#006bff] text-lg text-white shadow-[0_10px_24px_rgba(0,107,255,0.25)]">o</span>
+            <span className="text-xl tracking-tight">oddtrip</span>
           </Link>
-          <span className="text-sm font-bold text-slate-700">{title}</span>
+          <span className="hidden text-sm font-black text-slate-700 sm:inline">{title}</span>
         </div>
-        <Link to="/safety" className="rounded-full p-2 text-brand-900 hover:bg-brand-50" aria-label="안전 알림"><ShieldCheck className="h-5 w-5" /></Link>
+        <div className="flex items-center gap-1">
+          <button type="button" className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100" aria-label="검색"><Search className="h-5 w-5" /></button>
+          <Link to="/safety" className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100" aria-label="안전 알림"><ShieldCheck className="h-5 w-5" /></Link>
+        </div>
       </div>
     </header>
   );
