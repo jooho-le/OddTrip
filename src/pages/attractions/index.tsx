@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bot, Map, Sparkles } from 'lucide-react';
+import { Bot, CalendarDays, Map, Save, Sparkles } from 'lucide-react';
 import { CardNewsRail } from '../../components/CardNewsRail';
 import { GoogleMap } from '../../components/GoogleMap';
 import { useTripStore } from '../../entities/tripStore';
@@ -122,6 +122,19 @@ export function AttractionsPage() {
         ]}
       />
 
+      <Card className="border-[#087466]/15 bg-[#eefaf6]">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-xl font-black">추천지에서 할 일</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">가고 싶은 곳은 저장하고, 부담스러운 곳은 제외한 뒤 일정을 확인하세요.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-700"><Save className="h-4 w-4 text-[#087466]" /> 저장</span>
+            <Link to="/itinerary" onClick={() => void loadItinerary()}><Button icon={<CalendarDays className="h-4 w-4" />}>일정 보기</Button></Link>
+          </div>
+        </div>
+      </Card>
+
       {showMap ? (
         <GoogleMap
           label="추천 관광지 지도"
@@ -134,9 +147,9 @@ export function AttractionsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {filtered.map((item, index) => (
           <Card key={item.id} className="motion-card hover-lift overflow-hidden p-0" style={{ animationDelay: `${index * 70}ms` }}>
-            <div className="grid min-h-[250px] md:grid-cols-[220px_1fr]">
+            <div className="grid min-h-[220px] md:grid-cols-[180px_1fr]">
               <div className="relative bg-[#e7edf7]">
-                <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-56 w-full object-cover" />
+                <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-44 w-full object-cover" />
                 <Badge className="absolute left-4 top-4 bg-[#ff5a1f] text-white">{item.saved ? '저장됨' : '추천'}</Badge>
               </div>
               <div className="p-5">

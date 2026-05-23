@@ -84,7 +84,28 @@ export const useTripStore = create<TripState>((set, get) => ({
     set((state) => ({ status: { ...state.status, tti: 'loading' } }));
     try {
       const response = await oddtripService.calculateTtiResult(get().answers);
-      set((state) => ({ result: response.data, user: state.user ? { ...state.user, ttiCode: response.data.code } : state.user, status: { ...state.status, tti: 'success' } }));
+      set((state) => ({
+        result: response.data,
+        user: state.user ? { ...state.user, ttiCode: response.data.code } : state.user,
+        matches: [],
+        selectedMatch: undefined,
+        activeTripId: undefined,
+        attractions: [],
+        agentRun: undefined,
+        itinerary: [],
+        alerts: [],
+        decisionSuggestion: undefined,
+        status: {
+          ...state.status,
+          tti: 'success',
+          matches: 'idle',
+          trip: 'idle',
+          attractions: 'idle',
+          agent: 'idle',
+          itinerary: 'idle',
+          alerts: 'idle'
+        }
+      }));
       return response.data;
     } catch {
       set((state) => ({ error: 'TTI 결과를 계산하지 못했습니다.', status: { ...state.status, tti: 'error' } }));
@@ -172,7 +193,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       }
       let response = await oddtripService.getAttractions(tripId);
       if (!response.data.length) {
-        response = await oddtripService.generatePublicAttractions(tripId);
+        response = await oddtripService.generatePublicAttractions(tripId, buildAttractionRequest(get()));
       }
       set((state) => ({ attractions: response.data, status: { ...state.status, attractions: 'success' } }));
     } catch {
@@ -192,7 +213,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       }
 
       const response = await oddtripService.runTravelAgent(tripId, {
-        keywords: [...get().preferences.places, ...get().preferences.activities, ...get().preferences.foods].slice(0, 4),
+        keywords: buildAttractionRequest(get()).keywords,
+        contentTypeIds: buildAttractionRequest(get()).contentTypeIds,
         budget: get().preferences.budget,
         pace: get().preferences.pace
       });
@@ -264,3 +286,57 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   }
 }));
+
+function buildAttractionRequest(state: TripState) {
+  const code = state.result?.code ?? state.user?.ttiCode ?? '';
+  const keywords = new Set<string>([
+    ...state.preferences.places,
+    ...state.preferences.activities,
+    ...state.preferences.foods,
+  ]);
+  const contentTypeIds = new Set<string>(['12', '14', '15', '28', '32', '39']);
+
+  if (code[0] === 'W') {
+    keywords.add('예약');
+    keywords.add('박물관');
+  } else if (code[0] === 'P') {
+    keywords.add('골목');
+    keywords.add('산책');
+  }
+
+  if (code[1] === 'N') {
+    keywords.add('체험');
+    keywords.add('로컬');
+    contentTypeIds.add('28');
+  } else if (code[1] === 'C') {
+    keywords.add('명소');
+    keywords.add('맛집');
+  }
+
+  if (code[2] === 'A') {
+    keywords.add('레포츠');
+    keywords.add('축제');
+    contentTypeIds.add('15');
+    contentTypeIds.add('28');
+  } else if (code[2] === 'F') {
+    keywords.add('카페');
+    keywords.add('전시');
+    contentTypeIds.add('14');
+    contentTypeIds.add('39');
+  }
+
+  if (code[3] === 'H') {
+    keywords.add('숨은 명소');
+    keywords.add('시장');
+  } else if (code[3] === 'S') {
+    keywords.add('랜드마크');
+    keywords.add('전망');
+  }
+
+  return {
+    keywords: Array.from(keywords).filter(Boolean).slice(0, 6),
+    contentTypeIds: Array.from(contentTypeIds),
+    limit: 8,
+    fast: true,
+  };
+}

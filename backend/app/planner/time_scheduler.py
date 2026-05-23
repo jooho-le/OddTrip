@@ -47,6 +47,7 @@ class TimeScheduler:
 
         ordered_places = [assignment.places[i] for i in route.order]
         leg_durations = route.leg_durations
+        leg_sources = route.leg_sources
 
         for idx, place in enumerate(ordered_places):
 
@@ -57,7 +58,12 @@ class TimeScheduler:
                     if idx - 1 < len(leg_durations)
                     else 15
                 )
-                slots.append(_make_move_slot(current.time(), move_min, place.name))
+                source = (
+                    leg_sources[idx - 1]
+                    if idx - 1 < len(leg_sources)
+                    else "fallback"
+                )
+                slots.append(_make_move_slot(current.time(), move_min, place.name, source))
                 current += timedelta(minutes=move_min)
 
             # ─── 2. 식사 슬롯 자동 삽입 ───
@@ -177,7 +183,8 @@ def _minutes_between(a: time, b: time) -> int:
     return max(0, diff)
 
 
-def _make_move_slot(start_t: time, duration: int, dest_name: str) -> PlannedSlot:
+def _make_move_slot(start_t: time, duration: int, dest_name: str, source: str = "google") -> PlannedSlot:
+    basis = "Google Distance Matrix 기준" if source == "google" else "직선거리 기반 추정"
     return PlannedSlot(
         slot_type="move",
         title=f"이동: {dest_name}",
@@ -185,7 +192,7 @@ def _make_move_slot(start_t: time, duration: int, dest_name: str) -> PlannedSlot
         start_time=start_t,
         duration_minutes=duration,
         move_duration_minutes=duration,
-        description=f"Google 길찾기 기준 약 {duration}분 소요됩니다.",
+        description=f"{basis} 약 {duration}분 소요됩니다.",
     )
 
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Clock, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { GoogleMap } from '../../components/GoogleMap';
@@ -55,7 +55,7 @@ export function ItineraryDetailPage() {
           address: matchedAttraction.addr1,
         }] : []}
       />
-      <Card><Clock className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">변경 옵션</h2><div className="grid gap-2 sm:grid-cols-3"><Button variant="secondary">시간 변경</Button><Button variant="secondary">대체 장소</Button><Button variant="secondary">휴식 추가</Button></div></Card>
+      <Card><Clock className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">변경 옵션</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/decision"><Button variant="secondary" className="w-full">조건 수정</Button></Link><Link to="/attractions"><Button variant="secondary" className="w-full">대체 장소</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">날씨 확인</Button></Link></div></Card>
     </div>
   );
 }

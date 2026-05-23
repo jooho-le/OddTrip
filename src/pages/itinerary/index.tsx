@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudSun, Route, Share2, Sparkles } from 'lucide-react';
+import { CloudSun, Grid3X3, Route, Share2, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -45,8 +45,13 @@ export function ItineraryPage() {
           </div>
         </div>
       </section>
-      {!itinerary.length ? <EmptyView label="생성된 일정이 없습니다" /> : null}
-      <Card className="border-0 bg-[#f5d04c] text-[#111111]"><div className="flex gap-3"><CloudSun className="h-6 w-6 shrink-0" /><p className="text-sm font-black leading-6">오후 비 가능성으로 1일차 후반부에 실내 대체 코스를 포함했습니다.</p></div></Card>
+      {!itinerary.length ? (
+        <Card className="border-[#fd267a]/15 bg-[#fff8fb]">
+          <EmptyView label="생성된 일정이 없습니다" />
+          <Link to="/attractions"><Button icon={<Grid3X3 className="h-4 w-4" />} className="mt-4">관광지 저장하러 가기</Button></Link>
+        </Card>
+      ) : null}
+      <Card className="border-0 bg-[#f5d04c] text-[#111111]"><div className="flex gap-3"><CloudSun className="h-6 w-6 shrink-0" /><p className="text-sm font-black leading-6">각 카드를 누르면 상세 지도와 변경 옵션을 확인할 수 있습니다.</p></div></Card>
       <div className="space-y-5">
         {itinerary.map((day) => (
           <section key={day.day} className="rounded-[38px] bg-white p-5 shadow-[0_20px_60px_rgba(16,17,20,0.08)] md:p-7">
@@ -54,7 +59,7 @@ export function ItineraryPage() {
             <div className="space-y-3 border-l-4 border-[#fd267a]/18 pl-5">
               {day.items.map((item, index) => (
                 <Link to={`/itinerary/${item.id}`} key={item.id} className="block">
-                  <Card className="reveal-card relative hover:border-[#fd267a]/40" style={{ animationDelay: `${index * 70}ms` }}>
+                  <Card className="reveal-card relative p-4 hover:border-[#fd267a]/40" style={{ animationDelay: `${index * 70}ms` }}>
                     <span className="absolute -left-[31px] top-6 h-5 w-5 rounded-full border-4 border-white bg-[#fd267a]" />
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div><p className="text-sm font-black text-[#fd267a]">{item.time}</p><h3 className="text-xl font-black">{item.title}</h3><p className="text-sm font-bold text-slate-500">{item.location} · {item.duration}</p></div>

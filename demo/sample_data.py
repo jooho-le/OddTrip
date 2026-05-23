@@ -22,6 +22,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="현대 미술의 흐름을 한눈에 볼 수 있는 대표 미술관.",
         famous=True,
         active=False,
+        latitude=37.578631,
+        longitude=126.980003,
     ),
     InputPlace(
         id="s2",
@@ -30,6 +32,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="롤 팬들을 위한 체험형 게임 테마파크.",
         famous=True,
         active=False,
+        latitude=37.524057,
+        longitude=127.022907,
     ),
     InputPlace(
         id="s3",
@@ -38,6 +42,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="서울의 오래된 지붕선과 도심 풍경을 함께 보는 코스.",
         famous=True,
         active=True,
+        latitude=37.582604,
+        longitude=126.986923,
     ),
     InputPlace(
         id="s4",
@@ -46,6 +52,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="가죽 키링과 향을 직접 만드는 예약형 체험.",
         famous=False,
         active=True,
+        latitude=37.544581,
+        longitude=127.055962,
     ),
     InputPlace(
         id="s5",
@@ -54,6 +62,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="빈대떡과 마약김밥으로 유명한 전통시장.",
         famous=True,
         active=False,
+        latitude=37.570039,
+        longitude=126.999603,
     ),
     InputPlace(
         id="s6",
@@ -62,6 +72,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="가을 저녁 청계천 일대에서 열리는 빛 축제.",
         famous=True,
         active=False,
+        latitude=37.569107,
+        longitude=126.978388,
     ),
     InputPlace(
         id="s7",
@@ -70,6 +82,8 @@ SEOUL_SAMPLE: list[InputPlace] = [
         description="한옥을 개조한 부티크 게스트하우스.",
         famous=False,
         active=False,
+        latitude=37.572209,
+        longitude=126.989851,
     ),
 ]
 
@@ -85,6 +99,8 @@ BUSAN_SAMPLE: list[InputPlace] = [
         description="부산의 대표 해변. 산책과 사진 명소.",
         famous=True,
         active=True,
+        latitude=35.158698,
+        longitude=129.160384,
     ),
     InputPlace(
         id="b2",
@@ -93,6 +109,8 @@ BUSAN_SAMPLE: list[InputPlace] = [
         description="알록달록한 마을 전체가 야외 미술관.",
         famous=True,
         active=True,
+        latitude=35.097485,
+        longitude=129.010668,
     ),
     InputPlace(
         id="b3",
@@ -101,6 +119,8 @@ BUSAN_SAMPLE: list[InputPlace] = [
         description="부산 대표 수산물 시장. 회와 해산물 천국.",
         famous=True,
         active=False,
+        latitude=35.096611,
+        longitude=129.030548,
     ),
     InputPlace(
         id="b4",
@@ -109,6 +129,8 @@ BUSAN_SAMPLE: list[InputPlace] = [
         description="광안대교 야경을 보며 쉴 수 있는 루프탑 카페.",
         famous=False,
         active=False,
+        latitude=35.153170,
+        longitude=129.118666,
     ),
     InputPlace(
         id="b5",
@@ -117,6 +139,8 @@ BUSAN_SAMPLE: list[InputPlace] = [
         description="해양 생태와 문화를 다룬 박물관 (월요일 휴관).",
         famous=False,
         active=False,
+        latitude=35.078846,
+        longitude=129.080037,
     ),
 ]
 
@@ -132,6 +156,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="유네스코 자연유산. 일출 명소.",
         famous=True,
         active=True,
+        latitude=33.458056,
+        longitude=126.942500,
     ),
     InputPlace(
         id="j2",
@@ -140,6 +166,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="우도 일주 자전거 대여 + 해변 카페.",
         famous=True,
         active=True,
+        latitude=33.506413,
+        longitude=126.955989,
     ),
     InputPlace(
         id="j3",
@@ -148,6 +176,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="제주의 자연과 민속 문화 (월요일 휴관).",
         famous=False,
         active=False,
+        latitude=33.506627,
+        longitude=126.531822,
     ),
     InputPlace(
         id="j4",
@@ -156,6 +186,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="에메랄드빛 바다와 비양도 풍경.",
         famous=True,
         active=False,
+        latitude=33.393669,
+        longitude=126.239031,
     ),
     InputPlace(
         id="j5",
@@ -164,6 +196,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="흑돼지와 감귤이 가득한 전통시장.",
         famous=True,
         active=False,
+        latitude=33.511598,
+        longitude=126.526014,
     ),
     InputPlace(
         id="j6",
@@ -172,6 +206,8 @@ JEJU_SAMPLE: list[InputPlace] = [
         description="구좌읍에 위치한 독채 한옥 숙소.",
         famous=False,
         active=False,
+        latitude=33.518057,
+        longitude=126.861538,
     ),
 ]
 

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, RefreshCw, X } from 'lucide-react';
+import { ArrowRight, Heart, RefreshCw } from 'lucide-react';
 import { CardNewsRail } from '../../components/CardNewsRail';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -26,12 +26,12 @@ export function MatchesPage() {
         <div className="absolute -right-10 -top-12 h-48 w-72 rotate-12 rounded-[48px] bg-white/16" />
         <div className="absolute bottom-0 right-28 h-20 w-48 -rotate-6 rounded-t-[28px] bg-white/14" />
         <p className="relative text-xs font-black uppercase tracking-[0.22em] text-white/62">Opposite Match</p>
-        <h1 className="relative mt-5 max-w-3xl text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
-          Swipe Your
+        <h1 className="relative mt-5 max-w-3xl text-5xl font-black leading-[0.95] md:text-7xl">
+          같이 일정 만들
           <br />
-          Travel Partner.
+          상대를 고르기.
         </h1>
-        <p className="relative mt-5 max-w-xl text-sm font-semibold leading-6 text-white/74">완전 반대부터 부분 반대까지, 상호보완성이 높은 여행자를 카드로 보여줍니다.</p>
+        <p className="relative mt-5 max-w-xl text-sm font-semibold leading-6 text-white/74">첫 번째 후보가 가장 상호보완성이 높습니다. 마음에 들면 상세에서 공동 여행을 만드세요.</p>
       </section>
 
       {featured ? (
@@ -51,10 +51,10 @@ export function MatchesPage() {
                   </div>
                   <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">{match.ageRange} · {match.region}</p>
                   <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{match.summary}</p>
-                  <div className="mt-5 flex items-center justify-center gap-4">
-                    <button className="grid h-14 w-14 place-items-center rounded-full border border-black/10 bg-white text-[#64748b] shadow-soft"><X className="h-6 w-6" /></button>
-                    <Link to={`/matches/${match.id}`} onClick={() => selectMatch(match.id)} className="gradient-panel grid h-16 w-16 place-items-center rounded-full text-white shadow-[0_18px_38px_rgba(253,38,122,0.28)]">
-                      <Heart className="h-7 w-7 fill-current" />
+                  <div className="mt-5">
+                    <Link to={`/matches/${match.id}`} onClick={() => selectMatch(match.id)} className="gradient-panel inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-black text-white shadow-[0_18px_38px_rgba(253,38,122,0.28)]">
+                      상세 보고 선택
+                      <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </div>
@@ -75,7 +75,7 @@ export function MatchesPage() {
               <p className="mt-3 text-5xl font-black text-[#191322]">{featured.recommendationScore}%</p>
               <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{featured.compatibility}</p>
               <Link to={`/matches/${featured.id}`} onClick={() => selectMatch(featured.id)}>
-                <Button className="mt-5 w-full">대표 후보 상세 보기</Button>
+                <Button icon={<Heart className="h-4 w-4" />} className="mt-5 w-full">이 사람과 공동 여행 만들기</Button>
               </Link>
             </Card>
           </div>

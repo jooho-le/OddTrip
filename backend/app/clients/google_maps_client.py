@@ -27,6 +27,7 @@ class RouteResult:
     duration_minutes: int
     distance_meters: int
     mode: str = "car"
+    source: str = "google"
 
 
 GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -104,17 +105,26 @@ class GoogleMapsClient:
                 resp = await http.get(GOOGLE_DISTANCE_MATRIX_URL, params=params)
                 resp.raise_for_status()
                 data = resp.json()
-        except (httpx.HTTPError, ValueError):
+        except (httpx.HTTPError, ValueError) as exc:
+            print(f"[GoogleMapsClient] Distance Matrix fallback: request failed ({exc})")
             return _mock_route(origin, destination)
 
         rows = data.get("rows", [])
         element = rows[0].get("elements", [None])[0] if rows else None
         if data.get("status") != "OK" or not element or element.get("status") != "OK":
+            status = data.get("status")
+            error_message = data.get("error_message", "")
+            element_status = element.get("status") if element else None
+            print(
+                "[GoogleMapsClient] Distance Matrix fallback: "
+                f"status={status}, element_status={element_status}, error={error_message}"
+            )
             return _mock_route(origin, destination)
 
         return RouteResult(
             duration_minutes=max(1, int(element["duration"]["value"]) // 60),
             distance_meters=int(element["distance"]["value"]),
+            source="google",
         )
 
     async def build_distance_matrix(
@@ -193,4 +203,6 @@ def _mock_route(origin: Coordinate, destination: Coordinate) -> RouteResult:
     return RouteResult(
         duration_minutes=duration_min,
         distance_meters=int(road_km * 1000),
+        mode="estimated",
+        source="fallback",
     )

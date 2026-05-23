@@ -30,7 +30,7 @@ Held-Karp 동적 계획법 (1962)
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..clients.google_maps_client import GoogleMapsClient, RouteResult
 from .models import PlannedPlace
@@ -43,6 +43,7 @@ class OptimizedRoute:
     total_duration_minutes: int       # 총 이동 시간
     leg_durations: list[int]          # 각 구간 이동 시간
     leg_distances_m: list[int]        # 각 구간 이동 거리
+    leg_sources: list[str] = field(default_factory=list)  # google | fallback
 
 
 class RouteOptimizer:
@@ -68,12 +69,12 @@ class RouteOptimizer:
         if n == 0:
             return OptimizedRoute(
                 order=[], total_duration_minutes=0,
-                leg_durations=[], leg_distances_m=[],
+                leg_durations=[], leg_distances_m=[], leg_sources=[],
             )
         if n == 1:
             return OptimizedRoute(
                 order=[0], total_duration_minutes=0,
-                leg_durations=[], leg_distances_m=[],
+                leg_durations=[], leg_distances_m=[], leg_sources=[],
             )
 
         # 1. 거리 매트릭스 구축
@@ -271,11 +272,13 @@ def _build_result(
 ) -> OptimizedRoute:
     leg_durations: list[int] = []
     leg_distances: list[int] = []
+    leg_sources: list[str] = []
     total = 0
     for i in range(len(order) - 1):
         r = matrix[order[i]][order[i + 1]]
         leg_durations.append(r.duration_minutes)
         leg_distances.append(r.distance_meters)
+        leg_sources.append(r.source)
         total += r.duration_minutes
 
     return OptimizedRoute(
@@ -283,4 +286,5 @@ def _build_result(
         total_duration_minutes=total,
         leg_durations=leg_durations,
         leg_distances_m=leg_distances,
+        leg_sources=leg_sources,
     )

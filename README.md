@@ -154,3 +154,6 @@ safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 
 1. 실제 로그인/인증 추가
 2. 일정 재조정 요청 API 추가
 3. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
+
+cd /Users/leejooho/Desktop/OddTrip
+backend/.venv/bin/python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000

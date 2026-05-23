@@ -99,6 +99,10 @@ async def _generate_planner_itinerary(
             description=a.description or "",
             famous=a.famous,
             active=a.active,
+            latitude=_parse_float(a.map_y),
+            longitude=_parse_float(a.map_x),
+            indoor=a.indoor,
+            opening_hours=a.opening_hours_json,
         )
         for a in attractions
     ]
@@ -221,4 +225,13 @@ def _parse_trip_date(value: object) -> date | None:
     try:
         return date.fromisoformat(value)
     except ValueError:
+        return None
+
+
+def _parse_float(value: object) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
         return None

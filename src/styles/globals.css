@@ -56,15 +56,45 @@ button, input, select, textarea {
   margin: -1rem;
   min-height: calc(100dvh - 5rem);
   background: #fbf5ee;
-  padding: 1.25rem 1rem 2rem;
+  padding: 1rem 0.75rem 2rem;
 }
 
 @media (min-width: 768px) {
   .page-canvas {
     margin: 0;
-    border-radius: 30px;
-    padding: 2rem;
+    border-radius: 24px;
+    padding: 1.25rem;
   }
+}
+
+.page-canvas > section:first-child {
+  border-radius: 24px !important;
+  padding: 1.25rem !important;
+}
+
+@media (min-width: 768px) {
+  .page-canvas > section:first-child {
+    padding: 1.75rem !important;
+  }
+}
+
+.page-canvas > section:first-child h1 {
+  max-width: 48rem;
+  font-size: clamp(2rem, 5vw, 4.5rem) !important;
+  line-height: 1.02 !important;
+  letter-spacing: 0 !important;
+}
+
+.page-canvas > section:first-child p {
+  max-width: 42rem;
+}
+
+.page-canvas .motion-card {
+  animation-duration: 420ms;
+}
+
+.page-canvas .hover-lift:hover {
+  transform: translateY(-3px);
 }
 
 .surface-glass {

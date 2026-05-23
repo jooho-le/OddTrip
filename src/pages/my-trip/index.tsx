@@ -38,9 +38,8 @@ export function MyTripPage() {
         <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={itinerary.length} dark />
         <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={matches.length} pink />
       </div>
-      <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}</Card>
-      <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">설정</h2><div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary">알림 설정</Button><Button variant="secondary">동행 선호 수정</Button></div></Card>
-      <Link to="/tti/start"><Button variant="secondary">TTI 다시 진단하기</Button></Link>
+      <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}<Link to="/attractions"><Button className="mt-4">추천지 보러가기</Button></Link></Card>
+      <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">다음 작업</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/tti/start"><Button variant="secondary" className="w-full">TTI 다시 진단</Button></Link><Link to="/decision"><Button variant="secondary" className="w-full">동행 선호 수정</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">안전 알림 확인</Button></Link></div></Card>
     </div>
   );
 }
