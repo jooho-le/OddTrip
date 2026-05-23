@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { Heart, RefreshCw, X } from 'lucide-react';
+import { CardNewsRail } from '../../components/CardNewsRail';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -17,42 +18,79 @@ export function MatchesPage() {
   if (status.matches === 'loading') return <LoadingView label="반대 성향 후보를 찾는 중입니다" />;
   if (status.matches === 'error') return <ErrorView label="매칭 후보를 불러오지 못했습니다" />;
 
+  const featured = matches[0];
+
   return (
-    <div className="-mx-4 -mt-4 space-y-5 bg-[#ebe8dc] px-4 py-5 md:mx-0 md:mt-0 md:rounded-lg md:px-8 md:py-8">
-      <section className="rounded-[28px] bg-white p-6 shadow-soft">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff5a1f]">Opposite Match</p>
-        <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.98] tracking-tight text-black md:text-6xl">
-          나와 다른 사람이
+    <div className="page-canvas space-y-6">
+      <section className="gradient-panel-alt relative overflow-hidden rounded-[34px] p-6 text-white shadow-[0_26px_80px_rgba(253,38,122,0.22)]">
+        <div className="absolute -right-10 -top-12 h-48 w-72 rotate-12 rounded-[48px] bg-white/16" />
+        <div className="absolute bottom-0 right-28 h-20 w-48 -rotate-6 rounded-t-[28px] bg-white/14" />
+        <p className="relative text-xs font-black uppercase tracking-[0.22em] text-white/62">Opposite Match</p>
+        <h1 className="relative mt-5 max-w-3xl text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+          Swipe Your
           <br />
-          여행을 넓힙니다
+          Travel Partner.
         </h1>
-        <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-slate-600">완전 반대부터 부분 반대까지 단계적으로 추천합니다.</p>
+        <p className="relative mt-5 max-w-xl text-sm font-semibold leading-6 text-white/74">완전 반대부터 부분 반대까지, 상호보완성이 높은 여행자를 카드로 보여줍니다.</p>
       </section>
 
-      {!matches.length ? <EmptyView label="추천 후보가 없습니다" /> : null}
-
-      <div className="grid gap-3">
-        {matches.map((match, index) => (
-          <Card key={match.id} className="reveal-card rounded-[24px] p-4" style={{ animationDelay: `${index * 80}ms` }}>
-            <div className="grid gap-4 md:grid-cols-[88px_1fr_190px] md:items-center">
-              <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80'} alt="" className="h-20 w-20 rounded-[24px] object-cover" />
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-black text-black">{match.nickname}</h2>
-                  <Badge className="bg-[#ffd45a] text-black">{match.ttiCode}</Badge>
-                  <Badge className="bg-[#f2f2ef] text-slate-700">{match.matchLevel}</Badge>
+      {featured ? (
+        <section className="grid gap-5 lg:grid-cols-[410px_1fr]">
+          <div className="relative mx-auto h-[560px] w-full max-w-[410px]">
+            {matches.slice(0, 3).map((match, index) => (
+              <div
+                key={match.id}
+                className={`motion-card absolute inset-x-6 top-4 rounded-[36px] bg-white p-5 shadow-[0_30px_80px_rgba(15,23,42,0.18)] ${index === 0 ? 'rotate-[-3deg]' : index === 1 ? 'translate-y-8 rotate-[5deg] opacity-80' : 'translate-y-16 rotate-[-7deg] opacity-60'}`}
+                style={{ animationDelay: `${index * 120}ms`, zIndex: 10 - index }}
+              >
+                <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=700&q=80'} alt="" className="h-72 w-full rounded-[28px] object-cover" />
+                <div className="mt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-3xl font-black text-[#191322]">{match.nickname}</h2>
+                    <Badge className="gradient-panel text-white">{match.ttiCode}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">{match.ageRange} · {match.region}</p>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{match.summary}</p>
+                  <div className="mt-5 flex items-center justify-center gap-4">
+                    <button className="grid h-14 w-14 place-items-center rounded-full border border-black/10 bg-white text-[#64748b] shadow-soft"><X className="h-6 w-6" /></button>
+                    <Link to={`/matches/${match.id}`} onClick={() => selectMatch(match.id)} className="gradient-panel grid h-16 w-16 place-items-center rounded-full text-white shadow-[0_18px_38px_rgba(253,38,122,0.28)]">
+                      <Heart className="h-7 w-7 fill-current" />
+                    </Link>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">{match.ageRange} · {match.region}</p>
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{match.summary}</p>
               </div>
-              <div className="space-y-2">
-                <div className="rounded-2xl bg-[#f6f4ec] p-3">
-                  <p className="text-xs font-black text-slate-500">추천도</p>
-                  <p className="mt-1 text-3xl font-black text-black">{match.recommendationScore}%</p>
-                </div>
-                <Link to={`/matches/${match.id}`} onClick={() => selectMatch(match.id)}>
-                  <Button className="w-full">상세 보기</Button>
-                </Link>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            <CardNewsRail
+              items={[
+                { kicker: 'MATCH 01', title: '완전 반대 우선', description: '나와 네 축이 모두 다른 후보를 가장 먼저 보여줍니다.', tone: 'gradient-panel text-white' },
+                { kicker: 'MATCH 02', title: '부분 반대 폴백', description: '후보가 적어도 매칭 실패를 줄이도록 단계적으로 넓힙니다.', tone: 'bg-[#191322] text-white' },
+                { kicker: 'MATCH 03', title: '보완 설명', description: '왜 같이 여행하면 좋은지 설명 카드로 바로 확인합니다.', tone: 'bg-[#fff0f5] text-[#191322]' }
+              ]}
+            />
+            <Card className="rounded-[28px] p-5">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#fd267a]">추천도</p>
+              <p className="mt-3 text-5xl font-black text-[#191322]">{featured.recommendationScore}%</p>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{featured.compatibility}</p>
+              <Link to={`/matches/${featured.id}`} onClick={() => selectMatch(featured.id)}>
+                <Button className="mt-5 w-full">대표 후보 상세 보기</Button>
+              </Link>
+            </Card>
+          </div>
+        </section>
+      ) : <EmptyView label="추천 후보가 없습니다" />}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {matches.slice(3).map((match, index) => (
+          <Card key={match.id} className="motion-card hover-lift rounded-[28px] p-4" style={{ animationDelay: `${index * 80}ms` }}>
+            <div className="flex gap-3">
+              <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80'} alt="" className="h-20 w-20 rounded-[22px] object-cover" />
+              <div className="min-w-0">
+                <h2 className="text-xl font-black text-[#191322]">{match.nickname}</h2>
+                <p className="text-xs font-black text-slate-400">{match.region} · {match.ttiCode}</p>
+                <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-600">{match.summary}</p>
               </div>
             </div>
           </Card>
