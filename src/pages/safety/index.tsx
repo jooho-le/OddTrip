@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { AlertTriangle, Info, ShieldCheck, Siren, Sparkles } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Info, ShieldCheck, Siren, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -39,6 +40,15 @@ export function SafetyPage() {
         </div>
       </section>
       {!alerts.length ? <EmptyView label="현재 알림이 없습니다" /> : null}
+      <Card className="border-[#087466]/15 bg-[#eefaf6]">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-xl font-black">확인 순서</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">위험 알림이 있으면 일정 상세에서 야외 장소를 줄이거나 대체 장소를 확인하세요.</p>
+          </div>
+          <Link to="/itinerary"><Button icon={<CalendarDays className="h-4 w-4" />}>일정으로 돌아가기</Button></Link>
+        </div>
+      </Card>
       <div className="grid gap-4">
         {alerts.map((alert) => {
           const style = styles[alert.level];
@@ -46,7 +56,7 @@ export function SafetyPage() {
           return <Card key={alert.id} className={`${style.className} border-0`}><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/80"><Icon className="h-6 w-6" /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">{alert.title}</h2><span className="rounded-full bg-white/70 px-3 py-1 text-xs font-black opacity-80">{alert.time}</span></div><p className="mt-2 text-sm font-bold leading-6">{alert.message}</p><p className="mt-4 rounded-[22px] bg-white/76 p-4 text-sm font-black">{alert.action}</p></div></div></Card>;
         })}
       </div>
-      <Button icon={<ShieldCheck className="h-4 w-4" />} variant="secondary">일정 자동 조정 검토</Button>
+      <Link to="/itinerary"><Button icon={<ShieldCheck className="h-4 w-4" />} variant="secondary">일정 조정 검토</Button></Link>
     </div>
   );
 }

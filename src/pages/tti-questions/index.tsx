@@ -51,16 +51,16 @@ export function TtiQuestionsPage() {
         </div>
       </section>
 
-      <Card className="space-y-7 rounded-[38px] p-6 md:p-8">
+      <Card className="space-y-5 rounded-[24px] p-5 md:p-6">
         <div>
           <BadgeLabel text={question.axis} />
-          <h2 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">{question.prompt}</h2>
+          <h2 className="mt-4 max-w-4xl text-2xl font-black leading-tight md:text-4xl">{question.prompt}</h2>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
           {values.map((value) => (
-            <button key={value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })} className={cn('motion-card min-h-44 rounded-[28px] border p-5 text-left transition hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(16,17,20,0.12)]', answer?.value === value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
+            <button key={value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })} className={cn('motion-card min-h-28 rounded-[18px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(16,17,20,0.10)]', answer?.value === value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
               <p className="text-xs font-black uppercase tracking-[0.18em] opacity-60">{value < 0 ? question.leftLetter : value > 0 ? question.rightLetter : 'middle'}</p>
-              <p className="mt-14 text-lg font-black leading-6">{value < 0 ? question.leftLabel : value > 0 ? question.rightLabel : '둘 다 비슷함'}</p>
+              <p className="mt-6 text-sm font-black leading-5 md:text-base">{value < 0 ? question.leftLabel : value > 0 ? question.rightLabel : '둘 다 비슷함'}</p>
             </button>
           ))}
         </div>

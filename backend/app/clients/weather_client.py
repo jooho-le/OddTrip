@@ -84,7 +84,8 @@ class WeatherClient:
             return _mock_forecast(target_date)
 
         nx, ny = _latlng_to_grid(lat, lng)
-        base_date = target_date.strftime("%Y%m%d")
+        base = min(date.today(), target_date)
+        base_date = base.strftime("%Y%m%d")
         base_time = "0500"  # 05시 발표 데이터 사용
 
         params = {

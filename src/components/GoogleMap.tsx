@@ -37,6 +37,7 @@ declare global {
     };
     __oddtripGoogleMapsPromise?: Promise<void>;
     __oddtripInitGoogleMaps?: () => void;
+    gm_authFailure?: () => void;
   }
 }
 
@@ -119,6 +120,12 @@ export function GoogleMap({ points = [], keyword, label = '지도 영역', class
       setStatus('loading');
 
       try {
+        window.gm_authFailure = () => {
+          if (cancelled) return;
+          setStatus('error');
+          setMessage('Google Maps 인증에 실패했습니다. Maps JavaScript API, 결제, HTTP referrer 제한을 확인하세요.');
+          console.error('[OddTrip] Google Maps auth failed. Check VITE_GOOGLE_MAPS_API_KEY, Maps JavaScript API, billing, and HTTP referrer restrictions.');
+        };
         await loadGoogleMapsSdk(GOOGLE_MAPS_API_KEY);
         if (cancelled || !containerRef.current || !window.google?.maps) return;
 
@@ -180,10 +187,11 @@ export function GoogleMap({ points = [], keyword, label = '지도 영역', class
         }
 
         setStatus('ready');
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setStatus('error');
           setMessage('Google Maps를 불러오지 못했습니다. API 키와 HTTP referrer 제한을 확인하세요.');
+          console.error('[OddTrip] Failed to load Google Maps SDK:', error);
         }
       }
     }

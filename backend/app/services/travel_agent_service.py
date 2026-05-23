@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..schemas.agent import AgentRunRequest, AgentRunResponse, AgentToolStep
 from ..schemas.attraction import PublicAttractionGenerateRequest
-from . import attraction_service
+from . import attraction_service, itinerary_service
 
 
 client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
@@ -69,8 +69,8 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
-            "name": "prepare_itinerary_generation",
-            "description": "추천 관광지를 기반으로 일정 생성 단계로 넘길 입력을 준비한다.",
+            "name": "generate_executable_itinerary",
+            "description": "저장/추천 관광지를 기반으로 날씨, 재난, 운영시간, 이동시간을 고려한 실행 가능한 일정을 생성한다.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -142,8 +142,9 @@ async def run_agent(
             steps.append(AgentToolStep(tool=tool_name, reason=reason, args=args, result_count=len(recommended_ids)))
             continue
 
-        if tool_name == "prepare_itinerary_generation":
-            steps.append(AgentToolStep(tool=tool_name, reason=reason, args=args, result_count=len(recommended_ids)))
+        if tool_name in {"prepare_itinerary_generation", "generate_executable_itinerary"}:
+            itinerary = await itinerary_service.generate_itinerary(db, trip_id)
+            steps.append(AgentToolStep(tool="generate_executable_itinerary", reason=reason, args=args, result_count=sum(len(day.items) for day in itinerary)))
 
     return AgentRunResponse(
         mode="tool-calling" if client else "deterministic-fallback",
@@ -152,7 +153,7 @@ async def run_agent(
         recommended_attraction_ids=recommended_ids,
         next_actions=[
             "추천 관광지를 저장 또는 제외하세요.",
-            "저장된 관광지를 기반으로 일정 생성 API를 호출하세요.",
+            "생성된 일정에서 부담스러운 슬롯은 공동 선호에서 조정하세요.",
         ],
     )
 
@@ -237,8 +238,8 @@ def _fallback_tool_plan(request: AgentRunRequest) -> list[dict[str, Any]]:
             },
         },
         {
-            "tool": "prepare_itinerary_generation",
-            "reason": "선택된 추천지를 일정 생성 입력으로 넘길 준비를 합니다.",
+            "tool": "generate_executable_itinerary",
+            "reason": "추천 후보를 바탕으로 실제 시간대별 일정까지 생성합니다.",
             "args": {
                 "days": request.days,
                 "pace": request.pace,

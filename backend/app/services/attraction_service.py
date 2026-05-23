@@ -167,7 +167,14 @@ async def generate_public_attractions(
         midpoint_scores=_calc_midpoint_scores(user_a.tti_scores_json or [], user_b.tti_scores_json or []),
     )[: request.limit]
 
-    enriched = ranked if request.fast else await _enrich_public_candidates(ranked)
+    if request.fast:
+        enrich_count = min(3, len(ranked))
+        enriched = [
+            *await _enrich_public_candidates(ranked[:enrich_count]),
+            *ranked[enrich_count:],
+        ]
+    else:
+        enriched = await _enrich_public_candidates(ranked)
 
     await _delete_existing_attractions(db, trip_id)
 
@@ -472,11 +479,23 @@ async def _enrich_public_candidates(items: list[dict[str, Any]]) -> list[dict[st
         if not content_id:
             return item
         try:
-            detail = await tour_api_client.detail_common(
+            common_task = tour_api_client.detail_common(
                 content_id=str(content_id),
                 content_type_id=str(content_type_id) if content_type_id else None,
             )
-            return _merge_detail(item, detail)
+            intro_task = (
+                tour_api_client.detail_intro(
+                    content_id=str(content_id),
+                    content_type_id=str(content_type_id),
+                )
+                if content_type_id
+                else None
+            )
+            if intro_task:
+                common, intro = await asyncio.gather(common_task, intro_task)
+            else:
+                common, intro = await common_task, None
+            return _merge_detail(_merge_detail(item, common), intro)
         except Exception:
             return item
 
@@ -503,6 +522,7 @@ def _rank_public_candidates(
         tags = _public_tags(item)
         hidden_score = _hidden_score(item)
         congestion_score = _congestion_score(item)
+        place_axis_scores = _infer_place_axis_scores(item)
 
         if item.get("_is_hub"):
             score += 12
@@ -516,7 +536,8 @@ def _rank_public_candidates(
             score += 10
         if _types_are_opposite(user_a_code, user_b_code) and content_type_id in {"12", "14"}:
             score += 6
-        score += _midpoint_fit_score(item, midpoint_scores)
+        score += _midpoint_fit_score(item, midpoint_scores, place_axis_scores)
+        score += _traveler_fit_score(place_axis_scores, user_a_code, user_b_code)
         if _get_value(item, "firstimage", "firstImage", "firstimage2"):
             score += 4
         if item.get("_related_rank"):
@@ -527,6 +548,7 @@ def _rank_public_candidates(
         copied["_oddtrip_score"] = score
         copied["_hidden_score"] = hidden_score
         copied["_congestion_score"] = congestion_score
+        copied["_tti_axis_scores"] = place_axis_scores
         scored.append(copied)
 
     return sorted(scored, key=lambda item: item.get("_oddtrip_score", 0), reverse=True)
@@ -550,7 +572,11 @@ def _calc_midpoint_scores(user_a_scores: list[dict], user_b_scores: list[dict]) 
     return midpoint
 
 
-def _midpoint_fit_score(item: dict[str, Any], midpoint_scores: dict[str, float]) -> int:
+def _midpoint_fit_score(
+    item: dict[str, Any],
+    midpoint_scores: dict[str, float],
+    place_axis_scores: dict[str, int] | None = None,
+) -> int:
     if not midpoint_scores:
         return 0
 
@@ -585,6 +611,19 @@ def _midpoint_fit_score(item: dict[str, Any], midpoint_scores: dict[str, float])
     if abs(nc) <= 0.5 and abs(fa) <= 0.5 and abs(hs) <= 0.5:
         score += 6
 
+    if place_axis_scores:
+        # Compare person midpoint and place personality on the same 4 axes.
+        # Lower distance means "new but not too burdensome" for both travelers.
+        total_distance = 0.0
+        compared = 0
+        for axis, midpoint in midpoint_scores.items():
+            if axis in place_axis_scores:
+                total_distance += abs(float(midpoint) - float(place_axis_scores[axis]))
+                compared += 1
+        if compared:
+            avg_distance = total_distance / compared
+            score += max(0, int(12 - avg_distance * 4))
+
     return score
 
 
@@ -597,13 +636,14 @@ def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:
     category = CONTENT_TYPE_LABELS.get(content_type_id, "관광지")
     description = overview or address or "한국관광공사 TourAPI 기반으로 수집한 추천 후보입니다."
     opening_hours, closed_days = _extract_opening_hours(item, content_type_id)
+    axis_scores = dict(item.get("_tti_axis_scores") or _infer_place_axis_scores(item))
 
     return {
         "name": title,
         "category": category,
         "image_url": _get_value(item, "firstimage", "firstImage", "firstimage2") or "",
         "description": description,
-        "tags": tags,
+        "tags": [*tags, *_axis_score_tags(axis_scores)],
         "indoor": "실내" in tags,
         "active": content_type_id in {"15", "28"},
         "famous": bool(item.get("_is_hub") or content_type_id in {"12", "15"}),
@@ -622,6 +662,7 @@ def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:
         "congestion_score": _congestion_score(item),
         "hidden_score": _hidden_score(item),
         "related_rank": item.get("_related_rank"),
+        "axis_scores": axis_scores,
     }
 
 
@@ -660,9 +701,103 @@ def _build_public_reason(payload: dict[str, Any], user_a_code: str, user_b_code:
         balance = "활동형 동행자에게는 체험 포인트를, 휴식형 동행자에게는 일정의 변화를 제공합니다."
     if payload["indoor"]:
         balance = "날씨 변수에도 안정적으로 유지할 수 있어 공동 일정의 리스크를 낮춥니다."
+    axis_summary = _axis_summary(payload.get("axis_scores") or {})
     if user_a_code and user_b_code:
-        return f"{payload['category']} 데이터와 두 사용자의 TTI({user_a_code}/{user_b_code})를 함께 고려했습니다. {balance}"
+        return f"{payload['category']} 데이터와 두 사용자의 TTI({user_a_code}/{user_b_code})를 함께 고려했습니다. {axis_summary} {balance}"
     return f"한국관광공사 TourAPI 후보를 기반으로 추천했습니다. {balance}"
+
+
+def _infer_place_axis_scores(item: dict[str, Any]) -> dict[str, int]:
+    """Infer place personality on the same axes used by user TTI.
+
+    Scores use the same -2..2 range:
+    PW: spontaneous/easy (-) vs planned/reservation-friendly (+)
+    NC: novel/local (-) vs proven/stable (+)
+    FA: restful (-) vs active (+)
+    HS: hidden/local (-) vs famous/sightseeing (+)
+    """
+    content_type_id = str(_get_value(item, "contenttypeid", "contentTypeId", ""))
+    hidden_score = _hidden_score(item)
+    congestion_score = _congestion_score(item)
+    is_hub = bool(item.get("_is_hub"))
+    has_detail = bool(_get_value(item, "homepage", "tel", "overview"))
+
+    pw = 1 if has_detail or content_type_id in {"15", "32"} else 0
+    nc = -1 if hidden_score >= 60 else 1
+    fa = 2 if content_type_id in {"15", "28"} else (-1 if content_type_id in {"14", "32", "39"} else 0)
+    hs = 2 if is_hub or content_type_id in {"12", "15"} else (-1 if hidden_score >= 65 and congestion_score <= 60 else 0)
+
+    if congestion_score >= 75:
+        hs = max(hs, 1)
+        nc = max(nc, 0)
+    if content_type_id == "39":
+        pw = max(pw, 1)
+    if content_type_id == "32":
+        pw = 2
+        fa = -2
+
+    return {
+        "PW": _clamp_axis_score(pw),
+        "NC": _clamp_axis_score(nc),
+        "FA": _clamp_axis_score(fa),
+        "HS": _clamp_axis_score(hs),
+    }
+
+
+def _clamp_axis_score(value: int) -> int:
+    return max(-2, min(2, int(value)))
+
+
+def _axis_score_tags(axis_scores: dict[str, int]) -> list[str]:
+    labels = {
+        "PW": ("즉흥형 장소", "계획형 장소"),
+        "NC": ("새로움", "검증됨"),
+        "FA": ("휴식형", "활동형"),
+        "HS": ("숨은 명소형", "대표 명소형"),
+    }
+    tags = []
+    for axis, score in axis_scores.items():
+        if axis not in labels or score == 0:
+            continue
+        left, right = labels[axis]
+        tags.append(left if score < 0 else right)
+    return tags
+
+
+def _axis_summary(axis_scores: dict[str, int]) -> str:
+    tags = _axis_score_tags(axis_scores)
+    if not tags:
+        return "장소 성향은 두 사람의 중간 지점에 가깝습니다."
+    return f"장소 성향({', '.join(tags[:3])})도 함께 반영했습니다."
+
+
+def _traveler_fit_score(axis_scores: dict[str, int], user_a_code: str, user_b_code: str) -> int:
+    """Reward places that cover either traveler's stronger TTI letters.
+
+    A perfectly opposite pair often has a midpoint near zero. If we only score
+    the midpoint, every pair drifts toward the same generic compromise. This
+    adds controlled variety by giving credit when a place satisfies one side's
+    clear preference while still being close enough to the pair balance.
+    """
+    total = 0
+    for code in (user_a_code, user_b_code):
+        if len(code) != 4:
+            continue
+        desired = {
+            "PW": -1 if code[0] == "P" else 1,
+            "NC": -1 if code[1] == "N" else 1,
+            "FA": -1 if code[2] == "F" else 1,
+            "HS": -1 if code[3] == "H" else 1,
+        }
+        for axis, direction in desired.items():
+            place_score = axis_scores.get(axis, 0)
+            if place_score == 0:
+                continue
+            if place_score * direction > 0:
+                total += 3
+            elif abs(place_score) >= 2:
+                total -= 2
+    return max(-8, min(18, total))
 
 
 def _merge_detail(item: dict[str, Any], detail: dict[str, Any] | None) -> dict[str, Any]:

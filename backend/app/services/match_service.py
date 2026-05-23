@@ -23,11 +23,15 @@ COMPLEMENT_TEMPLATES = {
 
 
 def _get_opposite_code(code: str) -> str:
+    if len(code) != 4 or any(ch not in OPPOSITE_MAP for ch in code):
+        return ""
     return "".join(OPPOSITE_MAP[ch] for ch in code)
 
 
 def _count_opposite_axes(code_a: str, code_b: str) -> tuple[int, list[str]]:
     opposite = _get_opposite_code(code_a)
+    if len(opposite) != 4 or len(code_b) != 4:
+        return 0, []
     count = 0
     diff_axes = []
     for i, ax in enumerate(AXES):
@@ -62,13 +66,11 @@ async def find_matches(
     )
     candidates = list(result.scalars().all())
 
-    matches_out: list[MatchCandidateOut] = []
+    staged_matches: dict[int, list[MatchCandidateOut]] = {4: [], 3: [], 2: [], 1: [], 0: []}
     user_scores = user.tti_scores_json or []
 
     for candidate in candidates:
         count, diff_axes = _count_opposite_axes(user.tti_code, candidate.tti_code)
-        if count < 2:
-            continue
 
         match_level = {4: "완전 반대", 3: "부분 반대"}.get(count, "추천")
         score = _calc_score(count, user_scores, candidate.tti_scores_json)
@@ -87,7 +89,7 @@ async def find_matches(
 
         compatibility = f"당신의 여행 스타일과 {candidate.nickname}님의 스타일이 상호보완적입니다."
 
-        matches_out.append(
+        staged_matches[count].append(
             MatchCandidateOut(
                 id=candidate.id,
                 nickname=candidate.nickname,
@@ -103,6 +105,16 @@ async def find_matches(
                 complements=complements[:4],
             )
         )
+
+    # Staged fallback: prefer fully opposite matches, then progressively relax.
+    # This keeps matching usable when the user pool is small while preserving
+    # the product's "opposite traveler" concept as the first priority.
+    matches_out: list[MatchCandidateOut] = []
+    for level in (4, 3, 2, 1, 0):
+        if staged_matches[level]:
+            matches_out.extend(staged_matches[level])
+        if len(matches_out) >= 6:
+            break
 
     matches_out.sort(key=lambda m: m.recommendation_score, reverse=True)
     return matches_out

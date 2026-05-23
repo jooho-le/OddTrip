@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -50,15 +50,23 @@ export function DecisionPage() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
-        <Card className="space-y-6 rounded-[38px] p-6 md:p-8">
+        <Card className="space-y-5 rounded-[24px] p-5 md:p-6">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {['1. 취향 선택', '2. 우선순위 정리', '3. 추천 생성'].map((item) => (
+              <div key={item} className="flex items-center gap-2 rounded-xl bg-[#f5f0e9] px-3 py-2 text-sm font-black text-slate-700">
+                <CheckCircle2 className="h-4 w-4 text-[#087466]" />
+                {item}
+              </div>
+            ))}
+          </div>
           {Object.entries(options).map(([key, values]) => (
             <div key={key}>
-              <h2 className="mb-3 text-2xl font-black tracking-[-0.03em]">{key === 'places' ? '장소' : key === 'activities' ? '활동' : '음식'}</h2>
-              <div className="flex flex-wrap gap-2">{values.map((value) => <button key={value} onClick={() => toggle(key as 'places' | 'activities' | 'foods', value)} className={`rounded-full px-4 py-3 text-sm font-black transition hover:-translate-y-0.5 ${preferences[key as 'places'].includes(value) ? 'gradient-panel text-white shadow-[0_14px_34px_rgba(253,38,122,0.22)]' : 'bg-[#fbf5ee] text-slate-700'}`}>{value}</button>)}</div>
+              <h2 className="mb-3 text-xl font-black">{key === 'places' ? '장소' : key === 'activities' ? '활동' : '음식'}</h2>
+              <div className="flex flex-wrap gap-2">{values.map((value) => <button key={value} onClick={() => toggle(key as 'places' | 'activities' | 'foods', value)} className={`rounded-xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 ${preferences[key as 'places'].includes(value) ? 'gradient-panel text-white shadow-[0_14px_34px_rgba(253,38,122,0.22)]' : 'bg-[#fbf5ee] text-slate-700'}`}>{value}</button>)}</div>
             </div>
           ))}
-          <div className="space-y-3 rounded-[28px] bg-[#101114] p-5 text-white">
-            <h2 className="text-2xl font-black">우선순위</h2>
+          <div className="space-y-3 rounded-[20px] bg-[#101114] p-4 text-white">
+            <h2 className="text-xl font-black">우선순위</h2>
             <PriorityList label="장소" items={preferences.places} onMove={(index, direction) => movePriority('places', index, direction)} />
             <PriorityList label="활동" items={preferences.activities} onMove={(index, direction) => movePriority('activities', index, direction)} />
             <PriorityList label="음식" items={preferences.foods} onMove={(index, direction) => movePriority('foods', index, direction)} />

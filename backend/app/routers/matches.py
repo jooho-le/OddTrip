@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_db
 from ..models.match import Match
-from ..models.trip import Trip
+from ..models.trip import Attraction, ItineraryItem, SafetyAlert, Trip
 from ..models.user import User
 from ..services import match_service
 from ..services.match_service import _calc_score, _count_opposite_axes
@@ -49,27 +49,7 @@ async def accept_match(
     if not target:
         raise HTTPException(status_code=404, detail="대상 사용자를 찾을 수 없습니다.")
 
-    # Check for existing match in BOTH directions (idempotency)
-    existing = await db.execute(
-        select(Match).where(
-            or_(
-                (Match.user_id == user.id) & (Match.matched_user_id == matched_user_id),
-                (Match.user_id == matched_user_id) & (Match.matched_user_id == user.id),
-            )
-        )
-    )
-    existing_match = existing.scalar_one_or_none()
-    if existing_match:
-        trip_result = await db.execute(
-            select(Trip).where(Trip.match_id == existing_match.id)
-        )
-        existing_trip = trip_result.scalar_one_or_none()
-        return {
-            "data": {"matchId": existing_match.id, "tripId": existing_trip.id if existing_trip else None},
-            "error": None,
-        }
-
-    # Calculate actual match level and score
+    # Calculate actual match level and score from the latest TTI result.
     user_code = user.tti_code or ""
     target_code = target.tti_code or ""
 
@@ -88,6 +68,44 @@ async def accept_match(
         complements = []
 
     compatibility = f"당신의 여행 스타일과 {target.nickname}님의 스타일이 상호보완적입니다."
+
+    # Check for existing match in BOTH directions (idempotency)
+    existing = await db.execute(
+        select(Match).where(
+            or_(
+                (Match.user_id == user.id) & (Match.matched_user_id == matched_user_id),
+                (Match.user_id == matched_user_id) & (Match.matched_user_id == user.id),
+            )
+        )
+    )
+    existing_match = existing.scalar_one_or_none()
+    if existing_match:
+        changed = (
+            existing_match.match_level != match_level
+            or existing_match.recommendation_score != min(score, 100)
+            or existing_match.differences_json != differences
+            or existing_match.complements_json != complements[:4]
+        )
+        existing_match.match_level = match_level
+        existing_match.recommendation_score = min(score, 100)
+        existing_match.compatibility = compatibility
+        existing_match.differences_json = differences
+        existing_match.complements_json = complements[:4]
+
+        trip_result = await db.execute(
+            select(Trip).where(Trip.match_id == existing_match.id)
+        )
+        existing_trip = trip_result.scalar_one_or_none()
+        if changed and existing_trip:
+            await _clear_trip_outputs(db, existing_trip.id)
+        if not existing_trip:
+            existing_trip = Trip(id=str(uuid.uuid4()), match_id=existing_match.id, status="planning")
+            db.add(existing_trip)
+        await db.commit()
+        return {
+            "data": {"matchId": existing_match.id, "tripId": existing_trip.id if existing_trip else None},
+            "error": None,
+        }
 
     match = Match(
         id=str(uuid.uuid4()),
@@ -111,3 +129,10 @@ async def accept_match(
         "data": {"matchId": match.id, "tripId": trip_id},
         "error": None,
     }
+
+
+async def _clear_trip_outputs(db: AsyncSession, trip_id: str) -> None:
+    for model in (Attraction, ItineraryItem, SafetyAlert):
+        result = await db.execute(select(model).where(model.trip_id == trip_id))
+        for row in result.scalars().all():
+            await db.delete(row)

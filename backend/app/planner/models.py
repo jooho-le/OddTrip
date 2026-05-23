@@ -80,6 +80,10 @@ class InputPlace:
     description: str = ""
     famous: bool = False
     active: bool = False
+    latitude: float | None = None
+    longitude: float | None = None
+    indoor: bool | None = None
+    opening_hours: dict | None = None
 
 
 # ══════════════════════════════════════════════════════
