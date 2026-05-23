@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
-import { SectionTitle } from '../../shared/ui/SectionTitle';
 import { cn } from '../../shared/lib/classNames';
 import { ErrorView, LoadingView } from '../../shared/ui/StateView';
 
@@ -32,19 +32,35 @@ export function TtiQuestionsPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <SectionTitle title="나의 여행 선택 방식" description={`${index + 1} / ${questions.length} 문항`} />
-      <div className="h-3 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-brand-700 transition-all" style={{ width: `${progress}%` }} /></div>
-      <Card className="space-y-6">
+    <div className="page-canvas space-y-5">
+      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-6 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-8">
+        <img src="https://images.unsplash.com/photo-1517760444937-f6397edcbbcd?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-28" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_88%_22%,rgba(245,208,76,0.46),transparent_26%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.58))]" />
+        <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
+              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
+              question {index + 1}
+            </p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.05em] md:text-7xl">나의 여행 선택 방식</h1>
+          </div>
+          <div className="rounded-[28px] bg-white p-4 text-[#111111] md:w-72">
+            <p className="text-sm font-black">{index + 1} / {questions.length} 문항</p>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full gradient-panel transition-all" style={{ width: `${progress}%` }} /></div>
+          </div>
+        </div>
+      </section>
+
+      <Card className="space-y-7 rounded-[38px] p-6 md:p-8">
         <div>
           <BadgeLabel text={question.axis} />
-          <h2 className="mt-3 text-xl font-bold leading-8">{question.prompt}</h2>
+          <h2 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">{question.prompt}</h2>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
           {values.map((value) => (
-            <button key={value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })} className={cn('rounded-lg border p-4 text-left transition hover:border-brand-500 hover:bg-brand-50', answer?.value === value ? 'border-brand-700 bg-brand-50 ring-2 ring-brand-100' : 'border-slate-200 bg-white')}>
-              <p className="text-xs font-bold text-slate-500">{value < 0 ? question.leftLetter : value > 0 ? question.rightLetter : '중간'}</p>
-              <p className="mt-2 text-sm font-semibold">{value < 0 ? question.leftLabel : value > 0 ? question.rightLabel : '둘 다 비슷함'}</p>
+            <button key={value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })} className={cn('motion-card min-h-44 rounded-[28px] border p-5 text-left transition hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(16,17,20,0.12)]', answer?.value === value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
+              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-60">{value < 0 ? question.leftLetter : value > 0 ? question.rightLetter : 'middle'}</p>
+              <p className="mt-14 text-lg font-black leading-6">{value < 0 ? question.leftLabel : value > 0 ? question.rightLabel : '둘 다 비슷함'}</p>
             </button>
           ))}
         </div>
@@ -62,5 +78,5 @@ export function TtiQuestionsPage() {
 }
 
 function BadgeLabel({ text }: { text: string }) {
-  return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{text}</span>;
+  return <span className="rounded-full bg-[#101114] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white">{text}</span>;
 }

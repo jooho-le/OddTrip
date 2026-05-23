@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { AlertTriangle, Info, Siren } from 'lucide-react';
+import { AlertTriangle, Info, ShieldCheck, Siren, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
-import { SectionTitle } from '../../shared/ui/SectionTitle';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
 
 const styles = {
@@ -22,17 +21,32 @@ export function SafetyPage() {
   if (status.alerts === 'error') return <ErrorView label="안전 알림을 불러오지 못했습니다" />;
 
   return (
-    <div className="space-y-5">
-      <SectionTitle title="알림 / 안전" description="날씨 변화, 재난 알림, 일정 조정 필요 여부를 한 화면에서 확인합니다." />
+    <div className="page-canvas space-y-5">
+      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
+        <img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-28" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_22%,rgba(245,208,76,0.48),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.48))]" />
+        <div className="relative">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72">
+            <Sparkles className="h-4 w-4 text-[#f5d04c]" />
+            Safety Signal
+          </p>
+          <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
+            날씨가 바뀌면
+            <br />
+            일정도 바뀐다.
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">날씨 변화, 재난 알림, 일정 조정 필요 여부를 한 화면에서 확인합니다.</p>
+        </div>
+      </section>
       {!alerts.length ? <EmptyView label="현재 알림이 없습니다" /> : null}
       <div className="grid gap-4">
         {alerts.map((alert) => {
           const style = styles[alert.level];
           const Icon = style.icon;
-          return <Card key={alert.id} className={style.className}><div className="flex gap-3"><Icon className="h-6 w-6 shrink-0" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold">{alert.title}</h2><span className="text-xs opacity-70">{alert.time}</span></div><p className="mt-1 text-sm leading-6">{alert.message}</p><p className="mt-3 rounded-lg bg-white/70 p-3 text-sm font-semibold">{alert.action}</p></div></div></Card>;
+          return <Card key={alert.id} className={`${style.className} border-0`}><div className="flex gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/80"><Icon className="h-6 w-6" /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-black">{alert.title}</h2><span className="rounded-full bg-white/70 px-3 py-1 text-xs font-black opacity-80">{alert.time}</span></div><p className="mt-2 text-sm font-bold leading-6">{alert.message}</p><p className="mt-4 rounded-[22px] bg-white/76 p-4 text-sm font-black">{alert.action}</p></div></div></Card>;
         })}
       </div>
-      <Button variant="secondary">일정 자동 조정 검토</Button>
+      <Button icon={<ShieldCheck className="h-4 w-4" />} variant="secondary">일정 자동 조정 검토</Button>
     </div>
   );
 }

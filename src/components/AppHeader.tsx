@@ -1,5 +1,6 @@
 import { ChevronLeft, Search, ShieldCheck } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { cn } from '../shared/lib/classNames';
 
 const titles: Record<string, string> = {
   '/tti/start': 'TTI 진단',
@@ -20,19 +21,19 @@ export function AppHeader() {
   const title = titles[location.pathname] ?? (location.pathname.startsWith('/matches/') ? '매칭 상세' : location.pathname.startsWith('/itinerary/') ? '일정 상세' : 'oddtrip');
 
   return (
-    <header className="safe-top sticky top-0 z-30 border-b border-black/5 bg-white/92 px-4 backdrop-blur-xl md:px-8">
+    <header className={cn('safe-top z-30 px-4 backdrop-blur-xl md:px-8', isHome ? 'absolute left-0 right-0 top-0 border-b border-white/10 bg-transparent text-white' : 'sticky top-0 border-b border-black/5 bg-white/92')}>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between">
         <div className="flex items-center gap-3">
           {!isHome ? <button aria-label="뒤로가기" onClick={() => navigate(-1)} className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100"><ChevronLeft className="h-6 w-6" /></button> : null}
-          <Link to="/" className="flex items-center gap-3 font-black text-ink">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#006bff] text-lg text-white shadow-[0_10px_24px_rgba(0,107,255,0.25)]">o</span>
+          <Link to="/" className={cn('flex items-center gap-3 font-black', isHome ? 'text-white' : 'text-ink')}>
+            <span className="gradient-panel grid h-10 w-10 place-items-center rounded-full text-lg text-white shadow-[0_10px_24px_rgba(253,38,122,0.25)]">o</span>
             <span className="text-xl tracking-tight">oddtrip</span>
           </Link>
-          <span className="hidden text-sm font-black text-slate-700 sm:inline">{title}</span>
+          <span className={cn('hidden text-sm font-black sm:inline', isHome ? 'text-white/72' : 'text-slate-700')}>{title}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button type="button" className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100" aria-label="검색"><Search className="h-5 w-5" /></button>
-          <Link to="/safety" className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100" aria-label="안전 알림"><ShieldCheck className="h-5 w-5" /></Link>
+          <button type="button" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="검색"><Search className="h-5 w-5" /></button>
+          <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="안전 알림"><ShieldCheck className="h-5 w-5" /></Link>
         </div>
       </div>
     </header>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bot, Map, Sparkles } from 'lucide-react';
+import { CardNewsRail } from '../../components/CardNewsRail';
 import { GoogleMap } from '../../components/GoogleMap';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -66,28 +67,30 @@ export function AttractionsPage() {
   }
 
   return (
-    <div className="-mx-4 -mt-4 space-y-5 bg-[#f4f0e6] px-4 py-5 md:mx-0 md:mt-0 md:rounded-lg md:px-8 md:py-8">
+    <div className="page-canvas space-y-6">
       <section className="grid gap-4 lg:grid-cols-[1fr_390px]">
-        <div className="rounded-[28px] bg-white p-6 shadow-soft">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff5a1f]">TourAPI Recommendation</p>
-          <h1 className="mt-5 max-w-2xl text-5xl font-black leading-[0.98] tracking-tight text-black md:text-6xl">
+        <div className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
+          <img src="https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(245,208,76,0.46),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.52))]" />
+          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">TourAPI Recommendation</p>
+          <h1 className="relative mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
             둘 다 낯설지만
             <br />
             부담 없는 장소
           </h1>
-          <p className="mt-5 max-w-xl text-sm font-semibold leading-6 text-slate-600">
+          <p className="relative mt-5 max-w-xl text-sm font-bold leading-6 text-white/72">
             공공데이터 후보를 모으고, 연관 관광지와 혼잡 흐름을 더해 두 사람의 균형점에 가까운 장소를 정렬합니다.
           </p>
           <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
             {filters.map((item) => (
-              <button key={item} onClick={() => setFilter(item)} className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-black ${filter === item ? 'bg-black text-white' : 'bg-[#f2f2ef] text-slate-500'}`}>
+              <button key={item} onClick={() => setFilter(item)} className={`relative whitespace-nowrap rounded-full px-4 py-2 text-sm font-black ${filter === item ? 'bg-white text-[#fd267a]' : 'bg-white/12 text-white/72'}`}>
                 {item}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="rounded-[28px] bg-[#101828] p-5 text-white shadow-soft">
+        <div className="gradient-panel pulse-sheen rounded-[38px] p-6 text-white shadow-[0_26px_90px_rgba(253,38,122,0.20)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">Agent Board</p>
@@ -99,7 +102,7 @@ export function AttractionsPage() {
           </div>
           <div className="mt-5 grid grid-cols-4 gap-2">
             {(agentRun?.steps ?? ['tour', 'context', 'rank', 'plan']).map((step, index) => (
-              <div key={typeof step === 'string' ? step : step.tool} className={`min-h-20 rounded-xl p-3 ${agentRun ? 'bg-[#2388ff]' : 'bg-white/10'}`}>
+              <div key={typeof step === 'string' ? step : step.tool} className={`motion-card min-h-20 rounded-xl p-3 ${agentRun ? stepColor(index) : 'bg-white/12'}`} style={{ animationDelay: `${index * 90}ms` }}>
                 <p className="text-xs font-black">{index + 1}</p>
                 <p className="mt-4 text-[11px] font-bold leading-4 text-white/80">{typeof step === 'string' ? step : toolLabel(step.tool)}</p>
               </div>
@@ -110,6 +113,14 @@ export function AttractionsPage() {
           </p>
         </div>
       </section>
+
+      <CardNewsRail
+        items={[
+          { kicker: 'DATA', title: 'TourAPI 후보 수집', description: '관광지, 축제, 숙박, 음식점 데이터를 한 번에 후보화합니다.', tone: 'bg-[#2388ff] text-white' },
+          { kicker: 'CONTEXT', title: '혼잡과 연관성 반영', description: '방문자 추이, 연관 관광지, 혼잡 예측으로 추천 이유를 보강합니다.', tone: 'bg-[#21b8a5] text-white' },
+          { kicker: 'BALANCE', title: '두 사람의 균형점', description: '한쪽 취향만 따르지 않도록 중간 성향에 맞게 재정렬합니다.', tone: 'bg-[#ffd45a] text-black' }
+        ]}
+      />
 
       {showMap ? (
         <GoogleMap
@@ -122,20 +133,20 @@ export function AttractionsPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         {filtered.map((item, index) => (
-          <Card key={item.id} className="reveal-card overflow-hidden p-0" style={{ animationDelay: `${index * 70}ms` }}>
+          <Card key={item.id} className="motion-card hover-lift overflow-hidden p-0" style={{ animationDelay: `${index * 70}ms` }}>
             <div className="grid min-h-[250px] md:grid-cols-[220px_1fr]">
               <div className="relative bg-[#e7edf7]">
                 <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-56 w-full object-cover" />
-                <Badge className="absolute left-4 top-4 bg-[#ffd45a] text-black">{item.saved ? '저장됨' : '추천'}</Badge>
+                <Badge className="absolute left-4 top-4 bg-[#ff5a1f] text-white">{item.saved ? '저장됨' : '추천'}</Badge>
               </div>
               <div className="p-5">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2388ff]">{item.category}</p>
                 <h2 className="mt-2 text-2xl font-black leading-7 text-black">{item.name}</h2>
                 <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{item.description}</p>
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" />
-                  <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" />
-                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" />
+                  <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" tone="orange" />
+                  <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" tone="mint" />
+                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" tone="blue" />
                 </div>
                 <p className="mt-4 rounded-2xl bg-[#f6f4ec] p-3 text-sm font-semibold leading-6 text-slate-700">{item.reason}</p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
@@ -166,6 +177,10 @@ function toolLabel(tool: string) {
   return labels[tool] ?? tool;
 }
 
+function stepColor(index: number) {
+  return ['bg-[#2388ff]', 'bg-[#ff5a1f]', 'bg-[#21b8a5]', 'bg-[#ffd45a] text-black'][index % 4];
+}
+
 function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { title: string; description: string; primaryTo: string; primaryLabel: string }) {
   return (
     <Card className="space-y-4 rounded-[24px]">
@@ -181,9 +196,14 @@ function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { tit
   );
 }
 
-function Metric({ label, value, suffix }: { label: string; value: number | null; suffix: string }) {
+function Metric({ label, value, suffix, tone }: { label: string; value: number | null; suffix: string; tone: 'orange' | 'mint' | 'blue' }) {
+  const toneClass = {
+    orange: 'bg-[#ffe7d8]',
+    mint: 'bg-[#e1f8f4]',
+    blue: 'bg-[#e6f1ff]'
+  }[tone];
   return (
-    <div className="rounded-2xl bg-[#f6f4ec] p-3">
+    <div className={`rounded-2xl p-3 ${toneClass}`}>
       <p className="text-[11px] font-black text-slate-500">{label}</p>
       <p className="mt-1 text-sm font-black text-black">{value === null ? '-' : `${value}${suffix}`}</p>
     </div>
