@@ -32,9 +32,9 @@ export function SafetyPage() {
             날씨와 일정 주의
           </p>
           <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
-            날씨가 바뀌면
+            동행의 여행을
             <br />
-            일정도 바뀐다.
+            안전하게.
           </h1>
           <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">비, 강풍, 재난 알림처럼 일정에 영향을 줄 수 있는 상황을 한 화면에서 확인합니다.</p>
         </div>

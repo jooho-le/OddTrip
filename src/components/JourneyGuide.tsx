@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarRange, Check, CloudSun, Compass, Heart, MapPinned, MessageCircleQuestion, SlidersHorizontal } from 'lucide-react';
+import { CalendarRange, Check, CloudSun, Heart, MapPinned, MessageCircleQuestion, SlidersHorizontal } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTripStore } from '../entities/tripStore';
 import { cn } from '../shared/lib/classNames';
@@ -30,11 +30,9 @@ export function JourneyGuide() {
   };
 
   const currentIndex = Math.max(0, steps.findIndex((step) => location.pathname.startsWith(step.to.split('/').slice(0, 2).join('/'))));
-  const next = nextAction({ hasTti, hasMatch, activeTripId: Boolean(activeTripId), hasAttractions, hasItinerary });
-
   return (
     <section className="mb-4 rounded-2xl border border-black/5 bg-white p-3 shadow-[0_14px_36px_rgba(16,17,20,0.08)]">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {steps.map((step, index) => {
             const Icon = step.icon;
@@ -62,26 +60,7 @@ export function JourneyGuide() {
             );
           })}
         </div>
-        <Link to={next.to} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#fd267a] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(253,38,122,0.22)]">
-          {next.label}
-          <Compass className="h-4 w-4" />
-        </Link>
       </div>
     </section>
   );
-}
-
-function nextAction(state: {
-  hasTti: boolean;
-  hasMatch: boolean;
-  activeTripId: boolean;
-  hasAttractions: boolean;
-  hasItinerary: boolean;
-}) {
-  if (!state.hasTti) return { to: '/tti/start', label: '먼저 TTI 진단하기' };
-  if (!state.hasMatch) return { to: '/matches', label: '반대 성향 선택하기' };
-  if (!state.activeTripId) return { to: '/matches', label: '공동 여행 만들기' };
-  if (!state.hasAttractions) return { to: '/decision', label: '취향 조율 후 추천받기' };
-  if (!state.hasItinerary) return { to: '/itinerary', label: '일정 생성 확인하기' };
-  return { to: '/safety', label: '날씨 주의사항 확인하기' };
 }
