@@ -142,12 +142,21 @@ Page -> Zustand store -> oddtripService -> FastAPI backend -> SQLite/MySQL / Tou
 
 앱 프로젝트를 추가할 때는 보통 아래 순서로 진행합니다.
 
-```bash
+ios
+cd /Users/leejooho/Desktop/OddTrip
+npm install
 npm run build
 npx cap add ios
+npx cap sync ios
+npx cap open ios
+
+android
+cd /Users/leejooho/Desktop/OddTrip
+npm install
+npm run build
 npx cap add android
-npx cap sync
-```
+npx cap sync android
+npx cap open android
 
 safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 처리해두었습니다. 상단 헤더와 하단 탭이 이 값을 사용하기 때문에 iPhone 노치나 홈 인디케이터 영역에서도 레이아웃이 무너지지 않게 의도했습니다.
 

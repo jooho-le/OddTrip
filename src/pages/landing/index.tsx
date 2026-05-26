@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../shared/ui/Button';
 
 const newsCards = [
-  { kicker: '01 TTI', title: '너의 여행 리듬을 먼저 읽고', text: '12문항으로 즉흥/계획, 자연/도시, 활동/휴식 축을 계산합니다.', tone: 'bg-[#101114] text-white' },
-  { kicker: '02 MATCH', title: '다른 취향을 스와이프', text: '비슷한 사람이 아니라 여행을 넓혀줄 반대 성향을 보여줍니다.', tone: 'gradient-panel text-white' },
+  { kicker: '01 TTI', title: '여행 리듬을 읽고', text: '12문항으로 즉흥/계획, 자연/도시, 활동/휴식 축을 계산합니다.', tone: 'bg-[#101114] text-white' },
+  { kicker: '02 MATCH', title: '다른 취향과 연결', text: '비슷한 사람이 아니라 여행을 넓혀줄 반대 성향을 보여줍니다.', tone: 'gradient-panel text-white' },
   { kicker: '03 취향 균형', title: '둘 사이의 적당한 온도', text: '한 사람 취향만 따라가지 않도록 중간 지점 후보를 만듭니다.', tone: 'bg-[#f5d04c] text-[#111111]' },
   { kicker: '04 PLAN', title: '바로 실행 가능한 일정', text: '관광지, 식사, 이동, 휴식을 시간대별로 배치합니다.', tone: 'bg-white text-[#111111]' }
 ];
@@ -50,19 +50,21 @@ export function LandingPage() {
               AI Travel Match
             </p>
             <h1 className="mt-8 max-w-4xl text-[62px] font-black leading-[0.9] tracking-[-0.055em] md:text-[104px]">
-              반대라서
+              혼자 떠난 여행을,
               <br />
-              더 재밌는
+              가장 낯선 취향과
               <br />
-              여행.
+               연결하다
             </h1>
             <p className="mt-7 max-w-2xl text-lg font-bold leading-8 text-white/78 md:text-xl md:leading-9">
-              oddtrip은 혼자 여행하는 사람을 반대 성향 여행자와 연결하고, 둘의 균형점으로 관광지와 일정을 만듭니다.
+              OddTrip은 혼자 여행하는 사람을 반대 성향 여행자와 연결하고, 
+              <br />
+              새로운 여행 라이프스타일을 만들어갑니다.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link to="/tti/start">
                 <Button icon={<ArrowRight className="h-4 w-4" />} className="w-full bg-white text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.32)] hover:bg-white/95 sm:w-auto">
-                  TTI 시작하기
+                  여행 성향 진단 시작하기
                 </Button>
               </Link>
               <Link to="/matches" className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/24 bg-white/10 px-6 text-sm font-black text-white backdrop-blur transition hover:bg-white/16">
@@ -87,7 +89,7 @@ export function LandingPage() {
               <span className="rounded-full bg-[#f5d04c] px-3 py-2 text-xs font-black text-[#111111]">89%</span>
             </div>
             <div className="mt-5 space-y-2">
-              {['반대 성향 매칭', '균형점 관광지 추천', 'AI 3일 일정 생성'].map((item) => (
+              {['반대 성향 매칭', '균형점 관광지 추천', 'AI 일정 생성'].map((item) => (
                 <div key={item} className="flex items-center gap-3 rounded-2xl bg-white/12 px-4 py-3 text-sm font-black">
                   <Check className="h-4 w-4 text-[#f5d04c]" />
                   {item}
@@ -113,17 +115,17 @@ export function LandingPage() {
       <section className="mx-auto grid max-w-7xl gap-5 px-5 py-10 md:grid-cols-[0.78fr_1.22fr] md:px-8 md:py-16">
         <div className="rounded-[38px] bg-[#101114] p-8 text-white md:p-10">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#f5d04c]">Why oddtrip</p>
-          <h2 className="mt-5 text-5xl font-black leading-[0.95] tracking-[-0.045em] md:text-7xl">
+          <h2 className="mt-5 text-5xl font-black leading-[0.95] tracking-[-0.045em] md:text-5xl">
             취향을
             <br />
-            섞는 게
-            <br />
-            아니라
+            맞추는 것이 아니라
             <br />
             넓히는 것.
           </h2>
           <p className="mt-8 text-base font-bold leading-7 text-white/68">
-            둘 중 한 명의 취향만 따라가는 일정이 아니라, 서로에게 새롭지만 감당 가능한 선택지를 찾습니다.
+            둘 중 한 명의 취향만 따라가는 일정이 아니라, 
+            <br />
+            서로에게 새롭지만 감당 가능한 선택지를 찾습니다.
           </p>
         </div>
 
