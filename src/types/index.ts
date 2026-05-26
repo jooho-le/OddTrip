@@ -118,6 +118,7 @@ export interface AgentRunRequest {
   days?: number;
   budget?: number;
   pace?: number;
+  generateItinerary?: boolean;
 }
 
 export interface AgentToolStep {

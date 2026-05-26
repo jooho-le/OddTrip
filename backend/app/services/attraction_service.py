@@ -2,6 +2,7 @@ import asyncio
 import uuid
 from typing import Any
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,16 +69,16 @@ async def get_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]
 async def generate_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return []
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     match = await db.get(Match, trip.match_id)
     if not match:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
     user_a = await db.get(User, match.user_id)
     user_b = await db.get(User, match.matched_user_id)
     if not user_a or not user_b:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
 
     # Delete existing attractions before regenerating
     old_result = await db.execute(
@@ -140,16 +141,16 @@ async def generate_public_attractions(
 ) -> list[AttractionOut]:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return []
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     match = await db.get(Match, trip.match_id)
     if not match:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
     user_a = await db.get(User, match.user_id)
     user_b = await db.get(User, match.matched_user_id)
     if not user_a or not user_b:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
 
     try:
         raw_candidates = await _collect_public_candidates(request)
@@ -195,7 +196,7 @@ async def generate_public_attractions(
             famous=normalized["famous"],
             content_id=normalized["content_id"],
             content_type_id=normalized["content_type_id"],
-            source="TourAPI",
+            source=normalized["source"],
             addr1=normalized["addr1"],
             addr2=normalized["addr2"],
             map_x=normalized["map_x"],
@@ -395,6 +396,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.578631",
             "firstimage": "https://images.unsplash.com/photo-1545987796-200677ee1011?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 42,
+            "_source_status": "fallback",
         },
         {
             "contentid": f"fallback-{area_code}-2",
@@ -405,6 +407,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.582604",
             "firstimage": "https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 58,
+            "_source_status": "fallback",
         },
         {
             "contentid": f"fallback-{area_code}-3",
@@ -415,6 +418,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.572209",
             "firstimage": "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 47,
+            "_source_status": "fallback",
         },
         {
             "contentid": f"fallback-{area_code}-4",
@@ -425,6 +429,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.569107",
             "firstimage": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 33,
+            "_source_status": "fallback",
         },
         {
             "contentid": f"fallback-{area_code}-5",
@@ -435,6 +440,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.572006",
             "firstimage": "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 68,
+            "_source_status": "fallback",
         },
         {
             "contentid": f"fallback-{area_code}-6",
@@ -445,6 +451,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "mapy": "37.570387",
             "firstimage": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
             "_congestion_hint": 29,
+            "_source_status": "fallback",
         },
     ][: request.limit]
 
@@ -647,6 +654,7 @@ def _to_attraction_payload(item: dict[str, Any]) -> dict[str, Any]:
         "indoor": "실내" in tags,
         "active": content_type_id in {"15", "28"},
         "famous": bool(item.get("_is_hub") or content_type_id in {"12", "15"}),
+        "source": "Fallback" if item.get("_source_status") == "fallback" else "TourAPI",
         "content_id": str(_get_value(item, "contentid", "contentId", "") or ""),
         "content_type_id": content_type_id,
         "addr1": str(_get_value(item, "addr1", "address", "") or ""),
@@ -702,9 +710,10 @@ def _build_public_reason(payload: dict[str, Any], user_a_code: str, user_b_code:
     if payload["indoor"]:
         balance = "날씨 변수에도 안정적으로 유지할 수 있어 공동 일정의 리스크를 낮춥니다."
     axis_summary = _axis_summary(payload.get("axis_scores") or {})
+    source_label = "공공데이터 후보" if payload.get("source") == "TourAPI" else "개발용 대체 후보"
     if user_a_code and user_b_code:
-        return f"{payload['category']} 데이터와 두 사용자의 TTI({user_a_code}/{user_b_code})를 함께 고려했습니다. {axis_summary} {balance}"
-    return f"한국관광공사 TourAPI 후보를 기반으로 추천했습니다. {balance}"
+        return f"{source_label}와 두 사용자의 여행 성향({user_a_code}/{user_b_code})을 함께 고려했습니다. {axis_summary} {balance}"
+    return f"{source_label}를 기반으로 추천했습니다. {balance}"
 
 
 def _infer_place_axis_scores(item: dict[str, Any]) -> dict[str, int]:

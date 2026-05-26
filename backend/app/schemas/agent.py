@@ -12,6 +12,7 @@ class AgentRunRequest(BaseModel):
     days: int = 3
     budget: int = 50
     pace: int = 50
+    generate_itinerary: bool = False
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 

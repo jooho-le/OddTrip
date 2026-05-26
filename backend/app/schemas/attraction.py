@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -9,7 +9,7 @@ class AttractionOut(BaseModel):
     image_url: str | None = None
     description: str | None = None
     reason: str | None = None
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
     indoor: bool = False
     active: bool = False
     famous: bool = False
@@ -27,7 +27,7 @@ class AttractionOut(BaseModel):
     tel: str | None = None
     homepage: str | None = None
     opening_hours: dict | None = None
-    closed_days: list[str] = []
+    closed_days: list[str] = Field(default_factory=list)
     congestion_score: int | None = None
     hidden_score: int | None = None
     related_rank: int | None = None
@@ -43,8 +43,8 @@ class AttractionToggle(BaseModel):
 class PublicAttractionGenerateRequest(BaseModel):
     area_code: str = "1"
     sigungu_code: str | None = None
-    keywords: list[str] = []
-    content_type_ids: list[str] = []
+    keywords: list[str] = Field(default_factory=list)
+    content_type_ids: list[str] = Field(default_factory=list)
     rows_per_type: int = 12
     limit: int = 8
     fast: bool = True

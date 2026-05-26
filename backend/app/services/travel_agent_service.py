@@ -143,6 +143,14 @@ async def run_agent(
             continue
 
         if tool_name in {"prepare_itinerary_generation", "generate_executable_itinerary"}:
+            if not request.generate_itinerary:
+                steps.append(AgentToolStep(
+                    tool="prepare_itinerary_generation",
+                    reason="추천 후보를 일정 생성에 사용할 수 있도록 준비합니다.",
+                    args=args,
+                    result_count=0,
+                ))
+                continue
             itinerary = await itinerary_service.generate_itinerary(db, trip_id)
             steps.append(AgentToolStep(tool="generate_executable_itinerary", reason=reason, args=args, result_count=sum(len(day.items) for day in itinerary)))
 
@@ -167,6 +175,7 @@ async def _ask_model_for_tool_plan(request: AgentRunRequest) -> list[dict[str, A
         "days": request.days,
         "budget": request.budget,
         "pace": request.pace,
+        "generateItinerary": request.generate_itinerary,
     }
     try:
         response = await client.chat.completions.create(
@@ -207,7 +216,7 @@ async def _ask_model_for_tool_plan(request: AgentRunRequest) -> list[dict[str, A
 def _fallback_tool_plan(request: AgentRunRequest) -> list[dict[str, Any]]:
     keywords = request.keywords or ["전시", "카페"]
     content_type_ids = request.content_type_ids or ["12", "14", "15", "28", "32", "39"]
-    return [
+    steps = [
         {
             "tool": "search_tourapi_candidates",
             "reason": "관광지, 축제, 숙박, 음식점 후보를 먼저 확보합니다.",
@@ -238,11 +247,12 @@ def _fallback_tool_plan(request: AgentRunRequest) -> list[dict[str, Any]]:
             },
         },
         {
-            "tool": "generate_executable_itinerary",
-            "reason": "추천 후보를 바탕으로 실제 시간대별 일정까지 생성합니다.",
+            "tool": "generate_executable_itinerary" if request.generate_itinerary else "prepare_itinerary_generation",
+            "reason": "추천 후보를 일정 생성에 사용할 수 있도록 준비합니다." if not request.generate_itinerary else "추천 후보를 바탕으로 실제 시간대별 일정까지 생성합니다.",
             "args": {
                 "days": request.days,
                 "pace": request.pace,
             },
         },
     ]
+    return steps

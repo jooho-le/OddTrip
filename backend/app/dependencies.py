@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import async_session
 from .config import settings
+from .models.match import Match
+from .models.trip import Trip
 from .models.user import User
 from .security import decode_access_token
 
@@ -34,3 +36,22 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+async def get_current_user_trip(
+    trip_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Trip:
+    result = await db.execute(
+        select(Trip)
+        .join(Match, Match.id == Trip.match_id)
+        .where(
+            Trip.id == trip_id,
+            (Match.user_id == user.id) | (Match.matched_user_id == user.id),
+        )
+    )
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
+    return trip

@@ -3,6 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 _env_path = Path(__file__).resolve().parents[2] / ".env"
+_project_root = _env_path.parent
 
 
 class Settings(BaseSettings):
@@ -31,4 +32,20 @@ class Settings(BaseSettings):
     model_config = {"env_file": str(_env_path), "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
+def _normalize_database_url(url: str) -> str:
+    sqlite_prefix = "sqlite+aiosqlite:///"
+    if not url.startswith(sqlite_prefix):
+        return url
+
+    path_part = url.removeprefix(sqlite_prefix)
+    if path_part == ":memory:":
+        return url
+    if path_part.startswith("/"):
+        return url
+
+    db_path = (_project_root / path_part).resolve()
+    return f"{sqlite_prefix}{db_path}"
+
+
 settings = Settings()
+settings.database_url = _normalize_database_url(settings.database_url)

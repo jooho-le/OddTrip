@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, timedelta
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,16 +26,16 @@ async def get_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDayOut]
 async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDayOut]:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return []
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     match = await db.get(Match, trip.match_id)
     if not match:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
     user_a = await db.get(User, match.user_id)
     user_b = await db.get(User, match.matched_user_id)
     if not user_a or not user_b:
-        return []
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
 
     # Prefer saved attractions. If the user has not explicitly saved anything,
     # use all generated non-excluded attractions so the planner can still build

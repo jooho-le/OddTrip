@@ -1,11 +1,11 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
 class JointPreferenceIn(BaseModel):
-    places: list[str] = []
-    activities: list[str] = []
-    foods: list[str] = []
+    places: list[str] = Field(default_factory=list)
+    activities: list[str] = Field(default_factory=list)
+    foods: list[str] = Field(default_factory=list)
     pace: int = 50
     budget: int = 50
     indoor_preferred: bool = False
@@ -19,7 +19,7 @@ class JointPreferenceOut(JointPreferenceIn):
 
 
 class ConflictRequest(BaseModel):
-    conflicts: list[str]
+    conflicts: list[str] = Field(default_factory=list)
 
 
 class ConflictResponse(BaseModel):

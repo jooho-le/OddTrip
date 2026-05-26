@@ -1,7 +1,7 @@
 # OddTrip Backend
 
 FastAPI 기반 OddTrip 백엔드입니다.  
-현재 목표는 프론트가 실제 API를 호출해서 사용자, TTI, 매칭, 공동 의사결정, 관광지 추천, 일정 생성, 안전 알림 흐름을 끝까지 실행할 수 있게 하는 것입니다.
+현재 목표는 프론트가 실제 API를 호출해서 인증, TTI, 매칭, 공동 의사결정, 관광지 추천, 일정 생성, 날씨/주의 알림 흐름을 끝까지 실행할 수 있게 하는 것입니다.
 
 ## 환경 변수
 
@@ -15,6 +15,7 @@ DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
 OPENAI_API_KEY=sk-your-real-key-here
 OPENAI_MODEL=gpt-4o-mini
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
+ALLOW_DEMO_USER_HEADER_AUTH=false
 TOUR_API_SERVICE_KEY=
 GOOGLE_MAPS_API_KEY=
 KMA_API_KEY=
@@ -72,25 +73,38 @@ python -m pytest ../tests/test_day_assigner.py ../tests/test_route_optimizer.py 
 
 | 영역 | prefix | 역할 |
 | --- | --- | --- |
-| users | `/api/users` | 사용자 생성, 내 정보 조회, 내 정보 수정 |
+| auth | `/api/auth` | 회원가입, 로그인, 내 정보 조회 |
+| users | `/api/users` | 기존 개발용 사용자 endpoint. 기본값에서는 생성 비활성화 |
 | tti | `/api/tti` | TTI 질문 조회, 결과 계산, 유형 목록 조회 |
 | matches | `/api/matches` | 매칭 후보 조회, 매칭 상세, 매칭 수락 |
 | decision | `/api/trips/{tripId}` | 공동 선호 조회/저장, 충돌 조정 제안 |
 | attractions | `/api/trips/{tripId}` | 관광지 조회/생성, 저장/제외 |
 | itinerary | `/api/trips/{tripId}` | 일정 조회/생성 |
-| safety | `/api/trips/{tripId}` | 날씨/재난/안전 알림 조회 |
+| safety | `/api/trips/{tripId}` | 날씨/재난/주의 알림 조회 |
 
 ## 인증 방식
 
-아직 로그인은 없습니다. 임시로 `X-User-Id` 헤더를 씁니다.
-
-예를 들어 TTI 계산, 매칭 조회, AI 생성 API는 아래처럼 호출해야 합니다.
+기본 인증은 Bearer token 방식입니다. 프론트는 로그인 또는 회원가입 후 받은 토큰을 저장하고, 이후 요청에 아래 헤더를 붙입니다.
 
 ```http
-X-User-Id: 생성된-user-id
+Authorization: Bearer access-token
 ```
 
-프론트와 연결할 때는 먼저 `/api/users`로 사용자를 만들고, 응답의 `id`를 이후 요청 헤더에 넣는 방식으로 시작하면 됩니다.
+개발용으로 예전 `X-User-Id` 헤더를 꼭 써야 하면 루트 `.env`에 아래 값을 추가합니다.
+
+```env
+ALLOW_DEMO_USER_HEADER_AUTH=true
+```
+
+이 값이 `false`이면 `POST /api/users`는 막혀 있고, `/api/auth/register`를 사용해야 합니다.
+
+기본 진입 흐름:
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+GET /api/auth/me
+```
 
 ## OpenAI 사용 위치
 
@@ -102,7 +116,7 @@ OpenAI 호출은 `backend/app/services/openai_service.py`에 모아두었습니�
 - 공동 의사결정 충돌 조정 문장 생성
 - 3일 일정 생성
 
-`OPENAI_API_KEY`가 비어 있거나 호출 실패가 나면 fallback 데이터를 반환하도록 되어 있습니다. 발표나 로컬 개발 중 API quota 문제로 전체 흐름이 막히지 않게 하기 위한 처리입니다.
+`OPENAI_API_KEY`가 비어 있거나 일부 호출이 실패하면 fallback 데이터를 반환하도록 되어 있습니다. 발표나 로컬 개발 중 API quota 문제로 전체 흐름이 막히지 않게 하기 위한 처리입니다. 단, 실제 추천 품질을 확인하려면 OpenAI 키와 TourAPI 키를 모두 넣어야 합니다.
 
 ## 폴더 설명
 
@@ -116,7 +130,7 @@ FastAPI 앱 진입점입니다. CORS 설정과 라우터 연결이 여기 있습
 backend/app/config.py
 ```
 
-환경 변수를 읽는 설정 파일입니다. `backend/.env`를 기준으로 읽습니다.
+환경 변수를 읽는 설정 파일입니다. 프로젝트 루트 `.env`를 기준으로 읽습니다.
 
 ```txt
 backend/app/database.py
@@ -128,13 +142,13 @@ SQLAlchemy async engine과 session 설정입니다.
 backend/app/dependencies.py
 ```
 
-라우터에서 공통으로 쓰는 의존성입니다. DB session과 임시 사용자 인증이 들어 있습니다.
+라우터에서 공통으로 쓰는 의존성입니다. DB session, Bearer token 인증, Trip 소유권 검사가 들어 있습니다.
 
 ```txt
 backend/app/models/
 ```
 
-DB 테이블 모델입니다. 사용자, TTI, 매칭, 여행, 관광지, 일정, 안전 알림 테이블이 있습니다.
+DB 테이블 모델입니다. 사용자, TTI, 매칭, 여행, 관광지, 일정, 날씨/주의 알림 테이블이 있습니다.
 
 ```txt
 backend/app/schemas/
@@ -196,7 +210,7 @@ TourAPI와 관광데이터랩 계열 API를 활용한 추천 설계는 아래 �
 backend/docs/PUBLIC_TOURISM_DATA_PLAN.md
 ```
 
-공공데이터 API 키는 `backend/.env`의 `TOUR_API_SERVICE_KEY`에 넣으면 됩니다.
+공공데이터 API 키는 루트 `.env`의 `TOUR_API_SERVICE_KEY`에 넣으면 됩니다.
 
 API별 키가 따로 발급됐으면 아래 변수에 각각 넣으면 됩니다.
 
@@ -241,7 +255,7 @@ POST /api/trips/{tripId}/itinerary/generate
 3. 장소명으로 좌표 보강
 4. 장소 운영시간/휴무일 추론
 5. 여행 기간별 날씨/자외선 정보 수집
-6. 재난/안전 알림 수집
+6. 재난/주의 알림 수집
 7. 날짜별 장소 분배
 8. Google Maps 기반 이동시간 계산 또는 fallback 이동시간 계산
 9. 운영시간 안에서 시간대별 슬롯 배치
@@ -257,4 +271,4 @@ KMA_API_KEY=
 MOIS_API_KEY=
 ```
 
-값이 비어 있으면 mock/fallback 로직으로 동작합니다.
+값이 비어 있으면 개발용 fallback 로직으로 동작합니다. 이 경우 화면은 막히지 않지만 실제 날씨, 재난, 이동시간 품질은 제한됩니다.

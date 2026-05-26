@@ -17,6 +17,6 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     home_region: Mapped[str | None] = mapped_column(String(100))
     tti_code: Mapped[str | None] = mapped_column(String(4))
-    tti_scores_json: Mapped[dict | None] = mapped_column(JSON)
+    tti_scores_json: Mapped[list | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

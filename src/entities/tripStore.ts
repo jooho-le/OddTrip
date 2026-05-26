@@ -339,7 +339,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const response = await oddtripService.getSafetyAlerts(tripId);
       set((state) => ({ alerts: response.data, status: { ...state.status, alerts: 'success' } }));
     } catch {
-      set((state) => ({ error: '안전 알림을 불러오지 못했습니다.', status: { ...state.status, alerts: 'error' } }));
+      set((state) => ({ error: '날씨와 주의사항을 불러오지 못했습니다.', status: { ...state.status, alerts: 'error' } }));
     }
   }
 }));

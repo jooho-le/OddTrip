@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..dependencies import get_current_user, get_db
 from ..models.user import User
 from ..schemas.user import UserCreate, UserOut, UserUpdate
@@ -10,6 +11,9 @@ router = APIRouter()
 
 @router.post("", response_model=dict)
 async def create_user(body: UserCreate, db: AsyncSession = Depends(get_db)):
+    if not settings.allow_demo_user_header_auth:
+        raise HTTPException(status_code=410, detail="사용자 생성은 /api/auth/register를 사용해주세요.")
+
     user = User(
         nickname=body.nickname,
         avatar_url=body.avatar_url,

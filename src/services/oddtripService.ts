@@ -103,6 +103,7 @@ export const oddtripService: OddtripService = {
   savePreferences(tripId, preferences) {
     return request<JointPreference>(`/api/trips/${tripId}/preferences`, {
       method: 'PUT',
+      auth: true,
       body: preferences
     });
   },
@@ -116,7 +117,7 @@ export const oddtripService: OddtripService = {
   },
 
   getAttractions(tripId) {
-    return request<Attraction[]>(`/api/trips/${tripId}/attractions`);
+    return request<Attraction[]>(`/api/trips/${tripId}/attractions`, { auth: true });
   },
 
   generatePublicAttractions(tripId, requestBody = {}) {
@@ -146,6 +147,7 @@ export const oddtripService: OddtripService = {
         days: 3,
         budget: 60,
         pace: 55,
+        generateItinerary: false,
         ...requestBody
       }
     });
@@ -154,12 +156,13 @@ export const oddtripService: OddtripService = {
   toggleAttraction(tripId, attractionId, patch) {
     return request<Attraction>(`/api/trips/${tripId}/attractions/${attractionId}`, {
       method: 'PATCH',
+      auth: true,
       body: patch
     });
   },
 
   getItinerary(tripId) {
-    return request<ItineraryDay[]>(`/api/trips/${tripId}/itinerary`);
+    return request<ItineraryDay[]>(`/api/trips/${tripId}/itinerary`, { auth: true });
   },
 
   generateItinerary(tripId) {
@@ -170,7 +173,7 @@ export const oddtripService: OddtripService = {
   },
 
   getSafetyAlerts(tripId) {
-    return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`);
+    return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`, { auth: true });
   }
 };
 
