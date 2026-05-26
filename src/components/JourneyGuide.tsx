@@ -1,15 +1,15 @@
-import { ArrowRight, CalendarDays, Check, Grid3X3, HeartHandshake, ListChecks, SlidersHorizontal, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CalendarRange, Check, CloudSun, Compass, Heart, MapPinned, MessageCircleQuestion, SlidersHorizontal } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTripStore } from '../entities/tripStore';
 import { cn } from '../shared/lib/classNames';
 
 const steps = [
-  { key: 'tti', label: '진단', to: '/tti/start', icon: ListChecks },
-  { key: 'matches', label: '매칭', to: '/matches', icon: HeartHandshake },
+  { key: 'tti', label: '진단', to: '/tti/start', icon: MessageCircleQuestion },
+  { key: 'matches', label: '매칭', to: '/matches', icon: Heart },
   { key: 'decision', label: '조율', to: '/decision', icon: SlidersHorizontal },
-  { key: 'attractions', label: '추천', to: '/attractions', icon: Grid3X3 },
-  { key: 'itinerary', label: '일정', to: '/itinerary', icon: CalendarDays },
-  { key: 'safety', label: '날씨', to: '/safety', icon: ShieldCheck },
+  { key: 'attractions', label: '추천', to: '/attractions', icon: MapPinned },
+  { key: 'itinerary', label: '일정', to: '/itinerary', icon: CalendarRange },
+  { key: 'safety', label: '날씨', to: '/safety', icon: CloudSun },
 ];
 
 export function JourneyGuide() {
@@ -49,8 +49,13 @@ export function JourneyGuide() {
                   active ? 'bg-[#101114] text-white' : done ? 'bg-[#e8f8f3] text-[#087466]' : 'bg-[#f5f0e9] text-slate-500',
                 )}
               >
-                <span className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-lg', active ? 'bg-white/16' : 'bg-white')}>
-                  {done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                <span className={cn('relative grid h-7 w-7 shrink-0 place-items-center rounded-lg', active ? 'bg-white/16' : 'bg-white')}>
+                  <Icon className="h-4 w-4" />
+                  {done ? (
+                    <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#f5d04c] text-[#101114] ring-2 ring-white">
+                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                    </span>
+                  ) : null}
                 </span>
                 {step.label}
               </Link>
@@ -59,7 +64,7 @@ export function JourneyGuide() {
         </div>
         <Link to={next.to} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#fd267a] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(253,38,122,0.22)]">
           {next.label}
-          <ArrowRight className="h-4 w-4" />
+          <Compass className="h-4 w-4" />
         </Link>
       </div>
     </section>

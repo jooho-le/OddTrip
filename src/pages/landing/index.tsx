@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarCheck, Check, Route, ShieldCheck, Sparkles, UsersRound } from 'lucide-react';
+import { ArrowRight, CalendarRange, Check, CloudSun, Compass, Heart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../shared/ui/Button';
 
@@ -25,10 +25,10 @@ const moments = [
 ];
 
 const featureCards = [
-  { title: 'TTI 진단', text: '12문항으로 여행 성향을 16개 유형 중 하나로 계산합니다.', icon: Route, tone: 'bg-white text-[#111111]' },
-  { title: '반대 성향 매칭', text: '비슷한 사람이 아니라 나를 보완하는 여행자를 찾습니다.', icon: UsersRound, tone: 'gradient-panel text-white' },
-  { title: '공동 일정', text: '장소, 음식, 예산, 속도를 함께 조율합니다.', icon: CalendarCheck, tone: 'bg-[#101114] text-white' },
-  { title: '날씨 주의', text: '비와 강풍처럼 일정에 영향을 주는 상황을 알려줍니다.', icon: ShieldCheck, tone: 'bg-[#e9f7ff] text-[#0f3450]' }
+  { title: 'TTI 진단', text: '12문항으로 여행 성향을 16개 유형 중 하나로 계산합니다.', icon: Compass, tone: 'bg-white text-[#111111]' },
+  { title: '반대 성향 매칭', text: '비슷한 사람이 아니라 나를 보완하는 여행자를 찾습니다.', icon: Heart, tone: 'gradient-panel text-white' },
+  { title: '공동 일정', text: '장소, 음식, 예산, 속도를 함께 조율합니다.', icon: CalendarRange, tone: 'bg-[#101114] text-white' },
+  { title: '날씨 주의', text: '비와 강풍처럼 일정에 영향을 주는 상황을 알려줍니다.', icon: CloudSun, tone: 'bg-[#e9f7ff] text-[#0f3450]' }
 ];
 
 export function LandingPage() {

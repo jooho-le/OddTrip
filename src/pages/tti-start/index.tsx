@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, ListChecks, Route, Sparkles } from 'lucide-react';
+import { ArrowRight, Clock3, Compass, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../shared/ui/Button';
@@ -45,9 +45,9 @@ export function TtiStartPage() {
               여행 성향 확인
             </h2>
             <div className="mt-8 space-y-3">
-              <InfoRow icon={<ListChecks className="h-5 w-5" />} title="12문항" text="한 문항씩 선택" />
-              <InfoRow icon={<Clock className="h-5 w-5" />} title="약 2분" text="빠른 시연 흐름" />
-              <InfoRow icon={<Route className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
+              <InfoRow icon={<MessageCircleQuestion className="h-5 w-5" />} title="12문항" text="한 문항씩 선택" />
+              <InfoRow icon={<Clock3 className="h-5 w-5" />} title="약 2분" text="빠른 시연 흐름" />
+              <InfoRow icon={<Compass className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
             </div>
             <Link to="/tti/questions">
               <Button className="mt-8 w-full bg-[#f5d04c] text-black hover:bg-[#f5d04c]/90" icon={<ArrowRight className="h-4 w-4" />}>

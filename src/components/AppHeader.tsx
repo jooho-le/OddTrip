@@ -1,4 +1,4 @@
-import { ChevronLeft, LogIn, LogOut, Search, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, CloudSun, Compass, LogOut, Search, UserRound } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../shared/lib/classNames';
 import { useTripStore } from '../entities/tripStore';
@@ -29,14 +29,16 @@ export function AppHeader() {
         <div className="flex items-center gap-3">
           {!isHome ? <button aria-label="뒤로가기" onClick={() => navigate(-1)} className="grid h-10 w-10 place-items-center rounded-full text-ink hover:bg-slate-100"><ChevronLeft className="h-6 w-6" /></button> : null}
           <Link to="/" className={cn('flex items-center gap-3 font-black', isHome ? 'text-white' : 'text-ink')}>
-            <span className="gradient-panel grid h-10 w-10 place-items-center rounded-full text-lg text-white shadow-[0_10px_24px_rgba(253,38,122,0.25)]">o</span>
+            <span className="gradient-panel grid h-10 w-10 place-items-center rounded-full text-white shadow-[0_10px_24px_rgba(253,38,122,0.25)]">
+              <Compass className="h-5 w-5" strokeWidth={3} />
+            </span>
             <span className="text-xl tracking-tight">oddtrip</span>
           </Link>
           <span className={cn('hidden text-sm font-black sm:inline', isHome ? 'text-white/72' : 'text-slate-700')}>{title}</span>
         </div>
         <div className="flex items-center gap-1">
           <button type="button" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="검색"><Search className="h-5 w-5" /></button>
-          <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="날씨 주의사항"><ShieldCheck className="h-5 w-5" /></Link>
+          <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="날씨 주의사항"><CloudSun className="h-5 w-5" /></Link>
           {user ? (
             <button
               type="button"
@@ -50,7 +52,7 @@ export function AppHeader() {
               <LogOut className="h-5 w-5" />
             </button>
           ) : (
-            <Link to="/auth" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="로그인"><LogIn className="h-5 w-5" /></Link>
+            <Link to="/auth" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="로그인"><UserRound className="h-5 w-5" /></Link>
           )}
         </div>
       </div>

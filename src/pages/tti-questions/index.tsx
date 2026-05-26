@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { MessageCircleQuestion } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -46,7 +46,7 @@ export function TtiQuestionsPage() {
         <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
+              <MessageCircleQuestion className="h-4 w-4 text-[#f5d04c]" />
               question {index + 1}
             </p>
             <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.05em] md:text-7xl">나의 여행 선택 방식</h1>
