@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     database_url: str = "mysql+aiomysql://root:password@localhost:3306/oddtrip"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    auth_secret_key: str = "change-this-secret-before-deploy"
+    auth_token_expire_minutes: int = 60 * 24 * 14
+    allow_demo_user_header_auth: bool = False
     cors_origins: str = "http://localhost:5173"
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):\d+$"
     tour_api_service_key: str = ""

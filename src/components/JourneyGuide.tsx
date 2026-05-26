@@ -9,7 +9,7 @@ const steps = [
   { key: 'decision', label: '조율', to: '/decision', icon: SlidersHorizontal },
   { key: 'attractions', label: '추천', to: '/attractions', icon: Grid3X3 },
   { key: 'itinerary', label: '일정', to: '/itinerary', icon: CalendarDays },
-  { key: 'safety', label: '안전', to: '/safety', icon: ShieldCheck },
+  { key: 'safety', label: '날씨', to: '/safety', icon: ShieldCheck },
 ];
 
 export function JourneyGuide() {
@@ -78,5 +78,5 @@ function nextAction(state: {
   if (!state.activeTripId) return { to: '/matches', label: '공동 여행 만들기' };
   if (!state.hasAttractions) return { to: '/decision', label: '취향 조율 후 추천받기' };
   if (!state.hasItinerary) return { to: '/itinerary', label: '일정 생성 확인하기' };
-  return { to: '/safety', label: '날씨와 안전 확인하기' };
+  return { to: '/safety', label: '날씨 주의사항 확인하기' };
 }

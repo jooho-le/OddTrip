@@ -4,6 +4,7 @@ export type TtiCode = `${'P' | 'W'}${'N' | 'C'}${'F' | 'A'}${'H' | 'S'}`;
 
 export interface UserProfile {
   id: string;
+  email?: string | null;
   nickname: string;
   avatarUrl?: string | null;
   homeRegion?: string | null;
@@ -169,4 +170,10 @@ export interface SafetyAlert {
 export interface ApiResponse<T> {
   data: T;
   error?: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  tokenType: 'bearer' | string;
+  user: UserProfile;
 }

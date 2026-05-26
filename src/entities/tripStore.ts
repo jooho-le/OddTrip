@@ -20,6 +20,9 @@ interface TripState {
   decisionSuggestion?: string;
   status: Record<string, Status>;
   error?: string;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (input: { email: string; password: string; nickname: string; homeRegion?: string }) => Promise<boolean>;
+  logout: () => void;
   bootstrap: () => Promise<void>;
   loadQuestions: () => Promise<void>;
   setAnswer: (answer: TtiAnswer) => void;
@@ -56,7 +59,61 @@ export const useTripStore = create<TripState>((set, get) => ({
   itinerary: [],
   alerts: [],
   status: {},
+  async login(email, password) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.login(email, password);
+      set((state) => ({
+        user: response.data.user,
+        status: { ...state.status, auth: 'success', user: 'success' },
+        error: undefined,
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '로그인에 실패했습니다.', status: { ...state.status, auth: 'error' } }));
+      return false;
+    }
+  },
+  async register(input) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.register(input);
+      set((state) => ({
+        user: response.data.user,
+        status: { ...state.status, auth: 'success', user: 'success' },
+        error: undefined,
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '회원가입에 실패했습니다.', status: { ...state.status, auth: 'error' } }));
+      return false;
+    }
+  },
+  logout() {
+    oddtripService.logout();
+    set({
+      user: undefined,
+      questions: [],
+      answers: [],
+      result: undefined,
+      matches: [],
+      selectedMatch: undefined,
+      activeTripId: undefined,
+      preferences: initialPreferences,
+      attractions: [],
+      agentRun: undefined,
+      itinerary: [],
+      alerts: [],
+      decisionSuggestion: undefined,
+      status: {},
+      error: undefined,
+    });
+  },
   async bootstrap() {
+    if (!oddtripService.hasAuthToken()) {
+      set((state) => ({ status: { ...state.status, user: 'idle' } }));
+      return;
+    }
     set((state) => ({ status: { ...state.status, user: 'loading' } }));
     try {
       const response = await oddtripService.getCurrentUser();

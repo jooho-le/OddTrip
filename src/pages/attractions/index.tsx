@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bot, CalendarDays, Map, Save, Sparkles } from 'lucide-react';
+import { CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
 import { CardNewsRail } from '../../components/CardNewsRail';
 import { GoogleMap } from '../../components/GoogleMap';
 import { useTripStore } from '../../entities/tripStore';
@@ -72,7 +72,7 @@ export function AttractionsPage() {
         <div className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
           <img src="https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(245,208,76,0.46),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.52))]" />
-          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">TourAPI Recommendation</p>
+          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">추천 장소 고르기</p>
           <h1 className="relative mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
             둘 다 낯설지만
             <br />
@@ -93,15 +93,15 @@ export function AttractionsPage() {
         <div className="gradient-panel pulse-sheen rounded-[38px] p-6 text-white shadow-[0_26px_90px_rgba(253,38,122,0.20)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">Agent Board</p>
-              <h2 className="mt-2 text-2xl font-black">API 호출 판단</h2>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">추천 과정</p>
+              <h2 className="mt-2 text-2xl font-black">조건 다시 확인</h2>
             </div>
-            <Button icon={<Bot className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-[#ffd45a] text-black hover:bg-[#ffd45a]/90">
-              {status.agent === 'loading' ? '실행 중' : '실행'}
+            <Button icon={<RefreshCw className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-[#ffd45a] text-black hover:bg-[#ffd45a]/90">
+              {status.agent === 'loading' ? '확인 중' : '다시 보기'}
             </Button>
           </div>
           <div className="mt-5 grid grid-cols-4 gap-2">
-            {(agentRun?.steps ?? ['tour', 'context', 'rank', 'plan']).map((step, index) => (
+            {(agentRun?.steps ?? ['후보 찾기', '상황 확인', '취향 맞춤', '일정 준비']).map((step, index) => (
               <div key={typeof step === 'string' ? step : step.tool} className={`motion-card min-h-20 rounded-xl p-3 ${agentRun ? stepColor(index) : 'bg-white/12'}`} style={{ animationDelay: `${index * 90}ms` }}>
                 <p className="text-xs font-black">{index + 1}</p>
                 <p className="mt-4 text-[11px] font-bold leading-4 text-white/80">{typeof step === 'string' ? step : toolLabel(step.tool)}</p>
@@ -109,16 +109,16 @@ export function AttractionsPage() {
             ))}
           </div>
           <p className="mt-4 text-xs font-semibold leading-5 text-white/60">
-            {agentRun ? agentRun.summary : '실행하면 TourAPI 후보 수집부터 일정 입력 준비까지 순서가 기록됩니다.'}
+            {agentRun ? '현재 조건에 맞춰 추천 순서를 다시 정리했습니다.' : '다시 보기를 누르면 현재 취향과 일정 조건을 기준으로 추천 순서를 다시 정리합니다.'}
           </p>
         </div>
       </section>
 
       <CardNewsRail
         items={[
-          { kicker: 'DATA', title: 'TourAPI 후보 수집', description: '관광지, 축제, 숙박, 음식점 데이터를 한 번에 후보화합니다.', tone: 'bg-[#2388ff] text-white' },
-          { kicker: 'CONTEXT', title: '혼잡과 연관성 반영', description: '방문자 추이, 연관 관광지, 혼잡 예측으로 추천 이유를 보강합니다.', tone: 'bg-[#21b8a5] text-white' },
-          { kicker: 'BALANCE', title: '두 사람의 균형점', description: '한쪽 취향만 따르지 않도록 중간 성향에 맞게 재정렬합니다.', tone: 'bg-[#ffd45a] text-black' }
+          { kicker: '추천 기준', title: '가볼 만한 후보 모으기', description: '관광지, 축제, 숙소, 음식점을 함께 보고 후보를 넓힙니다.', tone: 'bg-[#2388ff] text-white' },
+          { kicker: '방문 타이밍', title: '붐비는 곳은 피하기', description: '혼잡 흐름과 주변 코스를 함께 보며 부담을 줄입니다.', tone: 'bg-[#21b8a5] text-white' },
+          { kicker: '둘의 취향', title: '한쪽 취향만 따르지 않기', description: '두 사람 모두 받아들일 수 있는 장소를 위로 올립니다.', tone: 'bg-[#ffd45a] text-black' }
         ]}
       />
 
@@ -182,10 +182,10 @@ export function AttractionsPage() {
 
 function toolLabel(tool: string) {
   const labels: Record<string, string> = {
-    search_tourapi_candidates: 'TourAPI',
-    collect_public_context: 'context',
-    rank_balanced_attractions: 'rank',
-    prepare_itinerary_generation: 'plan'
+    search_tourapi_candidates: '후보 찾기',
+    collect_public_context: '상황 확인',
+    rank_balanced_attractions: '취향 맞춤',
+    prepare_itinerary_generation: '일정 준비'
   };
   return labels[tool] ?? tool;
 }

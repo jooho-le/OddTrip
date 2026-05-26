@@ -1,22 +1,25 @@
-import { ChevronLeft, Search, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, LogIn, LogOut, Search, ShieldCheck } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../shared/lib/classNames';
+import { useTripStore } from '../entities/tripStore';
 
 const titles: Record<string, string> = {
   '/tti/start': 'TTI 진단',
+  '/auth': '로그인',
   '/tti/questions': 'TTI 진단',
   '/tti/result': '진단 결과',
   '/matches': '매칭 추천',
   '/decision': '공동 의사결정',
   '/attractions': '관광지 추천',
   '/itinerary': '일정',
-  '/safety': '알림 / 안전',
+  '/safety': '날씨 / 주의',
   '/my': '내 여행'
 };
 
 export function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout, user } = useTripStore();
   const isHome = location.pathname === '/';
   const title = titles[location.pathname] ?? (location.pathname.startsWith('/matches/') ? '매칭 상세' : location.pathname.startsWith('/itinerary/') ? '일정 상세' : 'oddtrip');
 
@@ -33,7 +36,22 @@ export function AppHeader() {
         </div>
         <div className="flex items-center gap-1">
           <button type="button" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="검색"><Search className="h-5 w-5" /></button>
-          <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="안전 알림"><ShieldCheck className="h-5 w-5" /></Link>
+          <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="날씨 주의사항"><ShieldCheck className="h-5 w-5" /></Link>
+          {user ? (
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                navigate('/auth');
+              }}
+              className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')}
+              aria-label="로그아웃"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          ) : (
+            <Link to="/auth" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="로그인"><LogIn className="h-5 w-5" /></Link>
+          )}
         </div>
       </div>
     </header>

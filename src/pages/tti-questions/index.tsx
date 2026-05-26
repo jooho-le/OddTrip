@@ -8,6 +8,12 @@ import { cn } from '../../shared/lib/classNames';
 import { ErrorView, LoadingView } from '../../shared/ui/StateView';
 
 const values = [-2, -1, 0, 1, 2];
+const axisLabels: Record<string, string> = {
+  PW: '준비 방식',
+  NC: '탐색 방식',
+  FA: '활동 취향',
+  HS: '여행 속도',
+};
 
 export function TtiQuestionsPage() {
   const navigate = useNavigate();
@@ -25,6 +31,7 @@ export function TtiQuestionsPage() {
   const question = questions[index];
   const answer = answers.find((item) => item.questionId === question.id);
   const progress = Math.round(((index + 1) / questions.length) * 100);
+  const answerOptions = values.map((value) => getAnswerOption(value, question));
 
   const complete = async () => {
     const result = await calculateResult();
@@ -53,14 +60,15 @@ export function TtiQuestionsPage() {
 
       <Card className="space-y-5 rounded-[24px] p-5 md:p-6">
         <div>
-          <BadgeLabel text={question.axis} />
+          <BadgeLabel text={axisLabels[question.axis] ?? '여행 선택'} />
           <h2 className="mt-4 max-w-4xl text-2xl font-black leading-tight md:text-4xl">{question.prompt}</h2>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
-          {values.map((value) => (
-            <button key={value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })} className={cn('motion-card min-h-28 rounded-[18px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(16,17,20,0.10)]', answer?.value === value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
-              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-60">{value < 0 ? question.leftLetter : value > 0 ? question.rightLetter : 'middle'}</p>
-              <p className="mt-6 text-sm font-black leading-5 md:text-base">{value < 0 ? question.leftLabel : value > 0 ? question.rightLabel : '둘 다 비슷함'}</p>
+          {answerOptions.map((option) => (
+            <button key={option.value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value: option.value })} className={cn('motion-card min-h-32 rounded-[18px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(16,17,20,0.10)]', answer?.value === option.value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
+              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-60">{option.kicker}</p>
+              <p className="mt-5 text-base font-black leading-5">{option.title}</p>
+              <p className="mt-2 text-xs font-bold leading-5 opacity-70">{option.description}</p>
             </button>
           ))}
         </div>
@@ -79,4 +87,50 @@ export function TtiQuestionsPage() {
 
 function BadgeLabel({ text }: { text: string }) {
   return <span className="rounded-full bg-[#101114] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white">{text}</span>;
+}
+
+function getAnswerOption(value: number, question: {
+  leftLetter: string;
+  rightLetter: string;
+  leftLabel: string;
+  rightLabel: string;
+}) {
+  if (value === -2) {
+    return {
+      value,
+      kicker: '강한 선호',
+      title: question.leftLabel,
+      description: '망설임 없이 이 선택',
+    };
+  }
+  if (value === -1) {
+    return {
+      value,
+      kicker: '약한 선호',
+      title: question.leftLabel,
+      description: '굳이 고르면 이쪽',
+    };
+  }
+  if (value === 1) {
+    return {
+      value,
+      kicker: '약한 선호',
+      title: question.rightLabel,
+      description: '굳이 고르면 이쪽',
+    };
+  }
+  if (value === 2) {
+    return {
+      value,
+      kicker: '강한 선호',
+      title: question.rightLabel,
+      description: '망설임 없이 이 선택',
+    };
+  }
+  return {
+    value,
+    kicker: '중간',
+    title: '둘 다 괜찮음',
+    description: '상황에 따라 선택',
+  };
 }

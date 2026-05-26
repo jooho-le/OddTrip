@@ -89,6 +89,7 @@ SAMPLE_USERS = [
 async def seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_user_columns)
         await conn.run_sync(_ensure_attraction_columns)
 
     async with async_session() as session:
@@ -153,6 +154,24 @@ def _ensure_attraction_columns(conn: Connection) -> None:
     for name, ddl in column_sql.items():
         if name not in existing:
             conn.exec_driver_sql(f"ALTER TABLE attractions ADD COLUMN {name} {ddl}")
+
+
+def _ensure_user_columns(conn: Connection) -> None:
+    if conn.dialect.name != "sqlite":
+        return
+
+    existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
+    column_sql = {
+        "email": "VARCHAR(255)",
+        "password_hash": "VARCHAR(255)",
+    }
+    for name, ddl in column_sql.items():
+        if name not in existing:
+            conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {name} {ddl}")
+
+    indexes = {row[1] for row in conn.exec_driver_sql("PRAGMA index_list(users)").fetchall()}
+    if "ix_users_email" not in indexes:
+        conn.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email)")
 
 
 if __name__ == "__main__":

@@ -66,7 +66,8 @@ export function DecisionPage() {
             </div>
           ))}
           <div className="space-y-3 rounded-[20px] bg-[#101114] p-4 text-white">
-            <h2 className="text-xl font-black">우선순위</h2>
+            <h2 className="text-xl font-black">일정에 먼저 넣을 것</h2>
+            <p className="text-xs font-bold leading-5 text-white/52">선택한 항목 중 더 중요하게 반영할 것을 앞으로 보내세요.</p>
             <PriorityList label="장소" items={preferences.places} onMove={(index, direction) => movePriority('places', index, direction)} />
             <PriorityList label="활동" items={preferences.activities} onMove={(index, direction) => movePriority('activities', index, direction)} />
             <PriorityList label="음식" items={preferences.foods} onMove={(index, direction) => movePriority('foods', index, direction)} />
@@ -112,19 +113,19 @@ export function DecisionPage() {
 
 function PriorityList({ label, items, onMove }: { label: string; items: string[]; onMove: (index: number, direction: -1 | 1) => void }) {
   if (!items.length) {
-    return <p className="text-xs font-bold text-white/44">{label}: 선택 없음</p>;
+    return <p className="text-xs font-bold text-white/44">{label}: 아직 선택한 항목이 없습니다</p>;
   }
 
   return (
     <div>
-      <p className="mb-2 text-xs font-black text-white/50">{label}</p>
+      <p className="mb-2 text-xs font-black text-white/50">{label}에서 먼저 반영할 순서</p>
       <div className="space-y-2">
         {items.map((item, index) => (
           <div key={item} className="flex items-center justify-between rounded-[18px] bg-white/12 px-3 py-2 text-sm font-black">
             <span>{index + 1}. {item}</span>
             <div className="flex gap-1">
-              <button type="button" onClick={() => onMove(index, -1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === 0}>위</button>
-              <button type="button" onClick={() => onMove(index, 1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === items.length - 1}>아래</button>
+              <button type="button" onClick={() => onMove(index, -1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === 0}>먼저</button>
+              <button type="button" onClick={() => onMove(index, 1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === items.length - 1}>나중</button>
             </div>
           </div>
         ))}
