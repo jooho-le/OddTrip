@@ -189,7 +189,7 @@ async def generate_public_attractions(
             category=normalized["category"],
             image_url=normalized["image_url"],
             description=normalized["description"],
-            reason=_build_public_reason(normalized, user_a.tti_code or "", user_b.tti_code or ""),
+            reason=_build_place_intro(normalized),
             tags_json=normalized["tags"],
             indoor=normalized["indoor"],
             active=normalized["active"],
@@ -391,6 +391,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-1",
             "contenttypeid": "14",
             "title": "국립현대미술관 서울",
+            "overview": "경복궁과 북촌 사이에 있는 현대미술관으로, 전시 관람 후 삼청동과 서촌 산책을 이어가기 좋습니다.",
             "addr1": "서울특별시 종로구 삼청로 30",
             "mapx": "126.980003",
             "mapy": "37.578631",
@@ -402,6 +403,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-2",
             "contenttypeid": "12",
             "title": "북촌 한옥마을 골목",
+            "overview": "한옥 지붕선과 좁은 골목을 따라 걷는 동네 산책 코스입니다. 사진을 찍거나 조용히 걷기 좋은 구간이 많습니다.",
             "addr1": "서울특별시 종로구 계동길 37",
             "mapx": "126.986923",
             "mapy": "37.582604",
@@ -413,6 +415,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-3",
             "contenttypeid": "39",
             "title": "익선동 한옥 카페 거리",
+            "overview": "낮은 한옥 건물 사이로 카페와 작은 식당이 모여 있는 거리입니다. 식사와 휴식을 한 번에 넣기 좋은 장소입니다.",
             "addr1": "서울특별시 종로구 익선동",
             "mapx": "126.989851",
             "mapy": "37.572209",
@@ -424,6 +427,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-4",
             "contenttypeid": "28",
             "title": "청계천 산책로",
+            "overview": "도심 한가운데 물길을 따라 걷는 산책 코스입니다. 이동 중간에 쉬어가거나 가벼운 야간 산책으로 넣기 좋습니다.",
             "addr1": "서울특별시 종로구 청계천로",
             "mapx": "126.978388",
             "mapy": "37.569107",
@@ -435,6 +439,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-5",
             "contenttypeid": "15",
             "title": "서울빛초롱축제 권역",
+            "overview": "청계천 일대에 조명 전시와 야간 볼거리가 모이는 축제 구간입니다. 사진과 야경을 좋아하는 일정에 잘 맞습니다.",
             "addr1": "서울특별시 종로구 세종대로",
             "mapx": "126.976837",
             "mapy": "37.572006",
@@ -446,6 +451,7 @@ def _fallback_public_candidates(request: PublicAttractionGenerateRequest) -> lis
             "contentid": f"fallback-{area_code}-6",
             "contenttypeid": "32",
             "title": "종로 부티크 스테이",
+            "overview": "종로 중심부에 머물며 주변 골목, 식당, 지하철 동선을 짧게 가져갈 수 있는 숙박 후보입니다.",
             "addr1": "서울특별시 종로구 수표로",
             "mapx": "126.991773",
             "mapy": "37.570387",
@@ -703,17 +709,53 @@ def _public_tags(item: dict[str, Any]) -> list[str]:
     return tags
 
 
-def _build_public_reason(payload: dict[str, Any], user_a_code: str, user_b_code: str) -> str:
-    balance = "서로 다른 여행 속도를 조율하기 좋은 후보입니다."
-    if payload["active"]:
-        balance = "활동형 동행자에게는 체험 포인트를, 휴식형 동행자에게는 일정의 변화를 제공합니다."
-    if payload["indoor"]:
-        balance = "날씨 변수에도 안정적으로 유지할 수 있어 공동 일정의 리스크를 낮춥니다."
-    axis_summary = _axis_summary(payload.get("axis_scores") or {})
-    source_label = "공공데이터 후보" if payload.get("source") == "TourAPI" else "개발용 대체 후보"
-    if user_a_code and user_b_code:
-        return f"{source_label}와 두 사용자의 여행 성향({user_a_code}/{user_b_code})을 함께 고려했습니다. {axis_summary} {balance}"
-    return f"{source_label}를 기반으로 추천했습니다. {balance}"
+def _build_place_intro(payload: dict[str, Any]) -> str:
+    description = str(payload.get("description") or "").strip()
+    address = str(payload.get("addr1") or "").strip()
+    if description and description != address and "한국관광공사 TourAPI 기반" not in description:
+        return description
+
+    name = payload.get("name") or "이 장소"
+    category = payload.get("category") or "여행지"
+    detail_text = _place_detail_text(payload)
+    return f"{name}은 {detail_text}"
+
+
+def _place_detail_text(payload: dict[str, Any]) -> str:
+    category = str(payload.get("category") or "여행지")
+    content_type_id = str(payload.get("content_type_id") or "")
+    name = str(payload.get("name") or "")
+
+    menu = str(payload.get("firstmenu") or payload.get("treatmenu") or "").strip()
+    sale_item = str(payload.get("saleitem") or "").strip()
+    event_place = str(payload.get("eventplace") or "").strip()
+
+    if menu:
+        return f"{menu}을 중심으로 즐길 수 있는 음식점입니다."
+    if sale_item:
+        return f"{sale_item} 등을 둘러볼 수 있는 쇼핑 장소입니다."
+    if event_place:
+        return f"{event_place} 일대에서 열리는 축제/행사 장소입니다."
+
+    lowered = name.lower()
+    if "카페" in name or "coffee" in lowered:
+        return "커피와 디저트를 즐기며 쉬어가기 좋은 카페입니다."
+    if any(word in name for word in ("시장", "마켓")):
+        return "먹거리와 작은 상점들을 함께 둘러볼 수 있는 시장입니다."
+    if any(word in name for word in ("미술관", "박물관", "전시")) or content_type_id == "14":
+        return "전시와 작품을 관람하며 실내에서 시간을 보내기 좋은 문화 공간입니다."
+    if any(word in name for word in ("한옥", "골목", "마을")):
+        return "동네 골목과 건물 분위기를 천천히 걸으며 즐기는 산책형 장소입니다."
+    if any(word in name for word in ("축제", "페스티벌")) or content_type_id == "15":
+        return "공연, 조명, 체험 같은 볼거리가 모이는 행사 장소입니다."
+    if any(word in name for word in ("산책", "공원", "천", "해변", "바다")) or content_type_id == "28":
+        return "가볍게 걷거나 사진을 남기기 좋은 야외 코스입니다."
+    if content_type_id == "39":
+        return "지역 음식과 휴식을 일정에 넣기 좋은 음식점 후보입니다."
+    if content_type_id == "32":
+        return "이동 동선을 짧게 가져가기 위한 숙박 후보입니다."
+
+    return f"{category}로 분류된 장소로, 일정 중간에 둘러보기 좋은 후보입니다."
 
 
 def _infer_place_axis_scores(item: dict[str, Any]) -> dict[str, int]:
