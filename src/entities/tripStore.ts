@@ -41,13 +41,13 @@ interface TripState {
 }
 
 const initialPreferences: JointPreference = {
-  places: ['골목', '전시', '전망'],
-  activities: ['산책', '공방 체험'],
-  foods: ['한식', '카페'],
-  pace: 55,
-  budget: 60,
-  indoorPreferred: true,
-  hiddenSpots: true
+  places: [],
+  activities: [],
+  foods: [],
+  pace: 50,
+  budget: 50,
+  indoorPreferred: false,
+  hiddenSpots: false
 };
 
 export const useTripStore = create<TripState>((set, get) => ({
