@@ -29,11 +29,13 @@ export function MatchesPage() {
           여행 메이트 추천
         </p>
         <h1 className="relative mt-5 max-w-3xl text-5xl font-black leading-[0.95] md:text-7xl">
-          나와 다른 여행자를
+          나와 다른 여행자를 만나
           <br />
-          먼저 보여드려요.
+          새로운 여행 경험을 
+          <br />
+          만들어보세요
         </h1>
-        <p className="relative mt-5 max-w-xl text-sm font-semibold leading-6 text-white/74">비슷한 취향이 아니라, 내 여행 습관을 보완해 줄 사람을 추천합니다. 후보를 보고 마음에 들면 상세 비교로 넘어가세요.</p>
+        <p className="relative mt-5 max-w-xl text-m font-semibold leading-6 text-white/74">비슷한 취향이 아니라, 반대의 취향의 사람을 추천합니다. 후보를 보고 내 여행을 보완해 보세요.</p>
       </section>
 
       {featured ? (
@@ -68,13 +70,13 @@ export function MatchesPage() {
             <Card className="rounded-[32px] p-6">
               <p className="inline-flex items-center gap-2 rounded-full bg-[#fff0f3] px-3 py-2 text-xs font-black text-[#fd267a]">
                 <Sparkles className="h-4 w-4" />
-                이 화면에서 할 일
+              메이트 추천
               </p>
-              <h2 className="mt-5 text-3xl font-black leading-9 tracking-[-0.035em] text-[#191322]">후보의 여행 방식이 나와 잘 맞는지 확인하세요</h2>
+              <h2 className="mt-5 text-3xl font-black leading-9 tracking-[-0.035em] text-[#191322]">메이트의 여행 방식을 확인해보세요</h2>
               <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <GuideStep title="1. 후보 확인" description="가장 보완성이 높은 사람이 먼저 보여집니다." />
-                <GuideStep title="2. 상세 비교" description="서로 다른 점과 보완되는 점을 봅니다." />
-                <GuideStep title="3. 공동 여행 생성" description="마음에 들면 같이 만들 일정을 시작합니다." />
+                <GuideStep title="1. 후보 확인" description="나와 다른 여행 습관을 가진 사람" />
+                <GuideStep title="2. 상세 비교" description="서로 다른 점과 보완되는 점" />
+                <GuideStep title="3. 공동 여행 생성" description="동행의 시작" />
               </div>
             </Card>
             <Card className="rounded-[28px] p-5">

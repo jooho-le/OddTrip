@@ -8,7 +8,7 @@ import { Card } from '../../shared/ui/Card';
 
 export function MatchDetailPage() {
   const { id } = useParams();
-  const { matches, selectedMatch, selectMatch, loadMatches, result, ensureTrip, status } = useTripStore();
+  const { matches, selectedMatch, selectMatch, loadMatches, result, ensureTrip, status, user } = useTripStore();
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
@@ -20,6 +20,9 @@ export function MatchDetailPage() {
 
   const match = selectedMatch ?? matches.find((item) => item.id === id);
   if (!match) return <Card>매칭 정보를 찾을 수 없습니다.</Card>;
+
+  const myCode = result?.code ?? user?.ttiCode ?? 'TTI';
+  const travelFit = buildTravelFitText(match.differences, match.complements, match.matchLevel);
 
   return (
     <div className="page-canvas space-y-5">
@@ -42,7 +45,7 @@ export function MatchDetailPage() {
           <div className="motion-card rounded-[34px] bg-white p-5 text-[#111111]">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#fd267a]">type compare</p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <TypeTile label="나" code={result?.code ?? 'PNFH'} />
+              <TypeTile label="나" code={myCode} />
               <TypeTile label="상대" code={match.ttiCode} dark />
             </div>
           </div>
@@ -63,11 +66,30 @@ export function MatchDetailPage() {
       {result ? <Card className="space-y-4"><h2 className="font-bold">내 성향 축</h2>{result.axisScores.map((score) => <AxisBar key={score.axis} score={score} />)}</Card> : null}
       <div className="grid gap-4 md:grid-cols-2">
         <Card><h2 className="mb-4 text-2xl font-black">서로 다른 점</h2>{match.differences.map((item) => <p key={item} className="mb-2 rounded-[22px] bg-[#fbf5ee] p-4 text-sm font-bold leading-6">{item}</p>)}</Card>
-        <Card className="gradient-panel text-white"><h2 className="mb-4 text-2xl font-black">보완되는 점</h2>{match.complements.map((item) => <p key={item} className="mb-2 rounded-[22px] bg-white/14 p-4 text-sm font-bold leading-6">{item}</p>)}</Card>
+        <div className="rounded-[30px] border border-black/5 gradient-panel p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
+          <h2 className="mb-4 text-2xl font-black">보완되는 점</h2>
+          {match.complements.map((item) => <p key={item} className="mb-2 rounded-[22px] bg-white/16 p-4 text-sm font-bold leading-6 text-white">{item}</p>)}
+        </div>
       </div>
-      <Card className="bg-[#101114] text-white"><CalendarCheck className="h-7 w-7 text-[#f5d04c]" /><h2 className="mt-8 text-3xl font-black tracking-[-0.03em]">함께 어울릴 여행 방식</h2><p className="mt-3 text-sm font-bold leading-6 text-white/68">오전에는 대표 명소를 예약 기반으로 확인하고, 오후에는 카페와 골목을 선택형으로 열어두는 하이브리드 일정이 적합합니다.</p></Card>
+      <div className="rounded-[30px] border border-black/5 bg-[#101114] p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
+        <CalendarCheck className="h-7 w-7 text-[#f5d04c]" />
+        <h2 className="mt-8 text-3xl font-black tracking-[-0.03em]">함께 어울릴 여행 방식</h2>
+        <p className="mt-3 text-sm font-bold leading-6 text-white/68">{travelFit}</p>
+      </div>
     </div>
   );
+}
+
+function buildTravelFitText(differences: string[], complements: string[], matchLevel: string) {
+  if (!differences.length && !complements.length) {
+    return '두 사람의 TTI 결과를 기준으로 장소 선택과 일정 속도를 함께 조율하는 방식이 적합합니다.';
+  }
+
+  const diffText = differences.length ? differences.slice(0, 2).join(', ') : '여행 선택 방식';
+  const complementText = complements.length ? complements[0] : '서로의 선택을 보완';
+  const levelText = matchLevel === '완전 반대' ? '차이가 큰 만큼 역할을 나누기 좋습니다.' : '겹치는 부분을 유지하면서 다른 취향을 조금씩 섞기 좋습니다.';
+
+  return `${diffText}에서 차이가 있어 ${complementText}하는 흐름이 잘 맞습니다. ${levelText}`;
 }
 
 function TypeTile({ label, code, dark = false }: { label: string; code: string; dark?: boolean }) {
