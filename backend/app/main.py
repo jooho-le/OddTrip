@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import agent, attractions, decision, itinerary, matches, safety, tti, users
+from .routers import agent, attractions, auth, decision, itinerary, matches, safety, tti, users
 
 
 @asynccontextmanager
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tti.router, prefix="/api/tti", tags=["tti"])
 app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
 app.include_router(decision.router, prefix="/api/trips", tags=["decision"])

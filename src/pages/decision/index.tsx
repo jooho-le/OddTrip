@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTripStore } from '../../entities/tripStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -12,24 +12,23 @@ const options = {
   foods: ['한식', '카페', '해산물', '비건', '디저트']
 };
 
+const preferenceGroups = [
+  { key: 'places', title: '장소' },
+  { key: 'activities', title: '활동' },
+  { key: 'foods', title: '음식' },
+] as const;
+
+type PreferenceKey = typeof preferenceGroups[number]['key'];
+
 export function DecisionPage() {
   const navigate = useNavigate();
   const { preferences, updatePreferences, savePreferences, resolveDecisionConflict, decisionSuggestion, status } = useTripStore();
 
   const conflicts = useMemo(() => detectConflicts(preferences), [preferences]);
 
-  const toggle = (key: 'places' | 'activities' | 'foods', value: string) => {
+  const toggle = (key: PreferenceKey, value: string) => {
     const current = preferences[key];
     updatePreferences({ [key]: current.includes(value) ? current.filter((item) => item !== value) : [...current, value] });
-  };
-
-  const movePriority = (key: 'places' | 'activities' | 'foods', index: number, direction: -1 | 1) => {
-    const current = preferences[key];
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= current.length) return;
-    const next = [...current];
-    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-    updatePreferences({ [key]: next });
   };
 
   return (
@@ -44,9 +43,9 @@ export function DecisionPage() {
         <h1 className="relative mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
           둘의 취향을
           <br />
-          일정 조건으로.
+          조정하여 함께 어울릴 여행 방식을 찾아보세요.
         </h1>
-        <p className="relative mt-5 max-w-2xl text-sm font-bold leading-6 text-white/74">장소, 활동, 음식, 예산과 속도를 카드처럼 고르고 AI가 충돌 지점을 조정합니다.</p>
+        <p className="relative mt-5 max-w-2xl text-sm font-bold leading-6 text-white/74">장소, 활동, 음식, 예산과 속도를 고르고 AI가 여행방식을 추천합니다.</p>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
@@ -59,30 +58,52 @@ export function DecisionPage() {
               </div>
             ))}
           </div>
-          {Object.entries(options).map(([key, values]) => (
+          {preferenceGroups.map(({ key, title }) => (
             <div key={key}>
-              <h2 className="mb-3 text-xl font-black">{key === 'places' ? '장소' : key === 'activities' ? '활동' : '음식'}</h2>
-              <div className="flex flex-wrap gap-2">{values.map((value) => <button key={value} onClick={() => toggle(key as 'places' | 'activities' | 'foods', value)} className={`rounded-xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 ${preferences[key as 'places'].includes(value) ? 'gradient-panel text-white shadow-[0_14px_34px_rgba(253,38,122,0.22)]' : 'bg-[#fbf5ee] text-slate-700'}`}>{value}</button>)}</div>
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <h2 className="text-xl font-black">{title}</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {options[key].map((value) => {
+                  const selectedIndex = preferences[key].indexOf(value);
+                  const selected = selectedIndex >= 0;
+
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => toggle(key, value)}
+                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 ${selected ? 'gradient-panel text-white shadow-[0_14px_34px_rgba(253,38,122,0.22)]' : 'bg-[#fbf5ee] text-slate-700'}`}
+                    >
+                      {selected ? <span className="grid h-5 w-5 place-items-center rounded-full bg-white/22 text-xs">{selectedIndex + 1}</span> : null}
+                      {value}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ))}
-          <div className="space-y-3 rounded-[20px] bg-[#101114] p-4 text-white">
-            <h2 className="text-xl font-black">우선순위</h2>
-            <PriorityList label="장소" items={preferences.places} onMove={(index, direction) => movePriority('places', index, direction)} />
-            <PriorityList label="활동" items={preferences.activities} onMove={(index, direction) => movePriority('activities', index, direction)} />
-            <PriorityList label="음식" items={preferences.foods} onMove={(index, direction) => movePriority('foods', index, direction)} />
+          <div className="space-y-4 rounded-[20px] bg-[#101114] p-4 text-white">
+            <div>
+              <h2 className="text-xl font-black">선택한 우선순위</h2>
+              <p className="mt-1 text-xs font-bold leading-5 text-white/52">선택한 순서 그대로 관광지 추천과 일정 생성에 반영합니다.</p>
+            </div>
+            {preferenceGroups.map(({ key, title }) => (
+              <SelectedOrder key={key} label={title} items={preferences[key]} onRemove={(value) => toggle(key, value)} />
+            ))}
           </div>
           <Slider label="일정 강도" value={preferences.pace} onChange={(pace) => updatePreferences({ pace })} />
-          <Slider label="예산 느낌" value={preferences.budget} onChange={(budget) => updatePreferences({ budget })} />
+          <Slider label="예산 사용 한도" value={preferences.budget} onChange={(budget) => updatePreferences({ budget })} />
           <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm font-semibold"><span>비 예보 시 실내 우선</span><input type="checkbox" checked={preferences.indoorPreferred} onChange={(event) => updatePreferences({ indoorPreferred: event.target.checked })} /></label>
           <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm font-semibold"><span>숨은 명소 포함</span><input type="checkbox" checked={preferences.hiddenSpots} onChange={(event) => updatePreferences({ hiddenSpots: event.target.checked })} /></label>
         </Card>
         <div className="space-y-4">
-          <Card><h2 className="mb-4 text-2xl font-black">충돌 요소</h2><div className="flex flex-wrap gap-2">{conflicts.map((item) => <Badge key={item} className="bg-[#fff0f3] text-[#fd267a]">{item}</Badge>)}</div></Card>
-          <Card className="gradient-panel-alt text-white">
+          <Card><h2 className="mb-4 text-2xl font-black">반대 성향 요소</h2><div className="flex flex-wrap gap-2">{conflicts.map((item) => <Badge key={item} className="bg-[#fff0f3] text-[#fd267a]">{item}</Badge>)}</div></Card>
+          <div className="rounded-[30px] border border-black/5 gradient-panel-alt p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
             <Sparkles className="mb-5 h-7 w-7 text-[#f5d04c]" />
-            <h2 className="text-3xl font-black tracking-[-0.03em]">AI 조정 제안</h2>
+            <h2 className="text-3xl font-black tracking-[-0.03em]">AI 제안 생성</h2>
             <p className="mt-3 text-sm font-bold leading-6 text-white/72">
-              {status.conflict === 'loading' ? '두 사람의 선호 충돌을 분석하는 중입니다.' : decisionSuggestion ?? '우선순위를 정리한 뒤 AI 조정안을 받아보세요.'}
+              {status.conflict === 'loading' ? '두 사람의 선호를 분석하는 중입니다.' : decisionSuggestion ?? '우선순위를 정리한 뒤 AI추천을 받아보세요.'}
             </p>
             <Button
               variant="secondary"
@@ -90,9 +111,9 @@ export function DecisionPage() {
               disabled={status.conflict === 'loading'}
               onClick={() => void resolveDecisionConflict(conflicts)}
             >
-              {status.conflict === 'loading' ? '조정안 생성 중' : 'AI 조정안 받기'}
+              {status.conflict === 'loading' ? '조정안 생성 중' : 'AI 추천 받기'}
             </Button>
-          </Card>
+          </div>
           <Button
             icon={<ArrowRight className="h-4 w-4" />}
             className="w-full"
@@ -110,23 +131,21 @@ export function DecisionPage() {
   );
 }
 
-function PriorityList({ label, items, onMove }: { label: string; items: string[]; onMove: (index: number, direction: -1 | 1) => void }) {
+function SelectedOrder({ label, items, onRemove }: { label: string; items: string[]; onRemove: (value: string) => void }) {
   if (!items.length) {
-    return <p className="text-xs font-bold text-white/44">{label}: 선택 없음</p>;
+    return <p className="rounded-[16px] bg-white/8 px-3 py-3 text-xs font-bold text-white/44">{label}: 아직 선택한 항목이 없습니다</p>;
   }
 
   return (
     <div>
-      <p className="mb-2 text-xs font-black text-white/50">{label}</p>
-      <div className="space-y-2">
+      <p className="mb-2 text-xs font-black text-white/50">{label} 우선순위</p>
+      <div className="flex flex-wrap gap-2">
         {items.map((item, index) => (
-          <div key={item} className="flex items-center justify-between rounded-[18px] bg-white/12 px-3 py-2 text-sm font-black">
-            <span>{index + 1}. {item}</span>
-            <div className="flex gap-1">
-              <button type="button" onClick={() => onMove(index, -1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === 0}>위</button>
-              <button type="button" onClick={() => onMove(index, 1)} className="rounded-full bg-white px-3 py-1 text-xs text-black disabled:opacity-30" disabled={index === items.length - 1}>아래</button>
-            </div>
-          </div>
+          <button key={item} type="button" onClick={() => onRemove(item)} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-[#101114]">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-[#101114] text-xs text-white">{index + 1}</span>
+            {item}
+            <X className="h-4 w-4 text-slate-500" />
+          </button>
         ))}
       </div>
     </div>

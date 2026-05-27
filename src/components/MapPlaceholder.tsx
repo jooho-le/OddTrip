@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react';
 
-export function MapPlaceholder({ label = '지도 API 연결 예정' }: { label?: string }) {
+export function MapPlaceholder({ label = '지도 연결 준비 중' }: { label?: string }) {
   return (
     <div className="flex aspect-[4/3] min-h-56 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-[#eefaf4] text-center">
       <div className="rounded-lg bg-white/90 p-4 shadow-soft">

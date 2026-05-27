@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import HTTPException
 
 from ..models.match import Match
 from ..models.trip import Trip
@@ -20,7 +21,7 @@ DEFAULT_PREFERENCES = {
 async def get_preferences(db: AsyncSession, trip_id: str) -> JointPreferenceOut:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return JointPreferenceOut(**DEFAULT_PREFERENCES)
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     prefs = trip.preferences_json or DEFAULT_PREFERENCES
     return JointPreferenceOut(
@@ -39,7 +40,7 @@ async def update_preferences(
 ) -> JointPreferenceOut:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return JointPreferenceOut(**DEFAULT_PREFERENCES)
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     trip.preferences_json = _normalize_preferences(prefs)
     await db.commit()
@@ -60,11 +61,11 @@ async def resolve_conflict(
 ) -> str:
     trip = await db.get(Trip, trip_id)
     if not trip:
-        return "여행 정보를 찾을 수 없습니다."
+        raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     match = await db.get(Match, trip.match_id)
     if not match:
-        return "매칭 정보를 찾을 수 없습니다."
+        raise HTTPException(status_code=404, detail="매칭 정보를 찾을 수 없습니다.")
 
     user_a = await db.get(User, match.user_id)
     user_b = await db.get(User, match.matched_user_id)

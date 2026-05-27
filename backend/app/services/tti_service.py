@@ -23,15 +23,28 @@ async def get_questions(db: AsyncSession) -> list[TtiQuestion]:
     return list(result.scalars().all())
 
 
-def _validate_answers(answers: list[TtiAnswerIn]) -> None:
+async def _validate_answers(db: AsyncSession, answers: list[TtiAnswerIn]) -> None:
     if len(answers) != 12:
         raise HTTPException(status_code=422, detail=f"정확히 12개의 답변이 필요합니다. (현재 {len(answers)}개)")
+
+    question_ids = [a.question_id for a in answers]
+    if len(set(question_ids)) != len(question_ids):
+        raise HTTPException(status_code=422, detail="같은 질문에 대한 답변이 중복되었습니다.")
+
+    question_result = await db.execute(select(TtiQuestion))
+    questions = {q.id: q for q in question_result.scalars().all()}
+    missing = [question_id for question_id in question_ids if question_id not in questions]
+    if missing:
+        raise HTTPException(status_code=422, detail="존재하지 않는 TTI 질문 답변이 포함되어 있습니다.")
 
     for a in answers:
         if a.axis not in VALID_AXES:
             raise HTTPException(status_code=422, detail=f"잘못된 축입니다: {a.axis}")
         if not (-2 <= a.value <= 2):
             raise HTTPException(status_code=422, detail=f"답변 값은 -2~2 범위여야 합니다. (현재 {a.value})")
+        question = questions[a.question_id]
+        if question.axis != a.axis:
+            raise HTTPException(status_code=422, detail="질문과 답변 축이 일치하지 않습니다.")
 
     for ax_info in AXES:
         count = sum(1 for a in answers if a.axis == ax_info["axis"])
@@ -42,13 +55,14 @@ def _validate_answers(answers: list[TtiAnswerIn]) -> None:
 async def calculate_result(
     db: AsyncSession, user: User, answers: list[TtiAnswerIn]
 ) -> TtiResultOut:
-    _validate_answers(answers)
+    await _validate_answers(db, answers)
 
     axis_scores: list[AxisScoreOut] = []
 
     for ax in AXES:
         related = [a for a in answers if a.axis == ax["axis"]]
-        avg = round(sum(a.value for a in related) / len(related))
+        total = sum(a.value for a in related)
+        avg = round(total / len(related))
         axis_scores.append(
             AxisScoreOut(
                 axis=ax["axis"],
@@ -59,7 +73,7 @@ async def calculate_result(
         )
 
     code = "".join(
-        s.left_letter if s.score <= 0 else s.right_letter for s in axis_scores
+        _letter_for_score(s) for s in axis_scores
     )
     opposite_code = "".join(OPPOSITE_MAP[ch] for ch in code)
 
@@ -91,3 +105,20 @@ async def calculate_result(
 async def get_travel_types(db: AsyncSession) -> list[TravelType]:
     result = await db.execute(select(TravelType))
     return list(result.scalars().all())
+
+
+def _letter_for_score(score: AxisScoreOut) -> str:
+    if score.score < 0:
+        return score.left_letter
+    if score.score > 0:
+        return score.right_letter
+
+    # 완전 중립은 특정 한쪽으로 강제하지 않고 축별 기본 균형 타입으로 보냅니다.
+    # 4개 축 모두 0이면 WCFH가 되어 "계획/검증/휴식/숨은장소"의 저강도 기본 추천으로 설명됩니다.
+    neutral_defaults = {
+        "PW": score.right_letter,
+        "NC": score.right_letter,
+        "FA": score.left_letter,
+        "HS": score.left_letter,
+    }
+    return neutral_defaults.get(score.axis, score.left_letter)

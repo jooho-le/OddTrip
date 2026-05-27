@@ -3,7 +3,7 @@
 혼자 여행하는 사람을 위한 AI 여행 매칭 서비스입니다.  
 핵심 아이디어는 단순히 “비슷한 사람”을 붙이는 게 아니라, TTI 진단으로 여행 성향을 읽고 나와 반대되는 장점을 가진 사람과 같이 여행을 설계하게 만드는 것입니다.
 
-현재 프론트는 mock 데이터를 쓰지 않고 `http://localhost:8000`의 FastAPI 백엔드를 호출합니다. TTI 질문, 결과 계산, 매칭, Trip 생성, 공동 선호 저장, 공공데이터 기반 관광지 추천, 일정/안전 알림 조회가 API를 통해 이어집니다.
+현재 프론트는 mock 데이터를 쓰지 않고 `http://localhost:8000`의 FastAPI 백엔드를 호출합니다. 회원가입/로그인, TTI 질문, 결과 계산, 매칭, Trip 생성, 공동 선호 저장, 공공데이터 기반 관광지 추천, 일정 생성, 날씨/주의 알림 조회가 API를 통해 이어집니다.
 
 ## 실행 방법
 
@@ -69,7 +69,7 @@ src/
 | `src/pages/attractions/index.tsx` | 관광지 추천 화면입니다. 필터, 저장/제외 상태, 지도 보기 CTA를 보여줍니다. |
 | `src/pages/itinerary/index.tsx` | 3일 일정 생성 결과 화면입니다. 날짜별 타임라인, 날씨 배너, 일정 상세 진입이 있습니다. |
 | `src/pages/itinerary-detail/index.tsx` | 일정 상세 화면입니다. 장소 설명, 이동 시간, 추천 이유, 지도 placeholder, 변경 옵션이 들어 있습니다. |
-| `src/pages/safety/index.tsx` | 알림/안전 화면입니다. 날씨 변화, 재난성 알림, 일정 조정 필요 여부를 카드로 보여줍니다. |
+| `src/pages/safety/index.tsx` | 날씨와 주의사항 화면입니다. 비, 자외선, 재난성 알림, 일정 조정 필요 여부를 카드로 보여줍니다. |
 | `src/pages/my-trip/index.tsx` | 마이페이지 성격의 내 여행 화면입니다. 내 유형, 저장한 여행지, 생성 일정, 최근 매칭 기록을 모읍니다. |
 
 ## 주요 파일 설명
@@ -78,10 +78,10 @@ src/
 | --- | --- |
 | `src/main.tsx` | React 앱을 DOM에 붙이는 시작점입니다. 전역 CSS도 여기서 불러옵니다. |
 | `src/app/App.tsx` | 전체 라우팅을 정의합니다. URL과 페이지 컴포넌트가 여기서 연결됩니다. |
-| `src/app/AppLayout.tsx` | 공통 앱 레이아웃입니다. 상단 헤더, 웹 사이드 내비게이션, 모바일 하단 탭을 감쌉니다. |
-| `src/components/AppHeader.tsx` | 앱 상단 헤더입니다. 뒤로가기, 현재 화면명, 안전 알림 진입을 처리합니다. |
+| `src/app/AppLayout.tsx` | 공통 앱 레이아웃입니다. 상단 헤더와 모바일 하단 탭을 감쌉니다. |
+| `src/components/AppHeader.tsx` | 앱 상단 헤더입니다. 뒤로가기, 현재 화면명, 검색/주의사항 진입을 처리합니다. |
 | `src/components/BottomTabs.tsx` | 모바일 하단 탭입니다. Capacitor 앱으로 감쌌을 때도 자연스럽게 쓰기 위한 내비게이션입니다. |
-| `src/components/DesktopNav.tsx` | 웹 화면에서 보이는 사이드 내비게이션입니다. 모바일 하단 탭과 역할을 나눕니다. |
+| `src/components/DesktopNav.tsx` | 예전 웹 사이드 내비게이션 컴포넌트입니다. 현재 UX에서는 상단 흐름 탭을 사용해서 기본 레이아웃에는 렌더링하지 않습니다. |
 | `src/components/CardNewsRail.tsx` | 카드뉴스 느낌의 소개 블록입니다. 발표용 화면에서 서비스 흐름을 짧게 보여줄 때 씁니다. |
 | `src/components/MapPlaceholder.tsx` | 실제 지도 API를 붙이기 전까지 사용하는 지도 영역 대체 컴포넌트입니다. |
 | `src/components/GoogleMap.tsx` | Google Maps 브라우저 키가 있으면 실제 지도를 띄우고, 없으면 placeholder로 내려가는 지도 컴포넌트입니다. |
@@ -92,8 +92,8 @@ src/
 | `src/shared/ui/AxisBar.tsx` | TTI 축별 점수를 시각화하는 바입니다. |
 | `src/shared/ui/StateView.tsx` | loading, empty, error 상태를 화면마다 일관되게 보여주는 컴포넌트입니다. |
 | `src/shared/lib/classNames.ts` | 조건부 className을 합치는 작은 유틸입니다. |
-| `src/entities/tripStore.ts` | Zustand 전역 상태입니다. 사용자, TTI 답변/결과, 매칭, 선호값, 관광지, 일정, 안전 알림을 관리합니다. |
-| `src/services/oddtripService.ts` | 프론트와 FastAPI 백엔드 사이의 API 호출 계층입니다. 사용자 생성, TTI, 매칭, 관광지, 일정, 안전 알림을 호출합니다. |
+| `src/entities/tripStore.ts` | Zustand 전역 상태입니다. 사용자, TTI 답변/결과, 매칭, 선호값, 관광지, 일정, 날씨/주의 알림을 관리합니다. |
+| `src/services/oddtripService.ts` | 프론트와 FastAPI 백엔드 사이의 API 호출 계층입니다. 인증, TTI, 매칭, 관광지, 일정, 날씨/주의 알림을 호출합니다. |
 | `src/types/index.ts` | TTI 코드, 매칭 후보, 관광지, 일정, 알림 등 서비스에서 쓰는 타입을 모아둔 곳입니다. |
 | `src/styles/globals.css` | Tailwind 기본 설정 위에 전역 배경, safe-area, 카드 애니메이션, 티커 애니메이션을 정의합니다. |
 | `capacitor.config.ts` | 나중에 iOS/Android 앱으로 감쌀 때 쓰는 Capacitor 설정입니다. |
@@ -105,18 +105,22 @@ src/
 대략 이런 흐름입니다.
 
 ```txt
-Page -> Zustand store -> oddtripService -> FastAPI backend -> MySQL / TourAPI / OpenAI
+Page -> Zustand store -> oddtripService -> FastAPI backend -> SQLite/MySQL / TourAPI / OpenAI
 ```
 
 이렇게 해둔 이유는 페이지 컴포넌트 안에 fetch 로직이 흩어지는 걸 막기 위해서입니다.
 
 ## 백엔드 연결
 
-프론트는 처음 실행될 때 `/api/users`로 임시 사용자를 만들고, 받은 `id`를 localStorage에 저장합니다. 이후 인증이 필요한 요청에는 `X-User-Id` 헤더를 붙입니다.
+프론트는 `/api/auth/register` 또는 `/api/auth/login`으로 토큰을 받은 뒤 `localStorage`에 저장합니다. 이후 인증이 필요한 요청에는 `Authorization: Bearer ...` 헤더를 붙입니다.
+
+개발 중 임시 사용자 헤더 방식이 필요하면 백엔드 `.env`에 `ALLOW_DEMO_USER_HEADER_AUTH=true`를 넣을 수 있지만, 기본값은 꺼져 있습니다.
 
 연결된 API 흐름:
 
-- `/api/users`
+- `/api/auth/register`
+- `/api/auth/login`
+- `/api/auth/me`
 - `/api/tti/questions`
 - `/api/tti/calculate`
 - `/api/matches`
@@ -138,12 +142,21 @@ Page -> Zustand store -> oddtripService -> FastAPI backend -> MySQL / TourAPI / 
 
 앱 프로젝트를 추가할 때는 보통 아래 순서로 진행합니다.
 
-```bash
+ios
+cd /Users/leejooho/Desktop/OddTrip
+npm install
 npm run build
 npx cap add ios
+npx cap sync ios
+npx cap open ios
+
+android
+cd /Users/leejooho/Desktop/OddTrip
+npm install
+npm run build
 npx cap add android
-npx cap sync
-```
+npx cap sync android
+npx cap open android
 
 safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 처리해두었습니다. 상단 헤더와 하단 탭이 이 값을 사용하기 때문에 iPhone 노치나 홈 인디케이터 영역에서도 레이아웃이 무너지지 않게 의도했습니다.
 
@@ -151,9 +164,6 @@ safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 
 
 지금은 실제 API 호출 기반 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
 
-1. 실제 로그인/인증 추가
-2. 일정 재조정 요청 API 추가
+1. 일정 재조정 요청 API 추가
+2. 실제 운영 DB 기준 migration 정리
 3. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
-
-cd /Users/leejooho/Desktop/OddTrip
-backend/.venv/bin/python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000

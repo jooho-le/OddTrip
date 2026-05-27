@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, ListChecks, Route, Sparkles } from 'lucide-react';
+import { ArrowRight, Clock3, Compass, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../shared/ui/Button';
@@ -20,15 +20,13 @@ export function TtiStartPage() {
               Travel Type Indicator
             </p>
             <h1 className="mt-8 max-w-3xl text-6xl font-black leading-[0.9] tracking-[-0.055em] md:text-8xl">
-              너의 여행
+              여행 선택 방식을
               <br />
-              선택 방식을
-              <br />
-              먼저 볼게.
+              먼저 알려주세요.
             </h1>
             <div className="mt-10 space-y-4">
-              <ChatBubble speaker="Odd" text="12문항만 답하면 P/W, N/C, F/A, H/S 네 축 점수를 계산해." />
-              <ChatBubble speaker="Odd" text="결과는 반대 성향 매칭과 관광지 추천에 바로 연결돼." />
+              <ChatBubble speaker="Odd" text="12문항만 답하면 P/W, N/C, F/A, H/S 네 축 점수를 계산해 성향을 파악합니다." />
+              <ChatBubble speaker="Odd" text="결과는 반대 성향 매칭과 관광지 추천에 바로 연결되어 AI 일정을 생성합니다." />
             </div>
             <Link to="/tti/questions">
               <button className="mt-10 rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]">
@@ -45,9 +43,9 @@ export function TtiStartPage() {
               여행 성향 확인
             </h2>
             <div className="mt-8 space-y-3">
-              <InfoRow icon={<ListChecks className="h-5 w-5" />} title="12문항" text="한 문항씩 선택" />
-              <InfoRow icon={<Clock className="h-5 w-5" />} title="약 2분" text="빠른 시연 흐름" />
-              <InfoRow icon={<Route className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
+              <InfoRow icon={<MessageCircleQuestion className="h-5 w-5" />} title="12문항" text="한 문항씩 선택" />
+              <InfoRow icon={<Clock3 className="h-5 w-5" />} title="약 2분" text="빠른 진단" />
+              <InfoRow icon={<Compass className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
             </div>
             <Link to="/tti/questions">
               <Button className="mt-8 w-full bg-[#f5d04c] text-black hover:bg-[#f5d04c]/90" icon={<ArrowRight className="h-4 w-4" />}>
@@ -67,7 +65,7 @@ function ChatBubble({ speaker, text }: { speaker: string; text: string }) {
       <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-sm font-black text-[#fd267a]">{speaker[0]}</div>
       <div>
         <p className="mb-1 text-xs font-black text-white/52">{speaker}</p>
-        <p className="max-w-lg rounded-[24px] bg-white/92 px-5 py-4 text-sm font-black leading-6 text-[#111111]">{text}</p>
+        <p className="max-w-lg rounded-[24px] border border-white/18 bg-white/14 px-5 py-4 text-sm font-black leading-6 text-white backdrop-blur">{text}</p>
       </div>
     </div>
   );

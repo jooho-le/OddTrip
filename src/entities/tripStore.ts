@@ -20,6 +20,9 @@ interface TripState {
   decisionSuggestion?: string;
   status: Record<string, Status>;
   error?: string;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (input: { email: string; password: string; nickname: string; homeRegion?: string }) => Promise<boolean>;
+  logout: () => void;
   bootstrap: () => Promise<void>;
   loadQuestions: () => Promise<void>;
   setAnswer: (answer: TtiAnswer) => void;
@@ -38,13 +41,13 @@ interface TripState {
 }
 
 const initialPreferences: JointPreference = {
-  places: ['골목', '전시', '전망'],
-  activities: ['산책', '공방 체험'],
-  foods: ['한식', '카페'],
-  pace: 55,
-  budget: 60,
-  indoorPreferred: true,
-  hiddenSpots: true
+  places: [],
+  activities: [],
+  foods: [],
+  pace: 50,
+  budget: 50,
+  indoorPreferred: false,
+  hiddenSpots: false
 };
 
 export const useTripStore = create<TripState>((set, get) => ({
@@ -56,7 +59,61 @@ export const useTripStore = create<TripState>((set, get) => ({
   itinerary: [],
   alerts: [],
   status: {},
+  async login(email, password) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.login(email, password);
+      set((state) => ({
+        user: response.data.user,
+        status: { ...state.status, auth: 'success', user: 'success' },
+        error: undefined,
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '로그인에 실패했습니다.', status: { ...state.status, auth: 'error' } }));
+      return false;
+    }
+  },
+  async register(input) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.register(input);
+      set((state) => ({
+        user: response.data.user,
+        status: { ...state.status, auth: 'success', user: 'success' },
+        error: undefined,
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '회원가입에 실패했습니다.', status: { ...state.status, auth: 'error' } }));
+      return false;
+    }
+  },
+  logout() {
+    oddtripService.logout();
+    set({
+      user: undefined,
+      questions: [],
+      answers: [],
+      result: undefined,
+      matches: [],
+      selectedMatch: undefined,
+      activeTripId: undefined,
+      preferences: initialPreferences,
+      attractions: [],
+      agentRun: undefined,
+      itinerary: [],
+      alerts: [],
+      decisionSuggestion: undefined,
+      status: {},
+      error: undefined,
+    });
+  },
   async bootstrap() {
+    if (!oddtripService.hasAuthToken()) {
+      set((state) => ({ status: { ...state.status, user: 'idle' } }));
+      return;
+    }
     set((state) => ({ status: { ...state.status, user: 'loading' } }));
     try {
       const response = await oddtripService.getCurrentUser();
@@ -282,7 +339,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const response = await oddtripService.getSafetyAlerts(tripId);
       set((state) => ({ alerts: response.data, status: { ...state.status, alerts: 'success' } }));
     } catch {
-      set((state) => ({ error: '안전 알림을 불러오지 못했습니다.', status: { ...state.status, alerts: 'error' } }));
+      set((state) => ({ error: '날씨와 주의사항을 불러오지 못했습니다.', status: { ...state.status, alerts: 'error' } }));
     }
   }
 }));

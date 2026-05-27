@@ -32,9 +32,9 @@ export function ItineraryPage() {
               AI Itinerary
             </p>
             <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
-              3일 여행을
+              3일간의 낯선 동행 여행을
               <br />
-              바로 실행 가능하게.
+              OddTrip의 추천으로.
             </h1>
             <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">장소, 이동, 식사, 휴식을 시간대별로 분리해서 보여줍니다.</p>
           </div>

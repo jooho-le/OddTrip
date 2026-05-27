@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_db
+from ..dependencies import get_current_user_trip, get_db
 from ..models.trip import SafetyAlert, Trip
 from ..schemas.safety import SafetyAlertOut
 from ..clients.disaster_client import DisasterClient
@@ -24,6 +24,7 @@ DEFAULT_ALERTS = [
 @router.get("/{trip_id}/safety", response_model=dict)
 async def get_safety_alerts(
     trip_id: str,
+    trip: Trip = Depends(get_current_user_trip),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -32,7 +33,6 @@ async def get_safety_alerts(
     alerts = list(result.scalars().all())
 
     if not alerts:
-        trip = await db.get(Trip, trip_id)
         if trip:
             generated = await _generate_contextual_alerts(trip)
             if not generated:

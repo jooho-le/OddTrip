@@ -1,13 +1,13 @@
-import { CalendarDays, Grid3X3, HeartHandshake, Home, UserRound } from 'lucide-react';
+import { CalendarRange, CircleUserRound, Heart, House, MapPinned } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../shared/lib/classNames';
 
 const tabs = [
-  { to: '/', label: 'HOME', icon: Home },
-  { to: '/matches', label: '매칭', icon: HeartHandshake },
-  { to: '/attractions', label: '추천', icon: Grid3X3 },
-  { to: '/itinerary', label: '일정', icon: CalendarDays },
-  { to: '/my', label: 'MY', icon: UserRound }
+  { to: '/', label: 'HOME', icon: House },
+  { to: '/matches', label: '매칭', icon: Heart },
+  { to: '/attractions', label: '추천', icon: MapPinned },
+  { to: '/itinerary', label: '일정', icon: CalendarRange },
+  { to: '/my', label: 'MY', icon: CircleUserRound }
 ];
 
 export function BottomTabs() {

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -22,6 +22,6 @@ class ItineraryDayOut(BaseModel):
     title: str
     weather: str
     caution: str
-    items: list[ItineraryItemOut]
+    items: list[ItineraryItemOut] = Field(default_factory=list)
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)

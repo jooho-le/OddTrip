@@ -20,6 +20,7 @@ class UserUpdate(BaseModel):
 
 class UserOut(BaseModel):
     id: str
+    email: str | None = None
     nickname: str
     avatar_url: str | None = None
     home_region: str | None = None

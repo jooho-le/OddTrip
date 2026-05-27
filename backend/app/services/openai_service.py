@@ -26,7 +26,7 @@ async def generate_attractions(
         "You are a travel recommendation AI for OddTrip. "
         "Two travelers with different personality types are planning a trip together. "
         "Recommend attractions that create a balanced experience for BOTH types. "
-        "Always respond in Korean. Return a JSON array."
+        "Always respond in Korean. Return a JSON object with an 'attractions' key."
     )
 
     user_prompt = f"""
@@ -37,7 +37,9 @@ User B 여행 유형: {user_b_code} (점수: {json.dumps(user_b_scores, ensure_a
 지역: {region}
 
 아래 JSON 형식으로 4~6개 관광지를 추천해주세요:
-[{{
+{{
+  "attractions": [
+    {{
   "name": "장소명",
   "category": "카테고리",
   "imageUrl": "",
@@ -47,7 +49,9 @@ User B 여행 유형: {user_b_code} (점수: {json.dumps(user_b_scores, ensure_a
   "indoor": true/false,
   "active": true/false,
   "famous": true/false
-}}]
+    }}
+  ]
+}}
 """
 
     try:

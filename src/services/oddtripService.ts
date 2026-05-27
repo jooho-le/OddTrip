@@ -1,7 +1,8 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 const USER_ID_STORAGE_KEY = 'oddtrip.userId';
+const AUTH_TOKEN_STORAGE_KEY = 'oddtrip.authToken';
 
 interface AcceptMatchResponse {
   matchId: string;
@@ -19,6 +20,10 @@ interface PublicAttractionRequest {
 }
 
 export interface OddtripService {
+  login(email: string, password: string): Promise<ApiResponse<AuthResponse>>;
+  register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<AuthResponse>>;
+  logout(): void;
+  hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
   calculateTtiResult(answers: TtiAnswer[]): Promise<ApiResponse<TtiResult>>;
@@ -36,26 +41,40 @@ export interface OddtripService {
 }
 
 export const oddtripService: OddtripService = {
-  async getCurrentUser() {
-    const existingUserId = localStorage.getItem(USER_ID_STORAGE_KEY);
-    if (existingUserId) {
-      try {
-        return await request<UserProfile>('/api/users/me', { userId: existingUserId });
-      } catch {
-        localStorage.removeItem(USER_ID_STORAGE_KEY);
-      }
-    }
-
-    const response = await request<UserProfile>('/api/users', {
+  async login(email, password) {
+    const response = await request<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: {
-        nickname: '민서',
-        avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80',
-        homeRegion: 'Seoul'
-      }
+      body: { email, password }
     });
-    localStorage.setItem(USER_ID_STORAGE_KEY, response.data.id);
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.data.accessToken);
+    localStorage.setItem(USER_ID_STORAGE_KEY, response.data.user.id);
     return response;
+  },
+
+  async register(input) {
+    const response = await request<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: input
+    });
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.data.accessToken);
+    localStorage.setItem(USER_ID_STORAGE_KEY, response.data.user.id);
+    return response;
+  },
+
+  logout() {
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem(USER_ID_STORAGE_KEY);
+  },
+
+  hasAuthToken() {
+    return Boolean(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY));
+  },
+
+  async getCurrentUser() {
+    if (localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)) {
+      return request<UserProfile>('/api/auth/me', { auth: true });
+    }
+    throw new Error('로그인이 필요합니다.');
   },
 
   getTtiQuestions() {
@@ -84,6 +103,7 @@ export const oddtripService: OddtripService = {
   savePreferences(tripId, preferences) {
     return request<JointPreference>(`/api/trips/${tripId}/preferences`, {
       method: 'PUT',
+      auth: true,
       body: preferences
     });
   },
@@ -97,7 +117,7 @@ export const oddtripService: OddtripService = {
   },
 
   getAttractions(tripId) {
-    return request<Attraction[]>(`/api/trips/${tripId}/attractions`);
+    return request<Attraction[]>(`/api/trips/${tripId}/attractions`, { auth: true });
   },
 
   generatePublicAttractions(tripId, requestBody = {}) {
@@ -127,6 +147,7 @@ export const oddtripService: OddtripService = {
         days: 3,
         budget: 60,
         pace: 55,
+        generateItinerary: false,
         ...requestBody
       }
     });
@@ -135,12 +156,13 @@ export const oddtripService: OddtripService = {
   toggleAttraction(tripId, attractionId, patch) {
     return request<Attraction>(`/api/trips/${tripId}/attractions/${attractionId}`, {
       method: 'PATCH',
+      auth: true,
       body: patch
     });
   },
 
   getItinerary(tripId) {
-    return request<ItineraryDay[]>(`/api/trips/${tripId}/itinerary`);
+    return request<ItineraryDay[]>(`/api/trips/${tripId}/itinerary`, { auth: true });
   },
 
   generateItinerary(tripId) {
@@ -151,7 +173,7 @@ export const oddtripService: OddtripService = {
   },
 
   getSafetyAlerts(tripId) {
-    return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`);
+    return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`, { auth: true });
   }
 };
 
@@ -165,6 +187,7 @@ async function request<T>(
   } = {}
 ): Promise<ApiResponse<T>> {
   const userId = options.userId ?? localStorage.getItem(USER_ID_STORAGE_KEY);
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   const headers: HeadersInit = { Accept: 'application/json' };
 
   if (options.body !== undefined) {
@@ -172,8 +195,12 @@ async function request<T>(
   }
 
   if (options.auth || options.userId) {
-    if (!userId) throw new Error('사용자 ID가 없습니다. 먼저 사용자를 생성해야 합니다.');
-    headers['X-User-Id'] = userId;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    } else {
+      if (!userId) throw new Error('로그인이 필요합니다.');
+      headers['X-User-Id'] = userId;
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

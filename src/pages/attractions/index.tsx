@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bot, CalendarDays, Map, Save, Sparkles } from 'lucide-react';
+import { CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
 import { CardNewsRail } from '../../components/CardNewsRail';
 import { GoogleMap } from '../../components/GoogleMap';
 import { useTripStore } from '../../entities/tripStore';
@@ -43,14 +43,29 @@ export function AttractionsPage() {
   }, [attractions.length, hasTripSource, hasTti, loadAttractions, loadMatches, status.matches]);
 
   const filtered = useMemo(() => attractions.filter((item) => {
-    if (filter === '전체') return !item.excluded;
-    if (filter === '실내') return item.indoor && !item.excluded;
-    if (filter === '실외') return !item.indoor && !item.excluded;
-    if (filter === '활동형') return item.active && !item.excluded;
-    if (filter === '휴식형') return !item.active && !item.excluded;
-    if (filter === '유명') return item.famous && !item.excluded;
-    return !item.famous && !item.excluded;
+    if (item.excluded) return false;
+    if (filter === '전체') return true;
+    if (filter === '실내') return item.indoor;
+    if (filter === '실외') return !item.indoor;
+    if (filter === '활동형') return item.active;
+    if (filter === '휴식형') return !item.active;
+    if (filter === '유명') return item.famous;
+    return !item.famous || (item.hiddenScore ?? 0) >= 60;
   }), [attractions, filter]);
+
+  const filterCounts = useMemo(() => Object.fromEntries(filters.map((item) => [
+    item,
+    attractions.filter((attraction) => {
+      if (attraction.excluded) return false;
+      if (item === '전체') return true;
+      if (item === '실내') return attraction.indoor;
+      if (item === '실외') return !attraction.indoor;
+      if (item === '활동형') return attraction.active;
+      if (item === '휴식형') return !attraction.active;
+      if (item === '유명') return attraction.famous;
+      return !attraction.famous || (attraction.hiddenScore ?? 0) >= 60;
+    }).length,
+  ])), [attractions]);
 
   if (!hasTti) {
     return <PrerequisiteCard title="TTI 진단이 먼저 필요합니다" description="관광지 추천은 내 여행 성향과 반대 성향 매칭을 기준으로 생성됩니다." primaryTo="/tti/start" primaryLabel="TTI 진단하기" />;
@@ -72,19 +87,27 @@ export function AttractionsPage() {
         <div className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
           <img src="https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(245,208,76,0.46),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.52))]" />
-          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">TourAPI Recommendation</p>
+          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">추천 장소 고르기</p>
           <h1 className="relative mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
             둘 다 낯설지만
             <br />
-            부담 없는 장소
+            둘 다 원할 수 있는 장소
           </h1>
           <p className="relative mt-5 max-w-xl text-sm font-bold leading-6 text-white/72">
-            공공데이터 후보를 모으고, 연관 관광지와 혼잡 흐름을 더해 두 사람의 균형점에 가까운 장소를 정렬합니다.
+            두 사람의 균형점에 가까운 장소를 추천합니다. 
           </p>
           <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
             {filters.map((item) => (
-              <button key={item} onClick={() => setFilter(item)} className={`relative whitespace-nowrap rounded-full px-4 py-2 text-sm font-black ${filter === item ? 'bg-white text-[#fd267a]' : 'bg-white/12 text-white/72'}`}>
+              <button
+                key={item}
+                type="button"
+                onClick={() => setFilter(item)}
+                disabled={!filterCounts[item]}
+                className={`relative inline-flex whitespace-nowrap rounded-full px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 ${filter === item ? 'bg-white text-[#fd267a]' : 'bg-white/12 text-white/72'}`}
+                aria-pressed={filter === item}
+              >
                 {item}
+                <span className={`ml-2 ${filter === item ? 'text-[#fd267a]/70' : 'text-white/50'}`}>{filterCounts[item]}</span>
               </button>
             ))}
           </div>
@@ -93,15 +116,15 @@ export function AttractionsPage() {
         <div className="gradient-panel pulse-sheen rounded-[38px] p-6 text-white shadow-[0_26px_90px_rgba(253,38,122,0.20)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">Agent Board</p>
-              <h2 className="mt-2 text-2xl font-black">API 호출 판단</h2>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">추천 과정</p>
+              <h2 className="mt-2 text-2xl font-black">조건 다시 확인</h2>
             </div>
-            <Button icon={<Bot className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-[#ffd45a] text-black hover:bg-[#ffd45a]/90">
-              {status.agent === 'loading' ? '실행 중' : '실행'}
+            <Button icon={<RefreshCw className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-[#ffd45a] text-black hover:bg-[#ffd45a]/90">
+              {status.agent === 'loading' ? '확인 중' : '다시 보기'}
             </Button>
           </div>
           <div className="mt-5 grid grid-cols-4 gap-2">
-            {(agentRun?.steps ?? ['tour', 'context', 'rank', 'plan']).map((step, index) => (
+            {(agentRun?.steps ?? ['후보 찾기', '상황 확인', '취향 맞춤', '일정 준비']).map((step, index) => (
               <div key={typeof step === 'string' ? step : step.tool} className={`motion-card min-h-20 rounded-xl p-3 ${agentRun ? stepColor(index) : 'bg-white/12'}`} style={{ animationDelay: `${index * 90}ms` }}>
                 <p className="text-xs font-black">{index + 1}</p>
                 <p className="mt-4 text-[11px] font-bold leading-4 text-white/80">{typeof step === 'string' ? step : toolLabel(step.tool)}</p>
@@ -109,27 +132,27 @@ export function AttractionsPage() {
             ))}
           </div>
           <p className="mt-4 text-xs font-semibold leading-5 text-white/60">
-            {agentRun ? agentRun.summary : '실행하면 TourAPI 후보 수집부터 일정 입력 준비까지 순서가 기록됩니다.'}
+            {agentRun ? '현재 조건에 맞춰 추천 순서를 다시 정리했습니다.' : '다시 보기를 누르면 현재 취향과 일정 조건을 기준으로 추천 순서를 다시 정리합니다.'}
           </p>
         </div>
       </section>
 
       <CardNewsRail
         items={[
-          { kicker: 'DATA', title: 'TourAPI 후보 수집', description: '관광지, 축제, 숙박, 음식점 데이터를 한 번에 후보화합니다.', tone: 'bg-[#2388ff] text-white' },
-          { kicker: 'CONTEXT', title: '혼잡과 연관성 반영', description: '방문자 추이, 연관 관광지, 혼잡 예측으로 추천 이유를 보강합니다.', tone: 'bg-[#21b8a5] text-white' },
-          { kicker: 'BALANCE', title: '두 사람의 균형점', description: '한쪽 취향만 따르지 않도록 중간 성향에 맞게 재정렬합니다.', tone: 'bg-[#ffd45a] text-black' }
+          { kicker: '추천 기준', title: '가볼 만한 후보 모으기', description: '관광지, 축제, 숙소, 음식점을 함께 보고 후보를 넓힙니다.', tone: 'bg-[#2388ff] text-white' },
+          { kicker: '방문 타이밍', title: '붐비는 곳은 피하기', description: '혼잡 흐름과 주변 코스를 함께 보며 부담을 줄입니다.', tone: 'bg-[#21b8a5] text-white' },
+          { kicker: '둘의 취향', title: '한쪽 취향만 따르지 않기', description: '두 사람 모두 받아들일 수 있는 장소를 위로 올립니다.', tone: 'bg-[#ffd45a] text-black' }
         ]}
       />
 
       <Card className="border-[#087466]/15 bg-[#eefaf6]">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-black">추천지에서 할 일</h2>
+            <h2 className="text-xl font-black">동행의 장소 고르기</h2>
             <p className="mt-1 text-sm font-bold text-slate-600">가고 싶은 곳은 저장하고, 부담스러운 곳은 제외한 뒤 일정을 확인하세요.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-700"><Save className="h-4 w-4 text-[#087466]" /> 저장</span>
+            <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-700"><Save className="h-4 w-4 text-[#087466]" /> </span>
             <Link to="/itinerary" onClick={() => void loadItinerary()}><Button icon={<CalendarDays className="h-4 w-4" />}>일정 보기</Button></Link>
           </div>
         </div>
@@ -142,7 +165,16 @@ export function AttractionsPage() {
         />
       ) : null}
 
-      {!filtered.length ? <EmptyView label="조건에 맞는 관광지가 없습니다" /> : null}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-black text-slate-600">{filter} 기준 {filtered.length}곳</p>
+        {filter !== '전체' ? (
+          <button type="button" onClick={() => setFilter('전체')} className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#fd267a] shadow-[0_12px_28px_rgba(16,17,20,0.08)]">
+            전체 보기
+          </button>
+        ) : null}
+      </div>
+
+      {!filtered.length ? <EmptyView label={`${filter} 조건에 맞는 관광지가 없습니다`} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {filtered.map((item, index) => (
@@ -150,18 +182,21 @@ export function AttractionsPage() {
             <div className="grid min-h-[220px] md:grid-cols-[180px_1fr]">
               <div className="relative bg-[#e7edf7]">
                 <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-44 w-full object-cover" />
-                <Badge className="absolute left-4 top-4 bg-[#ff5a1f] text-white">{item.saved ? '저장됨' : '추천'}</Badge>
+                <Badge className="absolute left-4 top-4 bg-[#ff5a1f] text-black">{item.saved ? '저장됨' : '추천'}</Badge>
               </div>
               <div className="p-5">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2388ff]">{item.category}</p>
                 <h2 className="mt-2 text-2xl font-black leading-7 text-black">{item.name}</h2>
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{item.description}</p>
+                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{item.addr1 ?? item.category}</p>
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" tone="orange" />
                   <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" tone="mint" />
-                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" tone="blue" />
+                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" tone="blue" emptyText="정보 없음" />
                 </div>
-                <p className="mt-4 rounded-2xl bg-[#f6f4ec] p-3 text-sm font-semibold leading-6 text-slate-700">{item.reason}</p>
+                <div className="mt-4 rounded-2xl bg-[#f6f4ec] p-3">
+                  <p className="text-xs font-black text-slate-500">장소 소개</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">{displayPlaceIntro(item)}</p>
+                </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Button variant="secondary" onClick={() => toggleAttraction(item.id, 'excluded')}>제외하기</Button>
                   <Button onClick={() => toggleAttraction(item.id, 'saved')}>{item.saved ? '저장 취소' : '저장하기'}</Button>
@@ -182,16 +217,46 @@ export function AttractionsPage() {
 
 function toolLabel(tool: string) {
   const labels: Record<string, string> = {
-    search_tourapi_candidates: 'TourAPI',
-    collect_public_context: 'context',
-    rank_balanced_attractions: 'rank',
-    prepare_itinerary_generation: 'plan'
+    search_tourapi_candidates: '후보 찾기',
+    collect_public_context: '상황 확인',
+    rank_balanced_attractions: '취향 맞춤',
+    prepare_itinerary_generation: '일정 준비'
   };
   return labels[tool] ?? tool;
 }
 
 function stepColor(index: number) {
   return ['bg-[#2388ff]', 'bg-[#ff5a1f]', 'bg-[#21b8a5]', 'bg-[#ffd45a] text-black'][index % 4];
+}
+
+function displayPlaceIntro(item: {
+  name: string;
+  category: string;
+  description?: string | null;
+  addr1?: string | null;
+  reason?: string | null;
+}) {
+  const reason = item.reason?.trim();
+  const oldGeneratedReason = reason?.includes('공공데이터 후보') || reason?.includes('장소 성향') || reason?.includes('여행 성향(') || reason?.includes('두 사람이 함께');
+  if (reason && !oldGeneratedReason) return reason;
+
+  const description = item.description?.trim();
+  if (description && description !== item.addr1 && !description.includes('한국관광공사 TourAPI 기반')) return description;
+
+  return `${item.name}은 ${inferPlaceDetail(item.name, item.category)}입니다.`;
+}
+
+function inferPlaceDetail(name: string, category: string) {
+  const lower = name.toLowerCase();
+  if (name.includes('카페') || lower.includes('coffee')) return '커피와 디저트를 즐기며 쉬어가기 좋은 카페';
+  if (name.includes('시장') || name.includes('마켓')) return '먹거리와 작은 상점들을 함께 둘러볼 수 있는 시장';
+  if (name.includes('미술관') || name.includes('박물관') || name.includes('전시')) return '전시와 작품을 관람하며 실내에서 시간을 보내기 좋은 문화 공간';
+  if (name.includes('한옥') || name.includes('골목') || name.includes('마을')) return '동네 골목과 건물 분위기를 천천히 걸으며 즐기는 산책형 장소';
+  if (name.includes('축제') || name.includes('페스티벌')) return '공연, 조명, 체험 같은 볼거리가 모이는 행사 장소';
+  if (name.includes('산책') || name.includes('공원') || name.includes('천') || name.includes('해변') || name.includes('바다')) return '가볍게 걷거나 사진을 남기기 좋은 야외 코스';
+  if (category.includes('음식')) return '지역 음식과 휴식을 일정에 넣기 좋은 음식점 후보';
+  if (category.includes('숙박')) return '이동 동선을 짧게 가져가기 위한 숙박 후보';
+  return `${category}로 분류된 장소로, 일정 중간에 둘러보기 좋은 후보`;
 }
 
 function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { title: string; description: string; primaryTo: string; primaryLabel: string }) {
@@ -209,7 +274,7 @@ function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { tit
   );
 }
 
-function Metric({ label, value, suffix, tone }: { label: string; value: number | null; suffix: string; tone: 'orange' | 'mint' | 'blue' }) {
+function Metric({ label, value, suffix, tone, emptyText = '-' }: { label: string; value: number | null; suffix: string; tone: 'orange' | 'mint' | 'blue'; emptyText?: string }) {
   const toneClass = {
     orange: 'bg-[#ffe7d8]',
     mint: 'bg-[#e1f8f4]',
@@ -218,7 +283,7 @@ function Metric({ label, value, suffix, tone }: { label: string; value: number |
   return (
     <div className={`rounded-2xl p-3 ${toneClass}`}>
       <p className="text-[11px] font-black text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-black text-black">{value === null ? '-' : `${value}${suffix}`}</p>
+      <p className="mt-1 text-sm font-black text-black">{value === null ? emptyText : `${value}${suffix}`}</p>
     </div>
   );
 }

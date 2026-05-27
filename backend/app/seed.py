@@ -89,6 +89,7 @@ SAMPLE_USERS = [
 async def seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_ensure_user_columns)
         await conn.run_sync(_ensure_attraction_columns)
 
     async with async_session() as session:
@@ -97,7 +98,11 @@ async def seed():
             existing = await session.execute(
                 select(TtiQuestion).where(TtiQuestion.id == q_data["id"])
             )
-            if not existing.scalar_one_or_none():
+            question = existing.scalar_one_or_none()
+            if question:
+                for key, value in q_data.items():
+                    setattr(question, key, value)
+            else:
                 session.add(TtiQuestion(**q_data))
 
         # Seed travel types
@@ -105,7 +110,11 @@ async def seed():
             existing = await session.execute(
                 select(TravelType).where(TravelType.code == t_data["code"])
             )
-            if not existing.scalar_one_or_none():
+            travel_type = existing.scalar_one_or_none()
+            if travel_type:
+                for key, value in t_data.items():
+                    setattr(travel_type, key, value)
+            else:
                 session.add(TravelType(**t_data))
 
         # Seed demo users so the real matching API has candidates immediately.
@@ -113,7 +122,11 @@ async def seed():
             existing = await session.execute(
                 select(User).where(User.id == user_data["id"])
             )
-            if not existing.scalar_one_or_none():
+            sample_user = existing.scalar_one_or_none()
+            if sample_user:
+                for key, value in user_data.items():
+                    setattr(sample_user, key, value)
+            else:
                 session.add(User(**user_data))
 
         await session.commit()
@@ -153,6 +166,24 @@ def _ensure_attraction_columns(conn: Connection) -> None:
     for name, ddl in column_sql.items():
         if name not in existing:
             conn.exec_driver_sql(f"ALTER TABLE attractions ADD COLUMN {name} {ddl}")
+
+
+def _ensure_user_columns(conn: Connection) -> None:
+    if conn.dialect.name != "sqlite":
+        return
+
+    existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
+    column_sql = {
+        "email": "VARCHAR(255)",
+        "password_hash": "VARCHAR(255)",
+    }
+    for name, ddl in column_sql.items():
+        if name not in existing:
+            conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {name} {ddl}")
+
+    indexes = {row[1] for row in conn.exec_driver_sql("PRAGMA index_list(users)").fetchall()}
+    if "ix_users_email" not in indexes:
+        conn.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email)")
 
 
 if __name__ == "__main__":

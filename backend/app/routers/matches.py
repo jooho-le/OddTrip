@@ -26,10 +26,13 @@ async def get_matches(
 @router.get("/{match_id}", response_model=dict)
 async def get_match_detail(
     match_id: str,
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     match = await match_service.get_match_by_id(db, match_id)
     if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    if user.id not in {match.user_id, match.matched_user_id}:
         raise HTTPException(status_code=404, detail="Match not found")
     return {"data": {"id": match.id, "matchLevel": match.match_level, "recommendationScore": match.recommendation_score}, "error": None}
 
