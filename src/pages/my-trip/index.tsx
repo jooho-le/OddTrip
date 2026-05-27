@@ -25,7 +25,7 @@ export function MyTripPage() {
               <br />
               아카이브.
             </h1>
-            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">유형, 저장한 여행지, 생성된 일정, 최근 매칭 기록을 모아봅니다.</p>
+            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">TTI 검사 기록, 저장한 여행지, 생성된 일정, 최근 매칭 기록을 모아봅니다.</p>
           </div>
           <Card className="motion-card flex items-center gap-4 bg-white text-[#111111]">
             <img src={user?.avatarUrl ?? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=86'} alt="" className="h-20 w-20 rounded-[28px] object-cover" />
@@ -35,11 +35,11 @@ export function MyTripPage() {
       </section>
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard icon={<Bookmark className="h-6 w-6" />} label="저장한 여행지" value={saved.length} />
-        <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={itinerary.length} dark />
-        <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={matches.length} pink />
+        <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={itinerary.length} pink />
+        <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={matches.length}  />
       </div>
       <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}<Link to="/attractions"><Button className="mt-4">추천지 보러가기</Button></Link></Card>
-      <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">다음 작업</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/tti/start"><Button variant="secondary" className="w-full">TTI 다시 진단</Button></Link><Link to="/decision"><Button variant="secondary" className="w-full">동행 선호 수정</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">날씨 주의 확인</Button></Link></div></Card>
+      <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">OddTrip 시작하기</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/tti/start"><Button variant="secondary" className="w-full">TTI 다시 진단</Button></Link><Link to="/decision"><Button variant="secondary" className="w-full">동행 선호 수정</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">날씨 주의 확인</Button></Link></div></Card>
     </div>
   );
 }

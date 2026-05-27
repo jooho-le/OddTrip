@@ -40,17 +40,22 @@ export function AppHeader() {
           <button type="button" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="검색"><Search className="h-5 w-5" /></button>
           <Link to="/safety" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="날씨 주의사항"><CloudSun className="h-5 w-5" /></Link>
           {user ? (
-            <button
-              type="button"
-              onClick={() => {
-                logout();
-                navigate('/auth');
-              }}
-              className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')}
-              aria-label="로그아웃"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+            <>
+              <Link to="/my" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="내 여행">
+                <UserRound className="h-5 w-5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  navigate('/auth');
+                }}
+                className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')}
+                aria-label="로그아웃"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </>
           ) : (
             <Link to="/auth" className={cn('grid h-10 w-10 place-items-center rounded-full hover:bg-white/12', isHome ? 'text-white' : 'text-ink hover:bg-slate-100')} aria-label="로그인"><UserRound className="h-5 w-5" /></Link>
           )}
