@@ -100,10 +100,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden bg-[#fbf5ee] py-8 md:py-12">
-        <div className="card-swipe flex w-[210%] gap-4 px-5 md:w-[140%] md:px-8">
+      <section className="bg-[#fbf5ee] py-8 md:py-12">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-5 sm:grid-cols-2 md:px-8 xl:grid-cols-4">
           {newsCards.map((card) => (
-            <article key={card.title} className={`min-h-[250px] w-[310px] shrink-0 rounded-[34px] p-7 shadow-[0_20px_60px_rgba(16,17,20,0.12)] md:w-[390px] ${card.tone}`}>
+            <article key={card.title} className={`min-h-[250px] rounded-[34px] p-7 shadow-[0_20px_60px_rgba(16,17,20,0.12)] ${card.tone}`}>
               <p className="text-xs font-black uppercase tracking-[0.2em] opacity-60">{card.kicker}</p>
               <h2 className="mt-14 text-3xl font-black leading-9 tracking-[-0.035em]">{card.title}</h2>
               <p className="mt-4 text-sm font-bold leading-6 opacity-74">{card.text}</p>
