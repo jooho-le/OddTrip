@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -13,9 +13,7 @@ class Trip(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     match_id: Mapped[str] = mapped_column(String(36), ForeignKey("matches.id"), nullable=False)
     preferences_json: Mapped[dict | None] = mapped_column(JSON)
-    status: Mapped[str] = mapped_column(
-        Enum("planning", "active", "completed"), default="planning"
-    )
+    status: Mapped[str] = mapped_column(String(20), default="planning")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -65,7 +63,7 @@ class ItineraryItem(Base):
     day_weather: Mapped[str | None] = mapped_column(String(200))
     day_caution: Mapped[str | None] = mapped_column(Text)
     time: Mapped[str | None] = mapped_column(String(10))
-    type: Mapped[str] = mapped_column(Enum("place", "move", "meal", "rest"), nullable=False)
+    type: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     location: Mapped[str | None] = mapped_column(String(200))
     duration: Mapped[str | None] = mapped_column(String(50))
@@ -80,7 +78,7 @@ class SafetyAlert(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     trip_id: Mapped[str] = mapped_column(String(36), ForeignKey("trips.id"), nullable=False)
-    level: Mapped[str] = mapped_column(Enum("info", "warning", "danger"), nullable=False)
+    level: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     message: Mapped[str | None] = mapped_column(Text)
     action: Mapped[str | None] = mapped_column(Text)

@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Enum, Integer, String, Text
+from sqlalchemy import JSON, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -8,7 +8,7 @@ class TtiQuestion(Base):
     __tablename__ = "tti_questions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    axis: Mapped[str] = mapped_column(Enum("PW", "NC", "FA", "HS"), nullable=False)
+    axis: Mapped[str] = mapped_column(String(2), nullable=False)
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     left_label: Mapped[str] = mapped_column(String(200), nullable=False)
     right_label: Mapped[str] = mapped_column(String(200), nullable=False)
