@@ -33,6 +33,11 @@ class Settings(BaseSettings):
 
 
 def _normalize_database_url(url: str) -> str:
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+
     sqlite_prefix = "sqlite+aiosqlite:///"
     if not url.startswith(sqlite_prefix):
         return url
