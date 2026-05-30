@@ -1,14 +1,20 @@
 from contextlib import asynccontextmanager
+import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .routers import agent, attractions, auth, decision, itinerary, matches, safety, tti, users
+from .seed import seed
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await seed()
     yield
 
 
@@ -32,3 +38,12 @@ app.include_router(attractions.router, prefix="/api/trips", tags=["attractions"]
 app.include_router(itinerary.router, prefix="/api/trips", tags=["itinerary"])
 app.include_router(safety.router, prefix="/api/trips", tags=["safety"])
 app.include_router(agent.router, prefix="/api/trips", tags=["agent"])
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled API error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
