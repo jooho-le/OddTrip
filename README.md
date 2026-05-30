@@ -1,169 +1,286 @@
-# oddtrip
+# OddTrip
 
-혼자 여행하는 사람을 위한 AI 여행 매칭 서비스입니다.  
-핵심 아이디어는 단순히 “비슷한 사람”을 붙이는 게 아니라, TTI 진단으로 여행 성향을 읽고 나와 반대되는 장점을 가진 사람과 같이 여행을 설계하게 만드는 것입니다.
+혼자 떠나는 여행을 더 넓은 취향과 연결하는 AI 여행 매칭 서비스입니다.
 
-현재 프론트는 mock 데이터를 쓰지 않고 `http://localhost:8000`의 FastAPI 백엔드를 호출합니다. 회원가입/로그인, TTI 질문, 결과 계산, 매칭, Trip 생성, 공동 선호 저장, 공공데이터 기반 관광지 추천, 일정 생성, 날씨/주의 알림 조회가 API를 통해 이어집니다.
+OddTrip은 단순히 비슷한 사람을 추천하는 앱이 아닙니다. 사용자의 여행 성향을 TTI 진단으로 분석하고, 나와 다른 강점을 가진 여행자와 연결한 뒤, 두 사람의 취향을 균형 있게 반영한 관광지와 일정을 생성합니다.
 
-## 실행 방법
+## Live
+
+| 구분 | URL |
+| --- | --- |
+| Frontend | https://odd-trip.vercel.app |
+| Backend API Docs | https://oddtrip.onrender.com/docs |
+
+## 핵심 흐름
+
+```txt
+회원가입/로그인
+  -> TTI 여행 성향 진단
+  -> 반대 성향 매칭
+  -> 공동 취향 조율
+  -> 공공데이터 기반 관광지 추천
+  -> AI 일정 생성
+  -> 날씨/주의사항 확인
+```
+
+## 주요 기능
+
+| 기능 | 설명 |
+| --- | --- |
+| TTI 진단 | 12문항으로 즉흥/계획, 새로움/검증, 휴식/활동, 숨은곳/대표명소 성향을 계산합니다. |
+| 반대 성향 매칭 | 나와 비슷한 사람보다 여행을 넓혀줄 보완형 여행자를 추천합니다. |
+| 공동 의사결정 | 장소, 활동, 음식, 예산, 일정 강도를 함께 조율합니다. |
+| 관광지 추천 | TourAPI와 AI fallback을 활용해 여행 후보지를 생성합니다. |
+| 일정 생성 | 관광지, 식사, 이동, 휴식을 시간대별로 배치합니다. |
+| 안전 정보 | 날씨, 재난, 주의사항을 일정 맥락에 맞게 보여줍니다. |
+| 지도 표시 | Google Maps 키가 있으면 실제 지도를 렌더링하고, 없으면 placeholder를 표시합니다. |
+
+## 기술 스택
+
+| 영역 | 기술 |
+| --- | --- |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| State | Zustand |
+| Routing | React Router |
+| Backend | FastAPI, SQLAlchemy Async ORM |
+| Database | Supabase PostgreSQL, local SQLite |
+| AI | OpenAI API |
+| External APIs | TourAPI, Google Maps, KMA, MOIS |
+| Deploy | Vercel, Render, Supabase |
+| Mobile Ready | Capacitor 설정 포함 |
+
+## 아키텍처
+
+```txt
+Browser
+  -> Vercel Frontend
+    -> Zustand tripStore
+      -> oddtripService fetch client
+        -> Render FastAPI
+          -> SQLAlchemy Async ORM
+            -> Supabase PostgreSQL
+
+Render FastAPI
+  -> OpenAI API
+  -> TourAPI
+  -> Google Maps API
+  -> KMA / MOIS API
+```
+
+## 폴더 구조
+
+```txt
+OddTrip/
+  src/
+    app/          앱 라우팅과 공통 레이아웃
+    pages/        화면 단위 페이지
+    components/   여러 화면에서 쓰는 컴포넌트
+    entities/     Zustand 전역 상태
+    services/     백엔드 API 호출 계층
+    shared/       공통 UI와 유틸
+    styles/       전역 스타일
+    types/        도메인 타입
+
+  backend/
+    app/
+      routers/    FastAPI 라우터
+      services/   비즈니스 로직
+      planner/    일정 생성 파이프라인
+      clients/    외부 API 클라이언트
+      models/     SQLAlchemy 모델
+      schemas/    요청/응답 DTO
+    requirements.txt
+
+  tests/          플래너 단위 테스트
+```
+
+## 로컬 실행
+
+### 1. 프론트엔드
 
 ```bash
 npm install
 npm run dev
 ```
 
-프론트와 백엔드는 프로젝트 루트의 `.env` 하나를 같이 읽습니다.
+기본 주소:
+
+```txt
+http://localhost:5173
+```
+
+### 2. 백엔드
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API 문서:
+
+```txt
+http://localhost:8000/docs
+```
+
+## 환경변수
+
+프론트와 백엔드는 루트 `.env` 하나를 기준으로 개발할 수 있습니다. 실제 배포에서는 Vercel과 Render에 각각 필요한 값만 넣습니다.
+
+### 로컬 예시
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
 VITE_GOOGLE_MAPS_API_KEY=Google_Maps_Browser_Key
+
 DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
-OPENAI_API_KEY=sk-your-key-here
-TOUR_API_SERVICE_KEY=공공데이터_키
+OPENAI_API_KEY=sk-your-key
+OPENAI_MODEL=gpt-4o-mini
+AUTH_SECRET_KEY=replace-with-long-random-secret
+AUTH_TOKEN_EXPIRE_MINUTES=20160
+ALLOW_DEMO_USER_HEADER_AUTH=false
+
+CORS_ORIGINS=http://localhost:5173
+CORS_ORIGIN_REGEX=^https?://(localhost|127\.0\.0\.1):\d+$
+
+TOUR_API_SERVICE_KEY=
 GOOGLE_MAPS_API_KEY=Google_Maps_Server_Key
+KMA_API_KEY=
+MOIS_API_KEY=
 ```
 
-프로덕션 빌드는 아래 명령으로 확인합니다.
+## 배포 설정
+
+### Vercel
+
+프론트엔드만 배포합니다.
+
+```txt
+Framework Preset: Vite
+Root Directory: ./
+Install Command: npm install
+Build Command: npm run build
+Output Directory: dist
+```
+
+Vercel 환경변수:
+
+```env
+VITE_API_BASE_URL=https://oddtrip.onrender.com
+VITE_GOOGLE_MAPS_API_KEY=Google_Maps_Browser_Key
+```
+
+`vercel.json`에서 SPA 라우팅 새로고침 404를 방지합니다.
+
+### Render
+
+FastAPI 백엔드를 배포합니다.
+
+```txt
+Root Directory: backend
+Build Command: pip install -r requirements.txt
+Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Render 환경변수:
+
+```env
+PYTHON_VERSION=3.11.9
+DATABASE_URL=postgresql+asyncpg://...
+OPENAI_API_KEY=sk-your-key
+OPENAI_MODEL=gpt-4o-mini
+AUTH_SECRET_KEY=replace-with-long-random-secret
+AUTH_TOKEN_EXPIRE_MINUTES=20160
+ALLOW_DEMO_USER_HEADER_AUTH=false
+CORS_ORIGINS=https://odd-trip.vercel.app
+CORS_ORIGIN_REGEX=^https://.*\.vercel\.app$
+TOUR_API_SERVICE_KEY=
+GOOGLE_MAPS_API_KEY=
+KMA_API_KEY=
+MOIS_API_KEY=
+```
+
+앱 시작 시 `backend/app/seed.py`가 실행되어 기본 테이블과 TTI 데이터를 준비합니다.
+
+### Supabase
+
+Supabase는 PostgreSQL 데이터베이스로 사용합니다. Render의 `DATABASE_URL`에는 SQLAlchemy async 드라이버 형식이 필요합니다.
+
+```txt
+postgresql+asyncpg://USER:PASSWORD@HOST:PORT/postgres
+```
+
+Supabase에서 받은 값이 `postgresql://...` 형태여도 앱이 자동 보정하지만, 운영 환경변수에는 `postgresql+asyncpg://...`로 넣는 것을 권장합니다.
+
+## API 경계
+
+| Prefix | 역할 |
+| --- | --- |
+| `/api/auth` | 회원가입, 로그인, 내 정보 |
+| `/api/users` | 사용자 관련 개발용 API |
+| `/api/tti` | TTI 질문, 결과 계산 |
+| `/api/matches` | 매칭 후보, 매칭 수락 |
+| `/api/trips/{tripId}/preferences` | 공동 선호 저장 |
+| `/api/trips/{tripId}/attractions` | 관광지 조회/생성 |
+| `/api/trips/{tripId}/agent` | 여행 에이전트 실행 |
+| `/api/trips/{tripId}/itinerary` | 일정 조회/생성 |
+| `/api/trips/{tripId}/safety` | 날씨/주의사항 |
+
+## 검증 명령
+
+프론트 빌드:
 
 ```bash
 npm run build
 ```
 
-## 사용 기술
+백엔드 테스트:
 
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- React Router
-- Zustand
-- Capacitor 설정 파일 포함
-
-## 큰 구조
-
-```txt
-src/
-  app/          앱 라우터와 전체 레이아웃
-  pages/        실제 화면 단위 폴더
-  components/   여러 화면에서 같이 쓰는 앱 컴포넌트
-  shared/       버튼, 카드 같은 공통 UI와 작은 유틸
-  entities/     전역 상태 저장소
-  services/     실제 백엔드 API 호출 계층
-  types/        서비스 도메인 타입
-  styles/       전역 스타일과 애니메이션
+```bash
+backend/.venv/bin/python -m pytest tests/test_day_assigner.py tests/test_route_optimizer.py tests/test_time_scheduler.py
 ```
 
-## 페이지 폴더
+## 자주 나는 배포 문제
 
-페이지는 한 파일씩 흩어두지 않고 화면별 폴더로 나눴습니다. 지금은 각 폴더 안에 `index.tsx`만 있지만, 화면이 커지면 같은 폴더 안에 `components.tsx`, `hooks.ts`, `constants.ts`처럼 붙여서 키우면 됩니다.
-
-| 경로 | 의미 |
+| 증상 | 확인할 것 |
 | --- | --- |
-| `src/pages/landing/index.tsx` | 첫 진입 화면입니다. oddtrip의 핵심 메시지, 카드뉴스형 소개, 움직이는 매칭/일정 프리뷰가 들어 있습니다. |
-| `src/pages/tti-start/index.tsx` | TTI 진단 시작 화면입니다. 진단 축과 소요시간, 진행 방식을 설명합니다. |
-| `src/pages/tti-questions/index.tsx` | 12문항 TTI 진단 화면입니다. 한 문항씩 보여주고 진행률과 이전/다음 흐름을 관리합니다. |
-| `src/pages/tti-result/index.tsx` | TTI 결과 화면입니다. 유형 코드, 축별 점수, 반대 유형, 매칭 CTA를 보여줍니다. |
-| `src/pages/matches/index.tsx` | 반대 성향 매칭 추천 목록입니다. 후보 카드, 추천도, 수락/보류/다시 추천 흐름을 담당합니다. |
-| `src/pages/match-detail/index.tsx` | 선택한 매칭 상대 상세 화면입니다. 내 성향과 상대 성향 차이, 보완점, 공동 일정 CTA가 있습니다. |
-| `src/pages/decision/index.tsx` | 공동 의사결정 화면입니다. 장소, 활동, 음식, 일정 강도, 예산, AI 조정 제안을 다룹니다. |
-| `src/pages/attractions/index.tsx` | 관광지 추천 화면입니다. 필터, 저장/제외 상태, 지도 보기 CTA를 보여줍니다. |
-| `src/pages/itinerary/index.tsx` | 3일 일정 생성 결과 화면입니다. 날짜별 타임라인, 날씨 배너, 일정 상세 진입이 있습니다. |
-| `src/pages/itinerary-detail/index.tsx` | 일정 상세 화면입니다. 장소 설명, 이동 시간, 추천 이유, 지도 placeholder, 변경 옵션이 들어 있습니다. |
-| `src/pages/safety/index.tsx` | 날씨와 주의사항 화면입니다. 비, 자외선, 재난성 알림, 일정 조정 필요 여부를 카드로 보여줍니다. |
-| `src/pages/my-trip/index.tsx` | 마이페이지 성격의 내 여행 화면입니다. 내 유형, 저장한 여행지, 생성 일정, 최근 매칭 기록을 모읍니다. |
+| 배포 사이트에서 `localhost:8000` 요청 | Vercel `VITE_API_BASE_URL`이 Render 주소인지 확인 후 재배포 |
+| CORS 오류 | Render `CORS_ORIGINS=https://odd-trip.vercel.app` 확인 |
+| Render에서 `psycopg2` 오류 | `DATABASE_URL`이 `postgresql+asyncpg://`인지 확인 |
+| Render에서 Python 3.14 사용 | `PYTHON_VERSION=3.11.9` 환경변수 확인 |
+| 지도 placeholder 표시 | Vercel `VITE_GOOGLE_MAPS_API_KEY`와 Maps JavaScript API 활성화 확인 |
+| 회원가입 500 | Render 로그와 Supabase 연결 문자열 확인 |
 
-## 주요 파일 설명
+## 모바일 확장
 
-| 파일 | 역할 |
-| --- | --- |
-| `src/main.tsx` | React 앱을 DOM에 붙이는 시작점입니다. 전역 CSS도 여기서 불러옵니다. |
-| `src/app/App.tsx` | 전체 라우팅을 정의합니다. URL과 페이지 컴포넌트가 여기서 연결됩니다. |
-| `src/app/AppLayout.tsx` | 공통 앱 레이아웃입니다. 상단 헤더와 모바일 하단 탭을 감쌉니다. |
-| `src/components/AppHeader.tsx` | 앱 상단 헤더입니다. 뒤로가기, 현재 화면명, 검색/주의사항 진입을 처리합니다. |
-| `src/components/BottomTabs.tsx` | 모바일 하단 탭입니다. Capacitor 앱으로 감쌌을 때도 자연스럽게 쓰기 위한 내비게이션입니다. |
-| `src/components/DesktopNav.tsx` | 예전 웹 사이드 내비게이션 컴포넌트입니다. 현재 UX에서는 상단 흐름 탭을 사용해서 기본 레이아웃에는 렌더링하지 않습니다. |
-| `src/components/CardNewsRail.tsx` | 카드뉴스 느낌의 소개 블록입니다. 발표용 화면에서 서비스 흐름을 짧게 보여줄 때 씁니다. |
-| `src/components/MapPlaceholder.tsx` | 실제 지도 API를 붙이기 전까지 사용하는 지도 영역 대체 컴포넌트입니다. |
-| `src/components/GoogleMap.tsx` | Google Maps 브라우저 키가 있으면 실제 지도를 띄우고, 없으면 placeholder로 내려가는 지도 컴포넌트입니다. |
-| `src/shared/ui/Button.tsx` | 공통 버튼입니다. primary, secondary, ghost, danger 스타일을 가지고 있습니다. |
-| `src/shared/ui/Card.tsx` | 공통 카드입니다. 현재 디자인 톤에 맞춰 반투명 웜 톤과 hover 효과를 기본으로 둡니다. |
-| `src/shared/ui/Badge.tsx` | 추천도, 유형, 태그 같은 작은 정보를 보여주는 뱃지입니다. |
-| `src/shared/ui/SectionTitle.tsx` | 페이지나 섹션 제목을 통일해서 보여주는 컴포넌트입니다. |
-| `src/shared/ui/AxisBar.tsx` | TTI 축별 점수를 시각화하는 바입니다. |
-| `src/shared/ui/StateView.tsx` | loading, empty, error 상태를 화면마다 일관되게 보여주는 컴포넌트입니다. |
-| `src/shared/lib/classNames.ts` | 조건부 className을 합치는 작은 유틸입니다. |
-| `src/entities/tripStore.ts` | Zustand 전역 상태입니다. 사용자, TTI 답변/결과, 매칭, 선호값, 관광지, 일정, 날씨/주의 알림을 관리합니다. |
-| `src/services/oddtripService.ts` | 프론트와 FastAPI 백엔드 사이의 API 호출 계층입니다. 인증, TTI, 매칭, 관광지, 일정, 날씨/주의 알림을 호출합니다. |
-| `src/types/index.ts` | TTI 코드, 매칭 후보, 관광지, 일정, 알림 등 서비스에서 쓰는 타입을 모아둔 곳입니다. |
-| `src/styles/globals.css` | Tailwind 기본 설정 위에 전역 배경, safe-area, 카드 애니메이션, 티커 애니메이션을 정의합니다. |
-| `capacitor.config.ts` | 나중에 iOS/Android 앱으로 감쌀 때 쓰는 Capacitor 설정입니다. |
+Capacitor 설정이 포함되어 있어 웹 앱을 iOS/Android 앱으로 감쌀 수 있습니다.
 
-## 상태 흐름
-
-상태는 `src/entities/tripStore.ts` 하나에 모아두었습니다. 화면은 store를 호출하고, store는 `src/services/oddtripService.ts`를 통해 백엔드 API를 호출합니다.
-
-대략 이런 흐름입니다.
-
-```txt
-Page -> Zustand store -> oddtripService -> FastAPI backend -> SQLite/MySQL / TourAPI / OpenAI
-```
-
-이렇게 해둔 이유는 페이지 컴포넌트 안에 fetch 로직이 흩어지는 걸 막기 위해서입니다.
-
-## 백엔드 연결
-
-프론트는 `/api/auth/register` 또는 `/api/auth/login`으로 토큰을 받은 뒤 `localStorage`에 저장합니다. 이후 인증이 필요한 요청에는 `Authorization: Bearer ...` 헤더를 붙입니다.
-
-개발 중 임시 사용자 헤더 방식이 필요하면 백엔드 `.env`에 `ALLOW_DEMO_USER_HEADER_AUTH=true`를 넣을 수 있지만, 기본값은 꺼져 있습니다.
-
-연결된 API 흐름:
-
-- `/api/auth/register`
-- `/api/auth/login`
-- `/api/auth/me`
-- `/api/tti/questions`
-- `/api/tti/calculate`
-- `/api/matches`
-- `/api/matches/{matchedUserId}/accept`
-- `/api/trips/{tripId}/preferences`
-- `/api/trips/{tripId}/attractions/generate-public`
-- `/api/trips/{tripId}/itinerary/generate`
-- `/api/trips/{tripId}/safety`
-
-## 디자인 메모
-
-초기 버전은 흰 카드가 많아서 데모 화면이 다소 평평해 보일 수 있었습니다. 그래서 현재 버전은 웜 베이지 배경, 틸/코랄 포인트, 카드뉴스형 블록, float/reveal/ticker 애니메이션을 넣어 발표 화면에서 서비스 성격이 더 빨리 보이도록 조정했습니다.
-
-너무 장식적인 랜딩페이지가 아니라, 실제 앱 첫 화면처럼 동작하는 흐름을 유지하는 쪽으로 맞췄습니다.
-
-## Capacitor 연동
-
-웹에서 먼저 동작하고, 나중에 앱으로 감싸는 구조입니다. 기본 설정은 `capacitor.config.ts`에 있습니다.
-
-앱 프로젝트를 추가할 때는 보통 아래 순서로 진행합니다.
-
-ios
-cd /Users/leejooho/Desktop/OddTrip
-npm install
+```bash
 npm run build
 npx cap add ios
 npx cap sync ios
 npx cap open ios
+```
 
-android
-cd /Users/leejooho/Desktop/OddTrip
-npm install
+```bash
 npm run build
 npx cap add android
 npx cap sync android
 npx cap open android
+```
 
-safe-area는 `src/styles/globals.css`에 `safe-top`, `safe-bottom` 클래스로 처리해두었습니다. 상단 헤더와 하단 탭이 이 값을 사용하기 때문에 iPhone 노치나 홈 인디케이터 영역에서도 레이아웃이 무너지지 않게 의도했습니다.
+## 보안 메모
 
-## 앞으로 정리하면 좋은 것
+- `.env`는 커밋하지 않습니다.
+- 브라우저에 노출되는 키는 `VITE_` prefix가 붙습니다.
+- Google Maps 브라우저 키는 `https://odd-trip.vercel.app/*` referrer 제한을 권장합니다.
+- OpenAI API key, Supabase password는 노출되면 즉시 폐기 후 재발급해야 합니다.
 
-지금은 실제 API 호출 기반 MVP입니다. 다음 단계에서는 아래 순서로 정리하는 게 좋습니다.
+## 현재 상태
 
-1. 일정 재조정 요청 API 추가
-2. 실제 운영 DB 기준 migration 정리
-3. 모바일 빌드 후 safe-area와 뒤로가기 동작 실기기 확인
+- 프론트엔드: Vercel 배포 가능
+- 백엔드: Render 배포 가능
+- DB: Supabase PostgreSQL 연결 가능
+- 테스트: 플래너 단위 테스트 통과
