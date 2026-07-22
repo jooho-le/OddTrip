@@ -16,6 +16,14 @@ import { ItineraryPage } from '../pages/itinerary';
 import { ItineraryDetailPage } from '../pages/itinerary-detail';
 import { SafetyPage } from '../pages/safety';
 import { MyTripPage } from '../pages/my-trip';
+import { AdminLayout } from '../admin/AdminLayout';
+import { DashboardPage } from '../admin/pages/DashboardPage';
+import { UsersPage } from '../admin/pages/UsersPage';
+import { TripsPage } from '../admin/pages/TripsPage';
+import { TripDetailPage } from '../admin/pages/TripDetailPage';
+import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/AttractionsPage';
+import { TtiPage } from '../admin/pages/TtiPage';
+import { OperationsPage } from '../admin/pages/OperationsPage';
 
 export function App() {
   const bootstrap = useTripStore((state) => state.bootstrap);
@@ -27,6 +35,15 @@ export function App() {
   return (
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="trips" element={<TripsPage />} />
+          <Route path="trips/:id" element={<TripDetailPage />} />
+          <Route path="attractions" element={<AdminAttractionsPage />} />
+          <Route path="tti" element={<TtiPage />} />
+          <Route path="operations" element={<OperationsPage />} />
+        </Route>
         <Route element={<AppLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
