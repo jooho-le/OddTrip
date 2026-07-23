@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+ENV/
+*.db
+.env
+.env.*
+!.env.example
+.pytest_cache/
+docs/
+README.md

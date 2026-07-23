@@ -1,0 +1,38 @@
+# OddTrip 백엔드 프로덕션 구성 (EC2에서 실행)
+# 위치: backend/  — 백엔드만 배포하므로 배포 파일도 backend 안에 모아둔다.
+# - api   : FastAPI (Uvicorn) 컨테이너. 호스트로 포트를 열지 않고 Caddy만 접근.
+# - caddy : 리버스 프록시 + Let's Encrypt 자동 HTTPS.
+# DB(PostgreSQL)는 AWS RDS(외부)를 쓰므로 여기에 컨테이너로 두지 않는다.
+#
+# 필요한 값은 같은 폴더의 .env (= backend/.env) 에서 읽는다. git에 커밋하지 말 것.
+
+services:
+  api:
+    build:
+      context: .          # 빌드 컨텍스트 = backend/
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env              # DATABASE_URL, AUTH_SECRET_KEY, CORS_ORIGINS, OPENAI_API_KEY 등
+    expose:
+      - "8000"            # 컨테이너 내부 네트워크에만 노출 (Caddy가 접근)
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"           # HTTP (ACME 인증 + HTTPS 리다이렉트)
+      - "443:443"         # HTTPS
+    environment:
+      - API_DOMAIN=${API_DOMAIN}     # 예: api.mydomain.com
+      - ACME_EMAIL=${ACME_EMAIL}     # Let's Encrypt 알림 이메일
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data             # 발급받은 인증서 영구 보관 (지우면 재발급)
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

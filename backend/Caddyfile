@@ -1,0 +1,13 @@
+# Caddy 리버스 프록시 설정 (위치: backend/)
+# {$API_DOMAIN}, {$ACME_EMAIL} 값은 docker-compose.yml → .env 에서 주입된다.
+# 이 도메인으로 요청이 오면 내부 api 컨테이너(8000)로 넘긴다.
+# Caddy가 Let's Encrypt 인증서를 자동 발급/갱신한다 (별도 certbot 불필요).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:8000
+}
