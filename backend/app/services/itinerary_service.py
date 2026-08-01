@@ -15,8 +15,9 @@ from ..planner import InputPlace, ItineraryPlanner, PlanRequest
 
 async def get_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDayOut]:
     result = await db.execute(
-        select(ItineraryDay, ItineraryItem)
+        select(ItineraryDay, ItineraryItem, Place)
         .outerjoin(ItineraryItem, ItineraryItem.day_id == ItineraryDay.id)
+        .outerjoin(Place, Place.id == ItineraryItem.place_id)
         .where(ItineraryDay.trip_id == trip_id)
         .order_by(ItineraryDay.day_number, ItineraryItem.sort_order)
     )
@@ -37,12 +38,7 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
     if not user_a or not user_b:
         raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
 
-    # Prefer saved attractions. If the user has not explicitly saved anything,
-    # use all generated non-excluded attractions so the planner can still build
-    # an executable demo itinerary.
-    attractions = await _load_places_for_planning(db, trip_id, saved_only=True)
-    if not attractions:
-        attractions = await _load_places_for_planning(db, trip_id, saved_only=False)
+    attractions = await _load_places_for_planning(db, trip_id)
 
     if attractions:
         await _generate_planner_itinerary(
@@ -67,23 +63,28 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
 
 
 async def _load_places_for_planning(
-    db: AsyncSession, trip_id: str, *, saved_only: bool
+    db: AsyncSession, trip_id: str
 ) -> list[tuple[TripAttraction, Place]]:
-    """Places the planner may use.
+    """Every candidate the planner may use.
 
-    Prefers explicitly saved ones; callers fall back to every non-excluded
-    attraction so a demo itinerary can still be produced.
+    Excluding is the only way to keep a place out. Leaving one untouched means
+    "no opinion", not "reject", so it stays a candidate — previously a single
+    save silently dropped every place the traveller had not explicitly kept.
+
+    Saved places sort first so they survive if the day runs out of hours.
     """
-    condition = (
-        TripAttraction.saved == True  # noqa: E712
-        if saved_only
-        else TripAttraction.excluded == False  # noqa: E712
-    )
     result = await db.execute(
         select(TripAttraction, Place)
         .join(Place, Place.id == TripAttraction.place_id)
-        .where(TripAttraction.trip_id == trip_id, condition)
-        .order_by(TripAttraction.score.desc().nullslast(), TripAttraction.created_at)
+        .where(
+            TripAttraction.trip_id == trip_id,
+            TripAttraction.excluded == False,  # noqa: E712
+        )
+        .order_by(
+            TripAttraction.saved.desc(),
+            TripAttraction.score.desc().nullslast(),
+            TripAttraction.created_at,
+        )
     )
     return [(link, place) for link, place in result.all()]
 
@@ -203,14 +204,16 @@ async def _delete_existing_days(db: AsyncSession, trip_id: str) -> None:
     await db.flush()
 
 
-def _to_day_out(rows: list[tuple[ItineraryDay, ItineraryItem | None]]) -> list[ItineraryDayOut]:
+def _to_day_out(
+    rows: list[tuple[ItineraryDay, ItineraryItem | None, Place | None]]
+) -> list[ItineraryDayOut]:
     """Assemble the joined rows into the nested shape the API returns.
 
     The outer join yields one row per slot, plus a single row with a NULL slot
     for a day that has none, so days always survive the round trip.
     """
     days: dict[str, ItineraryDayOut] = {}
-    for day, item in rows:
+    for day, item, place in rows:
         out = days.get(day.id)
         if out is None:
             out = ItineraryDayOut(
@@ -227,6 +230,10 @@ def _to_day_out(rows: list[tuple[ItineraryDay, ItineraryItem | None]]) -> list[I
             ItineraryItemOut(
                 id=item.id,
                 day=day.day_number,
+                place_id=item.place_id,
+                latitude=place.latitude if place else None,
+                longitude=place.longitude if place else None,
+                address=place.addr1 if place else None,
                 time=item.time,
                 type=item.type,
                 title=item.title,

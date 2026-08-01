@@ -35,6 +35,20 @@ def verify_password(password: str, password_hash: str | None) -> bool:
     return secrets.compare_digest(actual, expected)
 
 
+def utcnow() -> datetime:
+    """Naive UTC, matching the DateTime columns used across the models."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def create_refresh_token() -> str:
+    """Opaque high-entropy string. Not a JWT: it is looked up, not decoded."""
+    return secrets.token_urlsafe(48)
+
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def create_access_token(subject: str) -> str:
     now = datetime.now(timezone.utc)
     payload = {

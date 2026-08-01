@@ -37,6 +37,7 @@ interface TripState {
   runTravelAgent: () => Promise<void>;
   toggleAttraction: (id: string, key: 'saved' | 'excluded') => Promise<void>;
   loadItinerary: () => Promise<void>;
+  regenerateItinerary: () => Promise<void>;
   loadAlerts: () => Promise<void>;
 }
 
@@ -90,7 +91,9 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   logout() {
-    oddtripService.logout();
+    // Revoking the refresh token server-side is best effort; the local session
+    // is cleared immediately either way. logout() never rejects.
+    void oddtripService.logout();
     set({
       user: undefined,
       questions: [],
@@ -329,6 +332,22 @@ export const useTripStore = create<TripState>((set, get) => ({
       set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
     } catch {
       set((state) => ({ error: '일정을 생성하지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
+    }
+  },
+  async regenerateItinerary() {
+    // loadItinerary only generates when nothing is stored yet, so saving or
+    // excluding attractions afterwards has no effect until we ask for a rebuild.
+    set((state) => ({ status: { ...state.status, itinerary: 'loading' } }));
+    try {
+      const tripId = await get().ensureTrip();
+      if (!tripId) {
+        set((state) => ({ status: { ...state.status, itinerary: 'error' } }));
+        return;
+      }
+      const response = await oddtripService.generateItinerary(tripId);
+      set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
+    } catch {
+      set((state) => ({ error: '일정을 다시 만들지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
     }
   },
   async loadAlerts() {

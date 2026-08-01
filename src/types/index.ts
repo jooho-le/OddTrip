@@ -141,6 +141,11 @@ export type ItineraryItemType = 'place' | 'move' | 'meal' | 'rest';
 export interface ItineraryItem {
   id: string;
   day: number;
+  /** Set for `place` slots only; move/meal/rest have no place behind them. */
+  placeId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
   time: string;
   type: ItineraryItemType;
   title: string;
@@ -175,6 +180,7 @@ export interface ApiResponse<T> {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken: string;
   tokenType: 'bearer' | string;
   user: UserProfile;
 }

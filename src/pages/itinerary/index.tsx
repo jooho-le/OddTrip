@@ -11,7 +11,7 @@ import type { ItineraryItemType } from '../../types';
 const typeLabel: Record<ItineraryItemType, string> = { place: '장소', move: '이동', meal: '식사', rest: '휴식' };
 
 export function ItineraryPage() {
-  const { itinerary, loadItinerary, status } = useTripStore();
+  const { itinerary, loadItinerary, regenerateItinerary, status } = useTripStore();
 
   useEffect(() => {
     if (!itinerary.length) void loadItinerary();
@@ -73,7 +73,7 @@ export function ItineraryPage() {
           </section>
         ))}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary">다시 조정하기</Button><Button icon={<Share2 className="h-4 w-4" />}>공유하기</Button></div>
+      <div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={() => void regenerateItinerary()}>다시 조정하기</Button><Button icon={<Share2 className="h-4 w-4" />}>공유하기</Button></div>
     </div>
   );
 }

@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     auth_secret_key: str = "change-this-secret-before-deploy"
-    auth_token_expire_minutes: int = 60 * 24 * 14
+    # Access tokens cannot be revoked, so keep them short and let the client
+    # exchange a refresh token for a new one.
+    auth_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
     allow_demo_user_header_auth: bool = False
     cors_origins: str = "http://localhost:5173"
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):\d+$"

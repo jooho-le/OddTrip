@@ -3,6 +3,19 @@ import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthRe
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 const USER_ID_STORAGE_KEY = 'oddtrip.userId';
 const AUTH_TOKEN_STORAGE_KEY = 'oddtrip.authToken';
+const REFRESH_TOKEN_STORAGE_KEY = 'oddtrip.refreshToken';
+
+function storeSession(data: AuthResponse) {
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.accessToken);
+  localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refreshToken);
+  localStorage.setItem(USER_ID_STORAGE_KEY, data.user.id);
+}
+
+function clearSession() {
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(USER_ID_STORAGE_KEY);
+}
 
 interface AcceptMatchResponse {
   matchId: string;
@@ -22,7 +35,7 @@ interface PublicAttractionRequest {
 export interface OddtripService {
   login(email: string, password: string): Promise<ApiResponse<AuthResponse>>;
   register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<AuthResponse>>;
-  logout(): void;
+  logout(): Promise<void>;
   hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
@@ -46,8 +59,7 @@ export const oddtripService: OddtripService = {
       method: 'POST',
       body: { email, password }
     });
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.data.accessToken);
-    localStorage.setItem(USER_ID_STORAGE_KEY, response.data.user.id);
+    storeSession(response.data);
     return response;
   },
 
@@ -56,14 +68,18 @@ export const oddtripService: OddtripService = {
       method: 'POST',
       body: input
     });
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.data.accessToken);
-    localStorage.setItem(USER_ID_STORAGE_KEY, response.data.user.id);
+    storeSession(response.data);
     return response;
   },
 
-  logout() {
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_ID_STORAGE_KEY);
+  async logout() {
+    // Tell the server first so the refresh token stops working; clear locally
+    // either way, since the user's intent is to be signed out.
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    if (refreshToken) {
+      await request('/api/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined);
+    }
+    clearSession();
   },
 
   hasAuthToken() {
@@ -177,6 +193,40 @@ export const oddtripService: OddtripService = {
   }
 };
 
+/**
+ * Swap the refresh token for a fresh pair.
+ *
+ * Concurrent 401s share one in-flight call, otherwise several parallel
+ * requests would each rotate the token and invalidate each other's result.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    if (!refreshToken) return false;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+      if (!response.ok) return false;
+      const payload = await response.json();
+      storeSession(payload.data);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
 async function request<T>(
   path: string,
   options: {
@@ -184,7 +234,8 @@ async function request<T>(
     body?: unknown;
     auth?: boolean;
     userId?: string;
-  } = {}
+  } = {},
+  isRetry = false
 ): Promise<ApiResponse<T>> {
   const userId = options.userId ?? localStorage.getItem(USER_ID_STORAGE_KEY);
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -208,6 +259,17 @@ async function request<T>(
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined
   });
+
+  // The access token is short lived, so a 401 usually just means it expired.
+  // Refresh once and replay; if that fails the session is genuinely over and
+  // we clear it, rather than leaving a dead token to 401 forever.
+  if (response.status === 401 && (options.auth || options.userId) && !isRetry) {
+    if (await refreshAccessToken()) {
+      return request<T>(path, options, true);
+    }
+    clearSession();
+    throw new Error('로그인이 필요합니다.');
+  }
 
   const payload = await response.json().catch(() => null);
 
