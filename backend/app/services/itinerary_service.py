@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.match import Match
-from ..models.trip import Attraction, ItineraryItem, Trip
+from ..models.trip import ItineraryItem, Place, Trip, TripAttraction
 from ..models.user import User
 from ..schemas.itinerary import ItineraryDayOut, ItineraryItemOut
 from . import openai_service
@@ -40,20 +40,9 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
     # Prefer saved attractions. If the user has not explicitly saved anything,
     # use all generated non-excluded attractions so the planner can still build
     # an executable demo itinerary.
-    attr_result = await db.execute(
-        select(Attraction).where(
-            Attraction.trip_id == trip_id, Attraction.saved == True
-        )
-    )
-    attractions = list(attr_result.scalars().all())
-
+    attractions = await _load_places_for_planning(db, trip_id, saved_only=True)
     if not attractions:
-        attr_result = await db.execute(
-            select(Attraction).where(
-                Attraction.trip_id == trip_id, Attraction.excluded == False
-            )
-        )
-        attractions = list(attr_result.scalars().all())
+        attractions = await _load_places_for_planning(db, trip_id, saved_only=False)
 
     if attractions:
         all_items = await _generate_planner_itinerary(
@@ -77,6 +66,28 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
     return _group_by_day(all_items)
 
 
+async def _load_places_for_planning(
+    db: AsyncSession, trip_id: str, *, saved_only: bool
+) -> list[tuple[TripAttraction, Place]]:
+    """Places the planner may use.
+
+    Prefers explicitly saved ones; callers fall back to every non-excluded
+    attraction so a demo itinerary can still be produced.
+    """
+    condition = (
+        TripAttraction.saved == True  # noqa: E712
+        if saved_only
+        else TripAttraction.excluded == False  # noqa: E712
+    )
+    result = await db.execute(
+        select(TripAttraction, Place)
+        .join(Place, Place.id == TripAttraction.place_id)
+        .where(TripAttraction.trip_id == trip_id, condition)
+        .order_by(TripAttraction.score.desc().nullslast(), TripAttraction.created_at)
+    )
+    return [(link, place) for link, place in result.all()]
+
+
 async def _generate_planner_itinerary(
     *,
     db: AsyncSession,
@@ -84,7 +95,7 @@ async def _generate_planner_itinerary(
     trip: Trip,
     user_a: User,
     user_b: User,
-    attractions: list[Attraction],
+    attractions: list[tuple[TripAttraction, Place]],
 ) -> list[ItineraryItem]:
     prefs = trip.preferences_json or {}
     start_date = _parse_trip_date(prefs.get("dateFrom")) or date.today()
@@ -94,18 +105,18 @@ async def _generate_planner_itinerary(
 
     input_places = [
         InputPlace(
-            id=a.id,
-            name=a.name,
-            category=a.category,
-            description=a.description or "",
-            famous=a.famous,
-            active=a.active,
-            latitude=_parse_float(a.map_y),
-            longitude=_parse_float(a.map_x),
-            indoor=a.indoor,
-            opening_hours=a.opening_hours_json,
+            id=place.id,
+            name=place.name,
+            category=place.category,
+            description=place.description or "",
+            famous=link.famous,
+            active=place.active,
+            latitude=place.latitude,
+            longitude=place.longitude,
+            indoor=place.indoor,
+            opening_hours=place.opening_hours_json,
         )
-        for a in attractions
+        for link, place in attractions
     ]
 
     planner = ItineraryPlanner.create_default()
@@ -226,13 +237,4 @@ def _parse_trip_date(value: object) -> date | None:
     try:
         return date.fromisoformat(value)
     except ValueError:
-        return None
-
-
-def _parse_float(value: object) -> float | None:
-    try:
-        if value in (None, ""):
-            return None
-        return float(value)
-    except (TypeError, ValueError):
         return None

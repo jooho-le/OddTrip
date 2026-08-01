@@ -1,5 +1,5 @@
 from .match import Match
-from .trip import Attraction, ItineraryItem, SafetyAlert, Trip
+from .trip import ItineraryItem, Place, SafetyAlert, Trip, TripAttraction
 from .tti import TravelType, TtiQuestion
 from .user import User
 
@@ -9,7 +9,8 @@ __all__ = [
     "TravelType",
     "Match",
     "Trip",
-    "Attraction",
+    "Place",
+    "TripAttraction",
     "ItineraryItem",
     "SafetyAlert",
 ]

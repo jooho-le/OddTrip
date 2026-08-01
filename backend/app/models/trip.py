@@ -1,7 +1,19 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, JSON, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -20,41 +32,91 @@ class Trip(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
-class Attraction(Base):
-    __tablename__ = "attractions"
+class Place(Base):
+    """A real-world place, stored once and shared across trips.
+
+    TourAPI places are deduplicated on ``content_id``. OpenAI-generated places
+    have no stable identifier, so ``content_id`` stays NULL for them and
+    duplicates are tolerated.
+
+    ``indoor``/``active`` are derived from ``content_type_id`` for TourAPI rows
+    but come straight from the model for OpenAI rows, which carry no
+    ``content_type_id`` — so they are stored rather than computed on read.
+
+    ``famous`` is NOT here: for TourAPI it depends on the hub lookup made at
+    recommendation time, which changes between runs, so it belongs to
+    TripAttraction.
+    """
+
+    __tablename__ = "places"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    content_id: Mapped[str | None] = mapped_column(String(50), unique=True)
+    content_type_id: Mapped[str | None] = mapped_column(String(20))
+    source: Mapped[str | None] = mapped_column(String(50))
+
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(500))
+    description: Mapped[str | None] = mapped_column(Text)
+
+    addr1: Mapped[str | None] = mapped_column(String(500))
+    addr2: Mapped[str | None] = mapped_column(String(500))
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
+    area_code: Mapped[str | None] = mapped_column(String(20))
+    sigungu_code: Mapped[str | None] = mapped_column(String(20))
+
+    tel: Mapped[str | None] = mapped_column(String(100))
+    homepage: Mapped[str | None] = mapped_column(Text)
+
+    opening_hours_json: Mapped[dict | None] = mapped_column(JSON)
+    closed_days_json: Mapped[list | None] = mapped_column(JSON)
+
+    indoor: Mapped[bool] = mapped_column(Boolean, default=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    raw_json: Mapped[dict | None] = mapped_column(JSON)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class TripAttraction(Base):
+    """A place recommended for one trip, plus that trip's state for it.
+
+    Every column here varies per trip even when the place does not: the scores
+    are computed against this pair's TTI midpoint and the congestion data of the
+    moment, and saved/excluded are the travellers' own choices.
+    """
+
+    __tablename__ = "trip_attractions"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "place_id", name="uq_trip_attractions_trip_place"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     trip_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    category: Mapped[str] = mapped_column(String(50), nullable=False)
-    image_url: Mapped[str | None] = mapped_column(String(500))
-    description: Mapped[str | None] = mapped_column(Text)
-    reason: Mapped[str | None] = mapped_column(Text)
-    tags_json: Mapped[list | None] = mapped_column(JSON)
-    indoor: Mapped[bool] = mapped_column(Boolean, default=False)
-    active: Mapped[bool] = mapped_column(Boolean, default=False)
-    famous: Mapped[bool] = mapped_column(Boolean, default=False)
+    place_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("places.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
     saved: Mapped[bool] = mapped_column(Boolean, default=False)
     excluded: Mapped[bool] = mapped_column(Boolean, default=False)
-    content_id: Mapped[str | None] = mapped_column(String(50))
-    content_type_id: Mapped[str | None] = mapped_column(String(20))
-    source: Mapped[str | None] = mapped_column(String(50))
-    addr1: Mapped[str | None] = mapped_column(String(500))
-    addr2: Mapped[str | None] = mapped_column(String(500))
-    map_x: Mapped[str | None] = mapped_column(String(50))
-    map_y: Mapped[str | None] = mapped_column(String(50))
-    area_code: Mapped[str | None] = mapped_column(String(20))
-    sigungu_code: Mapped[str | None] = mapped_column(String(20))
-    tel: Mapped[str | None] = mapped_column(String(100))
-    homepage: Mapped[str | None] = mapped_column(Text)
-    opening_hours_json: Mapped[dict | None] = mapped_column(JSON)
-    closed_days_json: Mapped[list | None] = mapped_column(JSON)
+
+    famous: Mapped[bool] = mapped_column(Boolean, default=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    tags_json: Mapped[list | None] = mapped_column(JSON)
+
+    score: Mapped[int | None] = mapped_column(Integer)
     congestion_score: Mapped[int | None] = mapped_column(Integer)
     hidden_score: Mapped[int | None] = mapped_column(Integer)
     related_rank: Mapped[int | None] = mapped_column(Integer)
-    raw_json: Mapped[dict | None] = mapped_column(JSON)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class ItineraryItem(Base):
