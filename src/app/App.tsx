@@ -16,6 +16,7 @@ import { ItineraryPage } from '../pages/itinerary';
 import { ItineraryDetailPage } from '../pages/itinerary-detail';
 import { SafetyPage } from '../pages/safety';
 import { MyTripPage } from '../pages/my-trip';
+import { TripArchivePage } from '../pages/trip-archive';
 import { AdminLayout } from '../admin/AdminLayout';
 import { DashboardPage } from '../admin/pages/DashboardPage';
 import { UsersPage } from '../admin/pages/UsersPage';
@@ -58,6 +59,8 @@ export function App() {
           <Route path="/itinerary/:id" element={<RequireAuth><ItineraryDetailPage /></RequireAuth>} />
           <Route path="/safety" element={<RequireAuth><SafetyPage /></RequireAuth>} />
           <Route path="/my" element={<RequireAuth><MyTripPage /></RequireAuth>} />
+          <Route path="/my/trips" element={<RequireAuth><TripArchivePage mode="itinerary" /></RequireAuth>} />
+          <Route path="/my/matches" element={<RequireAuth><TripArchivePage mode="match" /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

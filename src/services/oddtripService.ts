@@ -1,4 +1,4 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 const USER_ID_STORAGE_KEY = 'oddtrip.userId';
@@ -40,8 +40,10 @@ export interface OddtripService {
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
   calculateTtiResult(answers: TtiAnswer[]): Promise<ApiResponse<TtiResult>>;
+  getTtiResult(): Promise<ApiResponse<TtiResult | null>>;
   getMatches(): Promise<ApiResponse<MatchCandidate[]>>;
   acceptMatch(matchedUserId: string): Promise<ApiResponse<AcceptMatchResponse>>;
+  getTrips(): Promise<ApiResponse<TripSummary[]>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
   resolveConflict(tripId: string, conflicts: string[]): Promise<ApiResponse<ConflictResolution>>;
   getAttractions(tripId: string): Promise<ApiResponse<Attraction[]>>;
@@ -105,6 +107,10 @@ export const oddtripService: OddtripService = {
     });
   },
 
+  getTtiResult() {
+    return request<TtiResult | null>('/api/tti/result', { auth: true });
+  },
+
   getMatches() {
     return request<MatchCandidate[]>('/api/matches', { auth: true });
   },
@@ -114,6 +120,10 @@ export const oddtripService: OddtripService = {
       method: 'POST',
       auth: true
     });
+  },
+
+  getTrips() {
+    return request<TripSummary[]>('/api/trips', { auth: true });
   },
 
   savePreferences(tripId, preferences) {

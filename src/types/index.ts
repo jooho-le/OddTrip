@@ -178,6 +178,29 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+export interface TripPartner {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+/** A past or ongoing trip, listed in the My page archive. */
+export interface TripSummary {
+  tripId: string;
+  matchId: string;
+  partner?: TripPartner | null;
+  title?: string | null;
+  region?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+  attractionCount: number;
+  savedCount: number;
+  itineraryDayCount: number;
+  createdAt?: string | null;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
