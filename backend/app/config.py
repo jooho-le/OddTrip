@@ -7,7 +7,10 @@ _project_root = _env_path.parent
 
 
 class Settings(BaseSettings):
-    database_url: str = "mysql+aiomysql://root:password@localhost:3306/oddtrip"
+    # Required on purpose. A default here is dangerous: if DATABASE_URL is
+    # missing in a deployed container the app would silently connect to the
+    # wrong database instead of refusing to start.
+    database_url: str
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     auth_secret_key: str = "change-this-secret-before-deploy"

@@ -64,7 +64,12 @@ def decode_access_token(token: str) -> str:
         signing_input.encode("utf-8"),
         hashlib.sha256,
     ).digest()
-    actual = _b64d(signature_b64)
+    try:
+        actual = _b64d(signature_b64)
+    except ValueError:
+        # binascii.Error subclasses ValueError. A signature that is not valid
+        # base64 is a malformed token, not a server fault.
+        raise HTTPException(status_code=401, detail="Invalid token")
     if not hmac.compare_digest(expected, actual):
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -72,8 +77,13 @@ def decode_access_token(token: str) -> str:
         payload = json.loads(_b64d(payload_b64))
     except (json.JSONDecodeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    exp = int(payload.get("exp", 0))
+    try:
+        exp = int(payload.get("exp", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid token")
     if exp < int(datetime.now(timezone.utc).timestamp()):
         raise HTTPException(status_code=401, detail="Token expired")
 
