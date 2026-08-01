@@ -2,11 +2,11 @@ import uuid
 from datetime import date, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.match import Match
-from ..models.trip import ItineraryItem, Place, Trip, TripAttraction
+from ..models.trip import ItineraryDay, ItineraryItem, Place, Trip, TripAttraction
 from ..models.user import User
 from ..schemas.itinerary import ItineraryDayOut, ItineraryItemOut
 from . import openai_service
@@ -15,12 +15,12 @@ from ..planner import InputPlace, ItineraryPlanner, PlanRequest
 
 async def get_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDayOut]:
     result = await db.execute(
-        select(ItineraryItem)
-        .where(ItineraryItem.trip_id == trip_id)
-        .order_by(ItineraryItem.day, ItineraryItem.sort_order)
+        select(ItineraryDay, ItineraryItem)
+        .outerjoin(ItineraryItem, ItineraryItem.day_id == ItineraryDay.id)
+        .where(ItineraryDay.trip_id == trip_id)
+        .order_by(ItineraryDay.day_number, ItineraryItem.sort_order)
     )
-    items = list(result.scalars().all())
-    return _group_by_day(items)
+    return _to_day_out(result.all())
 
 
 async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDayOut]:
@@ -45,7 +45,7 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
         attractions = await _load_places_for_planning(db, trip_id, saved_only=False)
 
     if attractions:
-        all_items = await _generate_planner_itinerary(
+        await _generate_planner_itinerary(
             db=db,
             trip_id=trip_id,
             trip=trip,
@@ -53,7 +53,7 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
             user_b=user_b,
             attractions=attractions,
         )
-        return _group_by_day(all_items)
+        return await get_itinerary(db, trip_id)
 
     raw = await openai_service.generate_itinerary(
         user_a_code=user_a.tti_code or "",
@@ -62,8 +62,8 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
         preferences=trip.preferences_json or {},
     )
 
-    all_items = await _save_raw_itinerary(db, trip_id, raw)
-    return _group_by_day(all_items)
+    await _save_raw_itinerary(db, trip_id, raw)
+    return await get_itinerary(db, trip_id)
 
 
 async def _load_places_for_planning(
@@ -98,8 +98,8 @@ async def _generate_planner_itinerary(
     attractions: list[tuple[TripAttraction, Place]],
 ) -> list[ItineraryItem]:
     prefs = trip.preferences_json or {}
-    start_date = _parse_trip_date(prefs.get("dateFrom")) or date.today()
-    end_date = _parse_trip_date(prefs.get("dateTo")) or (start_date + timedelta(days=2))
+    start_date = trip.start_date or date.today()
+    end_date = trip.end_date or (start_date + timedelta(days=2))
     if end_date < start_date:
         end_date = start_date
 
@@ -125,28 +125,32 @@ async def _generate_planner_itinerary(
             places=input_places,
             start_date=start_date,
             end_date=end_date,
-            base_region=str(prefs.get("region", "서울특별시")),
+            base_region=trip.region or "서울특별시",
             pace=int(prefs.get("pace", 50) or 50),
             traveler_context=f"User A {user_a.tti_code or ''}, User B {user_b.tti_code or ''}",
         )
     )
 
-    old_result = await db.execute(
-        select(ItineraryItem).where(ItineraryItem.trip_id == trip_id)
-    )
-    for old in old_result.scalars().all():
-        await db.delete(old)
+    await _delete_existing_days(db, trip_id)
 
-    all_items = []
     for planned_day in planned_days:
+        day = ItineraryDay(
+            id=str(uuid.uuid4()),
+            trip_id=trip_id,
+            day_number=planned_day.day_number,
+            target_date=planned_day.target_date,
+            title=planned_day.title,
+            weather=planned_day.weather.description,
+            caution=planned_day.caution,
+        )
+        db.add(day)
         for idx, slot in enumerate(planned_day.slots):
-            item = ItineraryItem(
+            db.add(ItineraryItem(
                 id=str(uuid.uuid4()),
-                trip_id=trip_id,
-                day=planned_day.day_number,
-                day_title=planned_day.title,
-                day_weather=planned_day.weather.description,
-                day_caution=planned_day.caution,
+                day_id=day.id,
+                # PlannedPlace.input_id is the places.id handed to the planner,
+                # so place slots link straight back to the place row.
+                place_id=slot.place_ref.input_id if slot.place_ref else None,
                 time=f"{slot.start_time.hour:02d}:{slot.start_time.minute:02d}",
                 type=slot.slot_type,
                 title=slot.title,
@@ -156,36 +160,29 @@ async def _generate_planner_itinerary(
                 description=slot.description,
                 ai_reason=slot.ai_reason,
                 sort_order=idx,
-            )
-            db.add(item)
-            all_items.append(item)
+            ))
 
     await db.commit()
-    return all_items
 
 
-async def _save_raw_itinerary(
-    db: AsyncSession,
-    trip_id: str,
-    raw: list[dict],
-) -> list[ItineraryItem]:
-    old_result = await db.execute(
-        select(ItineraryItem).where(ItineraryItem.trip_id == trip_id)
-    )
-    for old in old_result.scalars().all():
-        await db.delete(old)
+async def _save_raw_itinerary(db: AsyncSession, trip_id: str, raw: list[dict]) -> None:
+    """Persist the OpenAI fallback itinerary, which carries no place ids."""
+    await _delete_existing_days(db, trip_id)
 
-    all_items = []
     for day_data in raw:
-        day_num = day_data.get("day", 1)
+        day = ItineraryDay(
+            id=str(uuid.uuid4()),
+            trip_id=trip_id,
+            day_number=day_data.get("day", 1),
+            title=day_data.get("title", ""),
+            weather=day_data.get("weather", ""),
+            caution=day_data.get("caution", ""),
+        )
+        db.add(day)
         for idx, item_data in enumerate(day_data.get("items", [])):
-            item = ItineraryItem(
+            db.add(ItineraryItem(
                 id=str(uuid.uuid4()),
-                trip_id=trip_id,
-                day=day_num,
-                day_title=day_data.get("title", ""),
-                day_weather=day_data.get("weather", ""),
-                day_caution=day_data.get("caution", ""),
+                day_id=day.id,
                 time=item_data.get("time", ""),
                 type=item_data.get("type", "place"),
                 title=item_data.get("title", ""),
@@ -195,29 +192,41 @@ async def _save_raw_itinerary(
                 description=item_data.get("description", ""),
                 ai_reason=item_data.get("aiReason", ""),
                 sort_order=idx,
-            )
-            db.add(item)
-            all_items.append(item)
+            ))
 
     await db.commit()
-    return all_items
 
 
-def _group_by_day(items: list[ItineraryItem]) -> list[ItineraryDayOut]:
-    days: dict[int, ItineraryDayOut] = {}
-    for item in items:
-        if item.day not in days:
-            days[item.day] = ItineraryDayOut(
-                day=item.day,
-                title=item.day_title or "",
-                weather=item.day_weather or "",
-                caution=item.day_caution or "",
+async def _delete_existing_days(db: AsyncSession, trip_id: str) -> None:
+    """Slots go with the day rows via ON DELETE CASCADE."""
+    await db.execute(delete(ItineraryDay).where(ItineraryDay.trip_id == trip_id))
+    await db.flush()
+
+
+def _to_day_out(rows: list[tuple[ItineraryDay, ItineraryItem | None]]) -> list[ItineraryDayOut]:
+    """Assemble the joined rows into the nested shape the API returns.
+
+    The outer join yields one row per slot, plus a single row with a NULL slot
+    for a day that has none, so days always survive the round trip.
+    """
+    days: dict[str, ItineraryDayOut] = {}
+    for day, item in rows:
+        out = days.get(day.id)
+        if out is None:
+            out = ItineraryDayOut(
+                day=day.day_number,
+                title=day.title or "",
+                weather=day.weather or "",
+                caution=day.caution or "",
                 items=[],
             )
-        days[item.day].items.append(
+            days[day.id] = out
+        if item is None:
+            continue
+        out.items.append(
             ItineraryItemOut(
                 id=item.id,
-                day=item.day,
+                day=day.day_number,
                 time=item.time,
                 type=item.type,
                 title=item.title,
@@ -228,13 +237,6 @@ def _group_by_day(items: list[ItineraryItem]) -> list[ItineraryDayOut]:
                 ai_reason=item.ai_reason,
             )
         )
-    return [days[k] for k in sorted(days.keys())]
+    return sorted(days.values(), key=lambda d: d.day)
 
 
-def _parse_trip_date(value: object) -> date | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None

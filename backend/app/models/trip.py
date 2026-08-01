@@ -1,8 +1,9 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -26,6 +27,15 @@ class Trip(Base):
     match_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("matches.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # When and where the trip happens. These used to live inside
+    # preferences_json, but the normalizer dropped every key it did not know,
+    # so nothing could ever set them and the planner silently fell back to
+    # "today, for three days, in 서울특별시".
+    title: Mapped[str | None] = mapped_column(String(200))
+    region: Mapped[str | None] = mapped_column(String(100))
+    start_date: Mapped[date | None] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date)
+
     preferences_json: Mapped[dict | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(20), default="planning")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -119,17 +129,47 @@ class TripAttraction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
-class ItineraryItem(Base):
-    __tablename__ = "itinerary_items"
+class ItineraryDay(Base):
+    """One day of a trip's itinerary.
+
+    Title, weather and caution describe the whole day. They used to be repeated
+    on every slot row, which meant a five-slot day stored each value five times
+    and reads had to regroup them afterwards.
+    """
+
+    __tablename__ = "itinerary_days"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "day_number", name="uq_itinerary_days_trip_day"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     trip_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    day: Mapped[int] = mapped_column(Integer, nullable=False)
-    day_title: Mapped[str | None] = mapped_column(String(200))
-    day_weather: Mapped[str | None] = mapped_column(String(200))
-    day_caution: Mapped[str | None] = mapped_column(Text)
+    day_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    target_date: Mapped[date | None] = mapped_column(Date)
+    title: Mapped[str | None] = mapped_column(String(200))
+    weather: Mapped[str | None] = mapped_column(String(200))
+    caution: Mapped[str | None] = mapped_column(Text)
+
+
+class ItineraryItem(Base):
+    """One slot within a day: a place visit, a move, a meal or a rest.
+
+    ``place_id`` is NULL for move/meal/rest slots and for itineraries produced
+    by the OpenAI fallback, which returns place names rather than identifiers.
+    """
+
+    __tablename__ = "itinerary_items"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    day_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("itinerary_days.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    place_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("places.id", ondelete="SET NULL"), index=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
     time: Mapped[str | None] = mapped_column(String(10))
     type: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -138,7 +178,6 @@ class ItineraryItem(Base):
     move_time: Mapped[str | None] = mapped_column(String(50))
     description: Mapped[str | None] = mapped_column(Text)
     ai_reason: Mapped[str | None] = mapped_column(Text)
-    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class SafetyAlert(Base):
@@ -156,5 +195,5 @@ class SafetyAlert(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
-# Itinerary rows are always read as "one trip's slots in order".
-Index("ix_itinerary_items_trip_order", ItineraryItem.trip_id, ItineraryItem.day, ItineraryItem.sort_order)
+# Slots are always read as "one day's rows in order".
+Index("ix_itinerary_items_day_order", ItineraryItem.day_id, ItineraryItem.sort_order)

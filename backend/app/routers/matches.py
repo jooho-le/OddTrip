@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_db
 from ..models.match import Match
-from ..models.trip import ItineraryItem, SafetyAlert, Trip, TripAttraction
+from ..models.trip import ItineraryDay, SafetyAlert, Trip, TripAttraction
 from ..models.user import User
 from ..services import match_service
 from ..services.match_service import _calc_score, _count_opposite_axes
@@ -135,6 +135,9 @@ async def accept_match(
 
 
 async def _clear_trip_outputs(db: AsyncSession, trip_id: str) -> None:
-    """Drop generated output for the trip. Shared place rows are left alone."""
-    for model in (TripAttraction, ItineraryItem, SafetyAlert):
+    """Drop generated output for the trip. Shared place rows are left alone.
+
+    Itinerary slots hang off ItineraryDay and go with it via ON DELETE CASCADE.
+    """
+    for model in (TripAttraction, ItineraryDay, SafetyAlert):
         await db.execute(delete(model).where(model.trip_id == trip_id))
