@@ -13,7 +13,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# set_main_option goes through ConfigParser, which treats '%' as interpolation
+# syntax. RDS passwords routinely contain '%', so escape it before storing.
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

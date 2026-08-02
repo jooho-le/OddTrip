@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import agent, attractions, auth, decision, itinerary, matches, safety, tti, users
+from .routers import agent, attractions, auth, decision, itinerary, matches, safety, trips, tti, users
 from .seed import seed
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(tti.router, prefix="/api/tti", tags=["tti"])
 app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
+app.include_router(trips.router, prefix="/api/trips", tags=["trips"])
 app.include_router(decision.router, prefix="/api/trips", tags=["decision"])
 app.include_router(attractions.router, prefix="/api/trips", tags=["attractions"])
 app.include_router(itinerary.router, prefix="/api/trips", tags=["itinerary"])

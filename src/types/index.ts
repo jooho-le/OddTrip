@@ -141,6 +141,11 @@ export type ItineraryItemType = 'place' | 'move' | 'meal' | 'rest';
 export interface ItineraryItem {
   id: string;
   day: number;
+  /** Set for `place` slots only; move/meal/rest have no place behind them. */
+  placeId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
   time: string;
   type: ItineraryItemType;
   title: string;
@@ -173,8 +178,32 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
+export interface TripPartner {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+/** A past or ongoing trip, listed in the My page archive. */
+export interface TripSummary {
+  tripId: string;
+  matchId: string;
+  partner?: TripPartner | null;
+  title?: string | null;
+  region?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+  attractionCount: number;
+  savedCount: number;
+  itineraryDayCount: number;
+  createdAt?: string | null;
+}
+
 export interface AuthResponse {
   accessToken: string;
+  refreshToken: string;
   tokenType: 'bearer' | string;
   user: UserProfile;
 }

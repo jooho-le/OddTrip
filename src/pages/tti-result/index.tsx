@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Heart, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/tripStore';
@@ -7,8 +8,17 @@ import { AxisBar } from '../../shared/ui/AxisBar';
 
 export function TtiResultPage() {
   const result = useTripStore((state) => state.result);
+  const ttiCode = useTripStore((state) => state.user?.ttiCode);
+  const loadResult = useTripStore((state) => state.loadResult);
+
+  // On a fresh page load the store is empty even for someone who has already
+  // taken the test, so pull the saved result back from the server.
+  useEffect(() => {
+    if (!result && ttiCode) void loadResult();
+  }, [result, ttiCode, loadResult]);
 
   if (!result) {
+    if (ttiCode) return <Card><p className="text-sm text-slate-600">진단 결과를 불러오는 중입니다.</p></Card>;
     return <Card><p className="mb-4 text-sm text-slate-600">아직 진단 결과가 없습니다.</p><Link to="/tti/start"><Button>진단 시작하기</Button></Link></Card>;
   }
 

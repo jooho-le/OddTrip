@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     nickname: str
     avatar_url: str | None = None
     home_region: str | None = None
+    role: str = "user"
     tti_code: str | None = None
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, from_attributes=True)

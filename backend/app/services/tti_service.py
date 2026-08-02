@@ -17,6 +17,12 @@ AXES = [
     {"axis": "HS", "left_letter": "H", "right_letter": "S"},
 ]
 
+RESULT_STRENGTHS = [
+    "상대의 강점을 여행 운영에 반영하기 좋음",
+    "일정 중간 조율 지점이 명확함",
+    "AI 추천 이유를 이해하고 선택하기 쉬움",
+]
+
 
 async def get_questions(db: AsyncSession) -> list[TtiQuestion]:
     result = await db.execute(select(TtiQuestion).order_by(TtiQuestion.sort_order))
@@ -93,11 +99,30 @@ async def calculate_result(
         opposite_code=opposite_code,
         title=title,
         description=description,
-        strengths=[
-            "상대의 강점을 여행 운영에 반영하기 좋음",
-            "일정 중간 조율 지점이 명확함",
-            "AI 추천 이유를 이해하고 선택하기 쉬움",
-        ],
+        strengths=RESULT_STRENGTHS,
+        axis_scores=axis_scores,
+    )
+
+
+async def get_saved_result(db: AsyncSession, user: User) -> TtiResultOut | None:
+    """Rebuild the stored result so it survives a reload or a new device.
+
+    Everything needed is already on the user row; without this the client can
+    only show a result inside the session that produced it.
+    """
+    if not user.tti_code:
+        return None
+
+    axis_scores = [AxisScoreOut(**score) for score in (user.tti_scores_json or [])]
+    result = await db.execute(select(TravelType).where(TravelType.code == user.tti_code))
+    travel_type = result.scalar_one_or_none()
+
+    return TtiResultOut(
+        code=user.tti_code,
+        opposite_code="".join(OPPOSITE_MAP.get(ch, ch) for ch in user.tti_code),
+        title=travel_type.title if travel_type else user.tti_code,
+        description=travel_type.description if travel_type else "",
+        strengths=RESULT_STRENGTHS,
         axis_scores=axis_scores,
     )
 

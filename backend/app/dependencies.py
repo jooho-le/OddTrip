@@ -38,6 +38,16 @@ async def get_current_user(
     return user
 
 
+async def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    """Gate for admin-only endpoints.
+
+    403 rather than 404: the caller is authenticated, they just lack the role.
+    """
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    return user
+
+
 async def get_current_user_trip(
     trip_id: str,
     user: User = Depends(get_current_user),

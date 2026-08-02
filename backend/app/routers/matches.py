@@ -1,12 +1,12 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_db
 from ..models.match import Match
-from ..models.trip import Attraction, ItineraryItem, SafetyAlert, Trip
+from ..models.trip import ItineraryDay, SafetyAlert, Trip, TripAttraction
 from ..models.user import User
 from ..services import match_service
 from ..services.match_service import _calc_score, _count_opposite_axes
@@ -135,7 +135,9 @@ async def accept_match(
 
 
 async def _clear_trip_outputs(db: AsyncSession, trip_id: str) -> None:
-    for model in (Attraction, ItineraryItem, SafetyAlert):
-        result = await db.execute(select(model).where(model.trip_id == trip_id))
-        for row in result.scalars().all():
-            await db.delete(row)
+    """Drop generated output for the trip. Shared place rows are left alone.
+
+    Itinerary slots hang off ItineraryDay and go with it via ON DELETE CASCADE.
+    """
+    for model in (TripAttraction, ItineraryDay, SafetyAlert):
+        await db.execute(delete(model).where(model.trip_id == trip_id))
