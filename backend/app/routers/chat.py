@@ -7,7 +7,7 @@ from ..database import async_session
 from ..dependencies import get_current_user, get_db
 from ..models.user import User
 from ..realtime import chat_connection_manager
-from ..schemas.chat import ChatMessageCreate, ChatReadIn
+from ..schemas.chat import ChatMessageCreate, ChatReadIn, ChatReportIn
 from ..security import decode_access_token
 from ..services import chat_service
 
@@ -95,6 +95,34 @@ async def send_chat_message(
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 
+@router.delete("/rooms/{room_id}/messages/{message_id}", response_model=dict)
+async def delete_chat_message(
+    room_id: str,
+    message_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data, match, changed = await chat_service.delete_message(db, room_id, message_id, user.id)
+    if changed:
+        await chat_connection_manager.send_to_users(
+            {match.user_id, match.matched_user_id},
+            {"event": "message.deleted", "data": data.model_dump(by_alias=True, mode="json")},
+        )
+    return {"data": data.model_dump(by_alias=True), "error": None}
+
+
+@router.post("/rooms/{room_id}/messages/{message_id}/reports", response_model=dict)
+async def report_chat_message(
+    room_id: str,
+    message_id: str,
+    body: ChatReportIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await chat_service.report_message(db, room_id, message_id, user.id, body)
+    return {"data": data.model_dump(by_alias=True), "error": None}
+
+
 @router.put("/rooms/{room_id}/read", response_model=dict)
 async def read_chat_messages(
     room_id: str,
@@ -120,6 +148,19 @@ async def get_unread_count(
 ):
     count = await chat_service.get_total_unread_count(db, user.id)
     return {"data": {"count": count}, "error": None}
+
+
+@router.delete("/rooms/{room_id}", response_model=dict)
+async def hide_chat_room(
+    room_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await chat_service.hide_room(db, room_id, user.id)
+    return {
+        "data": {"roomId": member.room_id, "hiddenAt": member.hidden_at},
+        "error": None,
+    }
 
 
 @router.websocket("/ws")

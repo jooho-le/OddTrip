@@ -25,6 +25,9 @@ class ChatRoom(Base):
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
 
 
 class ChatMessage(Base):
@@ -38,8 +41,8 @@ class ChatMessage(Base):
     room_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("chat_rooms.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    sender_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    sender_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
     client_message_id: Mapped[str] = mapped_column(String(36), nullable=False)
@@ -48,10 +51,11 @@ class ChatMessage(Base):
     payload_json: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
 
 
-class ChatReadState(Base):
-    __tablename__ = "chat_read_states"
+class ChatRoomMember(Base):
+    __tablename__ = "chat_room_members"
 
     room_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("chat_rooms.id", ondelete="CASCADE"), primary_key=True
@@ -60,4 +64,8 @@ class ChatReadState(Base):
         String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     last_read_sequence: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
+    joined_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    left_at: Mapped[datetime | None] = mapped_column(DateTime)
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)

@@ -171,11 +171,11 @@ erDiagram
 - 사용자, 매칭, 여행, 일정의 주요 FK는 상위 행 삭제 시 `CASCADE`로 삭제된다.
 - `itinerary_items.place_id`는 장소 삭제 시 `NULL`로 변경된다.
 - `users.tti_code`는 `travel_types.code`를 논리적으로 참조하지만 DB 외래키는 설정되어 있지 않다.
-- 현재 `matches`에는 요청·수락·종료 상태 컬럼이 없다. Match 행이 존재하면 성사된 매칭으로 취급하는 구조다.
+- `matches`에는 `active`, `ended` 상태와 매칭 당시 양쪽 TTI 스냅샷이 추가됐다.
 
-## 채팅 API 추가 후 예상 스키마
+## 매칭 커뮤니케이션 모델 포함 스키마
 
-아래는 텍스트 채팅 MVP에서 추가할 테이블과 기존 테이블의 연결이다. 아직 실제 모델이나 DB에는 반영되지 않았다.
+아래 테이블은 SQLAlchemy 모델에 반영됐다. 기존 PostgreSQL DB 적용용 Alembic migration은 아직 만들지 않았다.
 
 ```mermaid
 erDiagram
@@ -188,6 +188,9 @@ erDiagram
         string id PK
         string user_id FK
         string matched_user_id FK
+        string status
+        string user_tti_code_snapshot
+        string matched_user_tti_code_snapshot
     }
 
     TRIPS {
@@ -200,10 +203,13 @@ erDiagram
         string id PK
         string match_id FK,UK
         string status
-        string last_message_id FK
+        bigint next_sequence
+        string last_message_id
         datetime last_message_at
         datetime created_at
         datetime updated_at
+        datetime closed_at
+        datetime deleted_at
     }
 
     CHAT_MESSAGES {
@@ -217,35 +223,82 @@ erDiagram
         json payload_json
         datetime created_at
         datetime deleted_at
+        string deleted_by FK
     }
 
-    CHAT_READ_STATES {
+    CHAT_ROOM_MEMBERS {
         string room_id PK,FK
         string user_id PK,FK
         bigint last_read_sequence
+        datetime joined_at
+        datetime left_at
+        datetime hidden_at
         datetime updated_at
+    }
+
+    MATCH_REQUESTS {
+        string id PK
+        string requester_id FK
+        string receiver_id FK
+        string greeting_message
+        string status
+        date start_date
+        date end_date
+        datetime expires_at
+    }
+
+    MATCH_USER_STATES {
+        string match_id PK,FK
+        string user_id PK,FK
+        datetime hidden_at
+        datetime left_at
+    }
+
+    BLOCKS {
+        string id PK
+        string blocker_id FK
+        string blocked_user_id FK
+        datetime released_at
+    }
+
+    REPORTS {
+        string id PK
+        string reporter_id FK
+        string reported_user_id FK
+        string room_id FK
+        string message_id FK
+        string reason
+        string status
     }
 
     USERS ||--o{ MATCHES : requester
     USERS ||--o{ MATCHES : counterpart
+    USERS ||--o{ MATCH_REQUESTS : requests
+    USERS ||--o{ MATCH_REQUESTS : receives
     MATCHES ||--o{ TRIPS : creates
     MATCHES ||--o| CHAT_ROOMS : opens
+    MATCHES ||--o{ MATCH_USER_STATES : user_view
+    USERS ||--o{ MATCH_USER_STATES : owns
     CHAT_ROOMS ||--o{ CHAT_MESSAGES : contains
     USERS ||--o{ CHAT_MESSAGES : sends
-    CHAT_ROOMS ||--o{ CHAT_READ_STATES : tracks
-    USERS ||--o{ CHAT_READ_STATES : reads
-    CHAT_MESSAGES o|--o| CHAT_ROOMS : latest_in
+    CHAT_ROOMS ||--o{ CHAT_ROOM_MEMBERS : includes
+    USERS ||--o{ CHAT_ROOM_MEMBERS : joins
+    USERS ||--o{ BLOCKS : blocks
+    USERS ||--o{ BLOCKS : blocked
+    USERS ||--o{ REPORTS : reports
+    CHAT_ROOMS o|--o{ REPORTS : context
+    CHAT_MESSAGES o|--o{ REPORTS : evidence
 ```
 
-### 채팅 테이블 제약 계획
+### 매칭·채팅 주요 제약
 
 - `chat_rooms.match_id`는 고유하며 매칭 하나당 채팅방은 최대 하나다.
 - `chat_messages`의 `(room_id, sequence)`는 고유해 방 안의 메시지 순서를 보장한다.
 - `chat_messages`의 `(sender_id, client_message_id)`는 고유해 재시도에 따른 중복 저장을 막는다.
-- `chat_read_states`의 PK는 `(room_id, user_id)` 복합키다.
-- `chat_rooms.match_id`, `chat_messages.room_id`, `chat_read_states.room_id`는 상위 행 삭제 시 `CASCADE`를 사용한다.
-- `chat_messages.sender_id`와 `chat_read_states.user_id`의 사용자 삭제 정책은 메시지 보존 정책을 확정한 뒤 결정한다.
-- `last_message_id`는 순환 FK가 되므로 방 생성 후 nullable 상태로 두고, 메시지 저장 트랜잭션에서 갱신한다.
+- `chat_room_members`와 `match_user_states`는 각각 `(room_id, user_id)`, `(match_id, user_id)` 복합키다.
+- pending 매칭 요청과 활성 차단은 PostgreSQL partial unique index로 중복을 막는다.
+- `last_message_id`는 순환 DDL 의존성을 피하기 위해 실제 FK를 두지 않고 서비스 트랜잭션에서 실제 메시지 ID로 갱신한다.
+- 메시지 삭제는 `deleted_at`만 기록하며 신고 검토를 위해 원문을 유지한다.
 
 ## 실제 PostgreSQL과 비교하는 방법
 

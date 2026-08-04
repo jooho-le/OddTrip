@@ -1,4 +1,5 @@
-from .chat import ChatMessage, ChatReadState, ChatRoom
+from .chat import ChatMessage, ChatRoom, ChatRoomMember
+from .communication import Block, MatchRequest, MatchUserState, Report
 from .match import Match
 from .token import RefreshToken
 from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripAttraction
@@ -9,7 +10,11 @@ __all__ = [
     "User",
     "ChatRoom",
     "ChatMessage",
-    "ChatReadState",
+    "ChatRoomMember",
+    "MatchRequest",
+    "MatchUserState",
+    "Block",
+    "Report",
     "RefreshToken",
     "TtiQuestion",
     "TravelType",

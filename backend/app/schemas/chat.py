@@ -29,7 +29,7 @@ class ChatTripOut(ChatModel):
 class ChatMessageCreate(ChatModel):
     client_message_id: str = Field(min_length=1, max_length=36)
     type: Literal["text"] = "text"
-    content: str = Field(min_length=1, max_length=2000)
+    content: str = Field(min_length=1, max_length=1000)
 
     @field_validator("content")
     @classmethod
@@ -51,7 +51,7 @@ class ChatMessageCreate(ChatModel):
 class ChatMessageOut(ChatModel):
     id: str
     room_id: str
-    sender_id: str
+    sender_id: str | None = None
     sequence: int
     client_message_id: str
     type: str
@@ -59,6 +59,8 @@ class ChatMessageOut(ChatModel):
     payload: dict | None = None
     created_at: datetime
     deleted_at: datetime | None = None
+    deleted: bool = False
+    display_text: str | None = None
 
 
 class ChatRoomOut(ChatModel):
@@ -99,3 +101,42 @@ class ChatReadOut(ChatModel):
 
 class ChatUnreadCountOut(ChatModel):
     count: int
+
+
+class ChatSystemMessageIn(ChatModel):
+    event: str = Field(min_length=1, max_length=100)
+    content: str = Field(min_length=1, max_length=1000)
+    payload: dict | None = None
+
+
+class ChatRoomMemberOut(ChatModel):
+    room_id: str
+    user_id: str
+    last_read_sequence: int
+    hidden_at: datetime | None = None
+    left_at: datetime | None = None
+
+
+class ChatReportIn(ChatModel):
+    reason: Literal[
+        "spam",
+        "harassment",
+        "sexual_content",
+        "hate",
+        "fraud",
+        "personal_information",
+        "other",
+    ]
+    details: str | None = Field(default=None, max_length=2000)
+
+
+class ChatReportOut(ChatModel):
+    id: str
+    reporter_id: str
+    reported_user_id: str
+    room_id: str | None = None
+    message_id: str | None = None
+    reason: str
+    details: str | None = None
+    status: str
+    created_at: datetime

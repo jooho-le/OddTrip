@@ -1,118 +1,121 @@
-# OddTrip Chat API
+# OddTrip 매칭·채팅 API
 
-## 구현 범위
+이 문서는 현재 구현된 매칭 커뮤니케이션 API를 설명한다. 알림 테이블과 여행 D-1 스케줄러는 알림 담당 범위라 포함하지 않는다.
 
-현재 구현은 매칭된 두 사용자를 위한 텍스트 채팅 MVP다.
-
-- 매칭당 채팅방 하나 생성 또는 조회
-- 참여 중인 채팅방 목록과 상세 조회
-- cursor 방식의 메시지 조회
-- 텍스트 메시지 전송과 중복 요청 방지
-- 사용자별 읽음 위치 및 미읽음 수 계산
-- WebSocket 새 메시지·읽음 이벤트
-
-이미지, 장소·일정 공유, 투표, 신고·차단, 푸시 알림은 아직 구현하지 않았다. 메시지 모델의 `type`과 `payload_json`은 이 기능들을 확장할 자리다.
-
-## 현재 전제
-
-현재 `matches` 테이블에는 요청·수락 상태가 없다. 따라서 Match 행이 존재하고 로그인 사용자가 `user_id` 또는 `matched_user_id`라면 성사된 매칭으로 간주한다.
-
-채팅방은 매칭 수락 API에서 자동 생성하지 않는다. 매칭 완료 화면 또는 채팅 진입 시 아래 API를 호출한다. 여러 번 호출해도 `chat_rooms.match_id` UNIQUE 제약으로 같은 방을 반환한다.
-
-```http
-POST /api/matches/{matchId}/chat-room
-Authorization: Bearer {accessToken}
-```
-
-## 데이터 구조
-
-### chat_rooms
-
-| 컬럼 | 역할 |
-| --- | --- |
-| `id` | 채팅방 UUID |
-| `match_id` | 매칭 FK, UNIQUE |
-| `status` | `active` 또는 `closed` |
-| `next_sequence` | 다음 메시지 순서 번호 |
-| `last_message_id` | 목록 조회용 마지막 메시지 ID |
-| `last_message_at` | 채팅방 정렬 기준 |
-
-메시지를 저장할 때 방 행을 잠그고 `next_sequence`를 하나 올린다. `MAX(sequence) + 1`을 사용하지 않으므로 PostgreSQL에서 두 사용자가 동시에 보내도 같은 순서를 배정하지 않는다.
-
-### chat_messages
-
-| 컬럼 | 역할 |
-| --- | --- |
-| `room_id` | 채팅방 FK |
-| `sender_id` | 발신 사용자 FK |
-| `sequence` | 방 안에서 증가하는 순서 |
-| `client_message_id` | 클라이언트가 요청마다 생성하는 UUID |
-| `type` | 현재 `text`, 향후 메시지 타입 확장 |
-| `content` | 텍스트 본문 |
-| `payload_json` | 장소·일정·투표 등 확장 데이터 |
-
-`(sender_id, client_message_id)`가 UNIQUE다. 네트워크 오류로 같은 요청을 다시 보내면 새 메시지를 만들지 않고 먼저 저장된 메시지를 반환한다.
-
-### chat_read_states
-
-사용자마다 방별 `last_read_sequence` 하나를 저장한다. 메시지마다 읽음 boolean을 업데이트하지 않는다.
+## 사용자 흐름
 
 ```text
-미읽음 = 상대가 보낸 메시지
-       AND message.sequence > my.last_read_sequence
+TTI 완료
+→ 매칭 요청과 인사 메시지
+→ 상대 수락
+→ Match + ChatRoom + Trip 생성
+→ 인사 메시지를 채팅방 첫 메시지로 저장
+→ 일반 채팅
+→ 종료·숨김·차단·신고
 ```
 
-## REST API
+일반 채팅은 요청 수락 후 시작한다. 양쪽 모두 `tti_code`와 `tti_scores_json`이 있어야 요청과 수락이 가능하다.
 
-모든 REST 응답은 기존 프로젝트 규칙인 아래 구조를 따른다.
+## 데이터 모델
+
+### 매칭 관계
+
+- `match_requests`: 요청자, 수신자, 여행 조건, 인사 메시지, 요청 상태
+- `matches`: 활성·종료 상태와 매칭 당시 양쪽 TTI 스냅샷
+- `match_user_states`: 사용자별 매칭 이력 숨김·나가기
+- `blocks`: 방향성 차단과 해제 시각
+- `reports`: 메시지·사용자 신고와 검토 상태
+
+### 채팅
+
+- `chat_rooms`: Match당 하나의 방, 상태와 다음 sequence
+- `chat_room_members`: 양쪽 멤버의 읽음 위치·숨김·나가기
+- `chat_messages`: 텍스트·시스템 메시지와 소프트 삭제
+
+모델 위치:
+
+```text
+app/models/chat.py
+app/models/communication.py
+app/models/match.py
+```
+
+## 매칭 요청 API
+
+### 요청 생성
+
+```http
+POST /api/match-requests
+```
 
 ```json
 {
-  "data": {},
-  "error": null
+  "receiverId": "user-uuid",
+  "region": "부산",
+  "startDate": "2026-09-01",
+  "endDate": "2026-09-03",
+  "greetingMessage": "같이 여행해요!"
 }
 ```
 
-### 채팅방 생성 또는 조회
+검사:
+
+- 자기 자신 요청 금지
+- 양쪽 TTI 완료
+- 차단 관계 금지
+- 기존 Match 또는 양방향 pending 요청 금지
+- 인사 메시지 최대 300자
+- 요청은 7일 후 만료
+
+### 요청 목록·상세
 
 ```http
-POST /api/matches/{matchId}/chat-room
+GET /api/match-requests/received?status=pending&limit=20
+GET /api/match-requests/sent?status=pending&limit=20
+GET /api/match-requests/{requestId}
 ```
 
-로그인 사용자가 해당 Match 참여자가 아니면 존재 여부를 숨기기 위해 `404`를 반환한다.
+목록·상세 조회 시 만료 시각이 지난 pending 요청은 `expired`로 갱신한다.
 
-### 채팅방 목록
+### 수락·거절·취소
 
 ```http
-GET /api/chat/rooms?status=active&before=2026-08-03T12:00:00&limit=20
+POST /api/match-requests/{requestId}/accept
+POST /api/match-requests/{requestId}/reject
+POST /api/match-requests/{requestId}/cancel
 ```
 
-- `status`: `active`, `closed`, 또는 생략
-- `before`: 이전 페이지의 `nextBefore`
-- `limit`: 기본 20, 최대 100
+수락은 하나의 트랜잭션에서 다음을 저장한다.
 
-각 방에는 상대 프로필, Match 점수, 연결된 Trip, 마지막 메시지, 내 미읽음 수가 포함된다. `currentStep`은 별도 조율 상태가 아직 없으므로 현재 `trip.status`를 그대로 반환한다.
+```text
+MatchRequest accepted
+Match 및 TTI 스냅샷
+ChatRoom
+ChatRoomMember 2건
+Trip
+인사 메시지 sequence 1
+MatchUserState 2건
+```
 
-### 채팅방 상세
+commit 후 양쪽 WebSocket에 `room.created`를 전송한다. 알림 담당은 이 결과의 `roomId`, `matchId`, `tripId`, 양쪽 사용자 ID를 사용해 새 채팅방 알림을 생성할 수 있다.
+
+## 채팅 API
 
 ```http
-GET /api/chat/rooms/{roomId}
+POST   /api/matches/{matchId}/chat-room
+GET    /api/chat/rooms
+GET    /api/chat/rooms/{roomId}
+DELETE /api/chat/rooms/{roomId}
+GET    /api/chat/rooms/{roomId}/messages
+POST   /api/chat/rooms/{roomId}/messages
+DELETE /api/chat/rooms/{roomId}/messages/{messageId}
+PUT    /api/chat/rooms/{roomId}/read
+GET    /api/chat/unread-count
 ```
 
-### 메시지 조회
+`DELETE /api/chat/rooms/{roomId}`는 방을 삭제하지 않는다. 현재 사용자의 `chat_room_members.hidden_at`만 기록한다.
 
-```http
-GET /api/chat/rooms/{roomId}/messages?beforeSequence=120&limit=30
-```
-
-최신 메시지를 기준으로 조회하며 응답의 `items`는 화면에서 사용하기 편하게 오래된 순서부터 반환한다. 다음 페이지가 있으면 `nextBeforeSequence`를 반환한다.
-
-### 텍스트 메시지 전송
-
-```http
-POST /api/chat/rooms/{roomId}/messages
-Content-Type: application/json
-```
+### 메시지 전송
 
 ```json
 {
@@ -122,129 +125,166 @@ Content-Type: application/json
 }
 ```
 
-- 본문 앞뒤 공백은 제거한다.
-- 공백만 있는 메시지는 거절한다.
-- 최대 2,000자다.
-- `clientMessageId`는 UUID여야 한다.
-- 요청의 sender ID는 받지 않고 access token의 사용자 ID를 사용한다.
-- `closed` 방은 `409`를 반환한다.
+정책:
 
-### 읽음 처리
+- 최대 1,000자
+- 앞뒤 공백 제거
+- 수정 미지원
+- `(sender_id, client_message_id)`로 재전송 중복 방지
+- 방 행을 잠그고 `next_sequence`를 증가시켜 동시 순서 보장
+- 종료·차단 관계에서는 전송 금지
+- 사용자 ID 기준 초당 5건·분당 60건 token bucket
+- 제한 초과 시 `429`와 `Retry-After: 1`
 
-```http
-PUT /api/chat/rooms/{roomId}/read
-Content-Type: application/json
-```
+현재 rate limiter는 한 프로세스 메모리 방식이다. 다중 worker부터 Redis 구현으로 교체해야 한다.
+
+### 메시지 삭제
+
+발신자만 삭제할 수 있다. `deleted_at`, `deleted_by`를 기록하고 원문은 DB에 유지한다.
 
 ```json
 {
-  "lastReadSequence": 120
+  "deleted": true,
+  "content": null,
+  "displayText": "삭제된 메시지입니다"
 }
 ```
 
-읽음 위치는 뒤로 이동하지 않는다. 아직 존재하지 않는 큰 sequence를 보내면 현재 방의 마지막 sequence까지만 적용한다.
+삭제 후 `message.deleted` WebSocket 이벤트를 양쪽에 전달한다. 삭제 메시지는 미읽음 수에서 제외한다.
 
-### 전체 미읽음 수
+### 읽음과 숨김
 
-```http
-GET /api/chat/unread-count
+`chat_room_members.last_read_sequence`보다 큰 상대 메시지만 미읽음으로 계산한다. 읽음 위치는 뒤로 이동하지 않는다. 사용자 한 명이 방을 숨겨도 상대 목록과 DB 원본에는 영향을 주지 않는다.
+
+## 시스템 메시지
+
+일반 REST 사용자는 `system` 타입을 전송할 수 없다. 다른 백엔드 도메인은 내부 함수를 호출한다.
+
+```python
+await chat_service.create_system_message(
+    db=db,
+    match_id=match_id,
+    event="itinerary.shared",
+    content="새 일정을 공유했습니다.",
+    payload={"tripId": trip_id, "version": 2},
+)
 ```
 
-Global Navigation의 채팅 배지에 사용할 수 있다.
+기본값은 `flush`만 수행한다. 호출한 도메인 서비스가 상태 변경과 시스템 메시지를 함께 commit한다.
+
+## 매칭 종료·이력 숨김
+
+```http
+POST   /api/matches/{matchId}/end
+DELETE /api/matches/{matchId}
+```
+
+종료:
+
+```text
+Match.status = ended
+ChatRoom.status = closed
+match.ended 시스템 메시지
+새 메시지 전송 금지
+과거 메시지 조회 유지
+```
+
+삭제 요청은 `match_user_states.hidden_at`과 해당 사용자의 방 `hidden_at`만 기록한다. 상대 사용자와 DB 원본은 유지한다.
+
+## 차단
+
+```http
+POST   /api/users/{userId}/block
+DELETE /api/users/{userId}/block
+```
+
+어느 한쪽이 차단하면:
+
+- 매칭 후보에서 서로 제외
+- 매칭 요청·수락 금지
+- 활성 Match와 ChatRoom 종료
+- 메시지 전송 금지
+
+차단 해제는 기존 Match와 ChatRoom을 자동 복구하지 않는다.
+
+## 신고
+
+```http
+POST /api/chat/rooms/{roomId}/messages/{messageId}/reports
+POST /api/users/{userId}/reports
+```
+
+사유:
+
+```text
+spam
+harassment
+sexual_content
+hate
+fraud
+personal_information
+other
+```
+
+자신의 메시지 신고와 동일 메시지 중복 신고는 금지한다. 신고된 메시지가 삭제돼도 DB 원문은 유지한다.
 
 ## WebSocket
 
 ```text
-ws://localhost:8000/api/chat/ws?token={accessToken}
+WS /api/chat/ws?token={accessToken}
 ```
 
-브라우저 WebSocket API가 임의의 `Authorization` 헤더를 설정할 수 없어 현재는 query token을 사용한다. 운영 환경에서는 URL 로그 노출 가능성을 줄이기 위해 짧은 수명의 WebSocket ticket API 또는 HttpOnly 쿠키 인증으로 교체하는 것이 좋다.
+이벤트:
 
-메시지 저장은 WebSocket이 아니라 REST API에서 수행한다. DB commit 성공 후 연결된 양쪽 사용자에게 이벤트를 보낸다.
-
-### 새 메시지
-
-```json
-{
-  "event": "message.created",
-  "data": {
-    "id": "message-uuid",
-    "roomId": "room-uuid",
-    "senderId": "user-uuid",
-    "sequence": 1,
-    "type": "text",
-    "content": "부산역에서 만날까요?",
-    "createdAt": "2026-08-03T12:00:00"
-  }
-}
+```text
+room.created
+message.created
+message.deleted
+room.read
+match.ended
+user.blocked
 ```
 
-### 읽음 변경
+메시지는 REST에서 commit한 후 WebSocket으로 전달한다. 단일 프로세스는 메모리 연결 관리자를 사용하며 다중 worker는 Redis Pub/Sub이 필요하다.
 
-```json
-{
-  "event": "room.read",
-  "data": {
-    "roomId": "room-uuid",
-    "userId": "user-uuid",
-    "lastReadSequence": 1,
-    "updatedAt": "2026-08-03T12:00:10"
-  }
-}
+## 알림 모듈 연동 경계
+
+채팅 모듈은 알림 행을 저장하지 않는다.
+
+```text
+매칭 수락 commit
+→ room.created 데이터 제공
+→ 알림 모듈이 양쪽 chat.room_created 알림 생성
 ```
 
-연결 확인이 필요하면 다음 이벤트를 보낼 수 있다.
+여행 D-1 알림은 Trip과 Match를 조회하는 알림 스케줄러가 담당한다.
 
-```json
-{ "event": "ping" }
+## DB 적용
+
+새 모델은 SQLAlchemy metadata에 등록되어 있다. 기존 PostgreSQL DB에 적용할 Alembic migration은 아직 없다. DB 담당자의 최신 revision 위에 다음 변경을 migration으로 작성해야 한다.
+
+```text
+users soft-delete 컬럼
+matches 상태·TTI 스냅샷·soft-delete 컬럼
+match_requests
+match_user_states
+chat_rooms
+chat_messages
+chat_room_members
+blocks
+reports
 ```
 
-서버는 `{ "event": "pong" }`을 반환한다.
+## 주요 수정 위치
 
-현재 연결 관리자는 한 API 프로세스의 메모리에 저장된다. Uvicorn worker나 서버 인스턴스를 여러 개 사용하면 Redis Pub/Sub을 `ChatConnectionManager` 뒤에 연결해야 한다.
-
-## 파일별 수정 위치
-
-| 파일 | 수정할 때 |
+| 파일 | 역할 |
 | --- | --- |
-| `app/models/chat.py` | 컬럼, FK, 인덱스, 메시지 저장 구조 변경 |
-| `app/schemas/chat.py` | 프론트 요청·응답 JSON 변경 |
-| `app/services/chat_service.py` | 권한, 읽음, 메시지 순서, 목록 계산 규칙 변경 |
-| `app/routers/chat.py` | URL, HTTP 상태, WebSocket 이벤트 변경 |
-| `app/realtime/chat_manager.py` | Redis 또는 다중 서버 실시간 전송으로 변경 |
-| `tests/test_chat_service.py` | 정책 변경에 맞춘 회귀 테스트 |
-
-### 매칭 상태가 추가되는 경우
-
-`chat_service.get_match_for_user()`에 다음 조건을 추가하면 된다.
-
-```python
-Match.status == "accepted"
-```
-
-다른 채팅 로직을 바꿀 필요는 없다.
-
-### 장소 공유를 추가하는 경우
-
-1. `ChatMessageCreate.type`에 `place` 추가
-2. `payload` 입력 스키마 추가
-3. 서비스에서 `placeId` 또는 `tripAttractionId` 접근 권한 검증
-4. 검증한 payload를 `payload_json`에 저장
-
-클라이언트가 보낸 장소 이름이나 이미지 전체를 신뢰하지 말고 서버가 ID를 통해 조회해야 한다.
-
-### 시스템 메시지를 추가하는 경우
-
-일반 사용자가 `system` 타입을 보낼 수 있게 하지 않는다. 서비스 내부 함수가 조율·승인 상태 변경 트랜잭션 이후 시스템 메시지를 생성하도록 추가한다.
-
-## DB 적용 주의사항
-
-채팅 모델은 `app/models/__init__.py`에 등록되어 있어 새 빈 DB에서는 기존 `create_all()`로 테이블이 만들어진다. 이미 존재하는 PostgreSQL DB에는 `create_all()`이 새 테이블은 추가할 수 있지만 변경 이력을 남기지 않는다.
-
-DB 담당자의 추가 스키마 수정이 끝나면 최신 Alembic revision을 기준으로 아래 테이블 migration을 작성해야 한다.
-
-- `chat_rooms`
-- `chat_messages`
-- `chat_read_states`
-
-현재 로컬 SQLite는 기존 `matches`의 PostgreSQL 전용 `least/greatest` 인덱스 때문에 빈 DB 전체 생성이 실패한다. 채팅 테스트에서는 해당 함수를 테스트 DB에만 등록해 우회한다. 실제 운영 기준은 PostgreSQL이다.
+| `app/models/chat.py` | 채팅 DB 구조 |
+| `app/models/communication.py` | 요청·이력·차단·신고 DB 구조 |
+| `app/schemas/chat.py` | 채팅·신고 요청 응답 |
+| `app/schemas/communication.py` | 매칭 요청·차단 요청 응답 |
+| `app/services/chat_service.py` | 메시지·읽음·삭제·신고·시스템 메시지 |
+| `app/services/communication_service.py` | 매칭 요청·수락·종료·차단 |
+| `app/services/chat_rate_limiter.py` | 사용자별 token bucket |
+| `app/routers/chat.py` | 채팅 REST·WebSocket |
+| `app/routers/communication.py` | 매칭 요청·종료·차단 API |
