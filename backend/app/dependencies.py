@@ -31,10 +31,20 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+async def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    """Gate for admin-only endpoints.
+
+    403 rather than 404: the caller is authenticated, they just lack the role.
+    """
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
     return user
 
 

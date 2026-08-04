@@ -1,9 +1,13 @@
 import { ArrowRight, Clock3, Compass, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useTripStore } from '../../entities/tripStore';
 import { Button } from '../../shared/ui/Button';
 
 export function TtiStartPage() {
+  const existingCode = useTripStore((state) => state.result?.code ?? state.user?.ttiCode);
+  const existingTitle = useTripStore((state) => state.result?.title);
+
   return (
     <div className="page-canvas">
       <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-6 text-white shadow-[0_26px_90px_rgba(16,17,20,0.20)] md:p-10">
@@ -25,14 +29,34 @@ export function TtiStartPage() {
               먼저 알려주세요.
             </h1>
             <div className="mt-10 space-y-4">
-              <ChatBubble speaker="Odd" text="12문항만 답하면 P/W, N/C, F/A, H/S 네 축 점수를 계산해 성향을 파악합니다." />
-              <ChatBubble speaker="Odd" text="결과는 반대 성향 매칭과 관광지 추천에 바로 연결되어 AI 일정을 생성합니다." />
+              {existingCode ? (
+                <ChatBubble
+                  speaker="Odd"
+                  text={`이미 진단하셨네요. 현재 유형은 ${existingCode}${existingTitle ? ` · ${existingTitle}` : ''} 입니다. 다시 진단하면 기존 결과를 덮어씁니다.`}
+                />
+              ) : (
+                <>
+                  <ChatBubble speaker="Odd" text="12문항만 답하면 P/W, N/C, F/A, H/S 네 축 점수를 계산해 성향을 파악합니다." />
+                  <ChatBubble speaker="Odd" text="결과는 반대 성향 매칭과 관광지 추천에 바로 연결되어 AI 일정을 생성합니다." />
+                </>
+              )}
             </div>
-            <Link to="/tti/questions">
-              <button className="mt-10 rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]">
-                좋아! 시작할게
-              </button>
-            </Link>
+            <div className="mt-10 flex flex-wrap gap-3">
+              {existingCode ? (
+                <Link to="/tti/result">
+                  <button className="rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]">
+                    내 결과 보기
+                  </button>
+                </Link>
+              ) : null}
+              <Link to="/tti/questions">
+                <button className={existingCode
+                  ? 'rounded-full border border-white/30 bg-white/12 px-8 py-4 text-sm font-black text-white backdrop-blur'
+                  : 'rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]'}>
+                  {existingCode ? '다시 진단하기' : '좋아! 시작할게'}
+                </button>
+              </Link>
+            </div>
           </div>
 
           <div className="motion-card rounded-[38px] bg-white p-6 text-[#111111] shadow-[0_34px_90px_rgba(0,0,0,0.28)]">
@@ -47,9 +71,9 @@ export function TtiStartPage() {
               <InfoRow icon={<Clock3 className="h-5 w-5" />} title="약 2분" text="빠른 진단" />
               <InfoRow icon={<Compass className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
             </div>
-            <Link to="/tti/questions">
+            <Link to={existingCode ? '/tti/result' : '/tti/questions'}>
               <Button className="mt-8 w-full bg-[#f5d04c] text-black hover:bg-[#f5d04c]/90" icon={<ArrowRight className="h-4 w-4" />}>
-                진단 시작
+                {existingCode ? '내 결과 보기' : '진단 시작'}
               </Button>
             </Link>
           </div>

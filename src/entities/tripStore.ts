@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
 import { oddtripService } from '../services/oddtripService';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
@@ -12,6 +12,7 @@ interface TripState {
   matches: MatchCandidate[];
   selectedMatch?: MatchCandidate;
   activeTripId?: string;
+  tripHistory: TripSummary[];
   preferences: JointPreference;
   attractions: Attraction[];
   agentRun?: AgentRunResponse;
@@ -27,6 +28,9 @@ interface TripState {
   loadQuestions: () => Promise<void>;
   setAnswer: (answer: TtiAnswer) => void;
   calculateResult: () => Promise<TtiResult | undefined>;
+  loadResult: () => Promise<void>;
+  loadTripHistory: () => Promise<void>;
+  openTrip: (tripId: string) => Promise<void>;
   loadMatches: () => Promise<void>;
   selectMatch: (id: string) => void;
   ensureTrip: () => Promise<string | undefined>;
@@ -37,6 +41,7 @@ interface TripState {
   runTravelAgent: () => Promise<void>;
   toggleAttraction: (id: string, key: 'saved' | 'excluded') => Promise<void>;
   loadItinerary: () => Promise<void>;
+  regenerateItinerary: () => Promise<void>;
   loadAlerts: () => Promise<void>;
 }
 
@@ -58,6 +63,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   attractions: [],
   itinerary: [],
   alerts: [],
+  tripHistory: [],
   status: {},
   async login(email, password) {
     set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
@@ -90,7 +96,9 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   logout() {
-    oddtripService.logout();
+    // Revoking the refresh token server-side is best effort; the local session
+    // is cleared immediately either way. logout() never rejects.
+    void oddtripService.logout();
     set({
       user: undefined,
       questions: [],
@@ -118,6 +126,12 @@ export const useTripStore = create<TripState>((set, get) => ({
     try {
       const response = await oddtripService.getCurrentUser();
       set((state) => ({ user: response.data, status: { ...state.status, user: 'success' } }));
+      // The result lives on the server, so restore it instead of making a
+      // returning user retake the test.
+      if (response.data.ttiCode) {
+        const saved = await oddtripService.getTtiResult().catch(() => undefined);
+        if (saved?.data) set({ result: saved.data });
+      }
     } catch {
       set((state) => ({ error: '사용자 정보를 불러오지 못했습니다.', status: { ...state.status, user: 'error' } }));
     }
@@ -167,6 +181,53 @@ export const useTripStore = create<TripState>((set, get) => ({
     } catch {
       set((state) => ({ error: 'TTI 결과를 계산하지 못했습니다.', status: { ...state.status, tti: 'error' } }));
       return undefined;
+    }
+  },
+  async loadResult() {
+    // Unlike calculateResult this only reads what the server already has, so
+    // it must not reset matches, trip or itinerary state.
+    if (get().result) return;
+    try {
+      const response = await oddtripService.getTtiResult();
+      if (response.data) {
+        set((state) => ({ result: response.data ?? undefined, status: { ...state.status, tti: 'success' } }));
+      }
+    } catch {
+      set((state) => ({ error: 'TTI 결과를 불러오지 못했습니다.' }));
+    }
+  },
+  async loadTripHistory() {
+    try {
+      const response = await oddtripService.getTrips();
+      set({ tripHistory: response.data });
+    } catch {
+      set({ error: '여행 기록을 불러오지 못했습니다.' });
+    }
+  },
+  async openTrip(tripId) {
+    // Reopening a past trip: point the working state at it and pull that
+    // trip's data, replacing whatever the current session had loaded.
+    set((state) => ({
+      activeTripId: tripId,
+      attractions: [],
+      itinerary: [],
+      alerts: [],
+      agentRun: undefined,
+      decisionSuggestion: undefined,
+      status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
+    }));
+    try {
+      const [attractions, itinerary] = await Promise.all([
+        oddtripService.getAttractions(tripId),
+        oddtripService.getItinerary(tripId),
+      ]);
+      set((state) => ({
+        attractions: attractions.data,
+        itinerary: itinerary.data,
+        status: { ...state.status, attractions: 'success', itinerary: 'success' },
+      }));
+    } catch {
+      set({ error: '여행을 여는 데 실패했습니다.' });
     }
   },
   async loadMatches() {
@@ -329,6 +390,22 @@ export const useTripStore = create<TripState>((set, get) => ({
       set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
     } catch {
       set((state) => ({ error: '일정을 생성하지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
+    }
+  },
+  async regenerateItinerary() {
+    // loadItinerary only generates when nothing is stored yet, so saving or
+    // excluding attractions afterwards has no effect until we ask for a rebuild.
+    set((state) => ({ status: { ...state.status, itinerary: 'loading' } }));
+    try {
+      const tripId = await get().ensureTrip();
+      if (!tripId) {
+        set((state) => ({ status: { ...state.status, itinerary: 'error' } }));
+        return;
+      }
+      const response = await oddtripService.generateItinerary(tripId);
+      set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
+    } catch {
+      set((state) => ({ error: '일정을 다시 만들지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
     }
   },
   async loadAlerts() {

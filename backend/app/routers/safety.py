@@ -57,12 +57,13 @@ async def get_safety_alerts(
 
 
 async def _generate_contextual_alerts(trip: Trip) -> list[tuple[str, str, str, str, str]]:
-    prefs = trip.preferences_json or {}
-    region = str(prefs.get("region") or prefs.get("baseRegion") or "서울특별시")
-    start = _parse_date(prefs.get("dateFrom")) or date.today()
-    end = _parse_date(prefs.get("dateTo")) or start
+    region = trip.region or "서울특별시"
+    start = trip.start_date or date.today()
+    end = trip.end_date or start
     if end < start:
         end = start
+    # One forecast request per day, so keep the alert window short even though
+    # the trip itself may be longer.
     if (end - start).days > 6:
         end = start + timedelta(days=6)
 
@@ -105,12 +106,3 @@ async def _generate_contextual_alerts(trip: Trip) -> list[tuple[str, str, str, s
         ))
 
     return rows[:8]
-
-
-def _parse_date(value: object) -> date | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None

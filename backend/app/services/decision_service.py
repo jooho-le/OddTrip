@@ -22,17 +22,7 @@ async def get_preferences(db: AsyncSession, trip_id: str) -> JointPreferenceOut:
     trip = await db.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
-
-    prefs = trip.preferences_json or DEFAULT_PREFERENCES
-    return JointPreferenceOut(
-        places=prefs.get("places", []),
-        activities=prefs.get("activities", []),
-        foods=prefs.get("foods", []),
-        pace=prefs.get("pace", 50),
-        budget=prefs.get("budget", 50),
-        indoor_preferred=prefs.get("indoorPreferred", False),
-        hidden_spots=prefs.get("hiddenSpots", False),
-    )
+    return _to_out(trip)
 
 
 async def update_preferences(
@@ -43,8 +33,24 @@ async def update_preferences(
         raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
     trip.preferences_json = _normalize_preferences(prefs)
+
+    # Schedule and location are columns, not preference keys: the planner and
+    # the safety lookups need to query and validate them.
+    for field, column in (("title", "title"), ("region", "region")):
+        value = prefs.get(field)
+        if value is not None:
+            setattr(trip, column, str(value).strip() or None)
+    for field, column in (("dateFrom", "start_date"), ("dateTo", "end_date")):
+        value = prefs.get(field)
+        if value is not None:
+            setattr(trip, column, value)
+
     await db.commit()
-    prefs = trip.preferences_json
+    return _to_out(trip)
+
+
+def _to_out(trip: Trip) -> JointPreferenceOut:
+    prefs = trip.preferences_json or DEFAULT_PREFERENCES
     return JointPreferenceOut(
         places=prefs.get("places", []),
         activities=prefs.get("activities", []),
@@ -53,6 +59,10 @@ async def update_preferences(
         budget=prefs.get("budget", 50),
         indoor_preferred=prefs.get("indoorPreferred", False),
         hidden_spots=prefs.get("hiddenSpots", False),
+        title=trip.title,
+        region=trip.region,
+        date_from=trip.start_date,
+        date_to=trip.end_date,
     )
 
 

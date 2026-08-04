@@ -5,6 +5,12 @@ from pydantic.alias_generators import to_camel
 class ItineraryItemOut(BaseModel):
     id: str
     day: int
+    # Carried straight from the linked place so the client never has to match a
+    # slot back to an attraction by name. NULL for move/meal/rest slots.
+    place_id: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    address: str | None = None
     time: str | None = None
     type: str
     title: str

@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.match import Match
+from ..models.communication import Block
 from ..models.tti import TravelType
 from ..models.user import User
 from ..schemas.match import MatchCandidateOut
@@ -58,11 +59,28 @@ def _calc_score(count: int, user_scores: list[dict], candidate_scores: list[dict
 async def find_matches(
     db: AsyncSession, user: User
 ) -> list[MatchCandidateOut]:
-    if not user.tti_code:
+    if not user.tti_code or not user.tti_scores_json:
         return []
 
+    blocked_ids = select(Block.blocked_user_id).where(
+        Block.blocker_id == user.id,
+        Block.released_at.is_(None),
+        Block.deleted_at.is_(None),
+    ).union(
+        select(Block.blocker_id).where(
+            Block.blocked_user_id == user.id,
+            Block.released_at.is_(None),
+            Block.deleted_at.is_(None),
+        )
+    )
     result = await db.execute(
-        select(User).where(User.id != user.id, User.tti_code.isnot(None))
+        select(User).where(
+            User.id != user.id,
+            User.deleted_at.is_(None),
+            User.tti_code.isnot(None),
+            User.tti_scores_json.isnot(None),
+            User.id.not_in(blocked_ids),
+        )
     )
     candidates = list(result.scalars().all())
 

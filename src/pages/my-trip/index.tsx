@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, CalendarDays, HeartHandshake, Settings, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -7,8 +8,16 @@ import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 
 export function MyTripPage() {
-  const { user, result, attractions, itinerary, matches } = useTripStore();
+  const { user, result, attractions, tripHistory, loadTripHistory } = useTripStore();
   const saved = attractions.filter((item) => item.saved);
+
+  // The working state resets every session, so the counts have to come from
+  // the server rather than from whatever this session happens to have loaded.
+  useEffect(() => {
+    void loadTripHistory();
+  }, [loadTripHistory]);
+
+  const withItinerary = tripHistory.filter((trip) => trip.itineraryDayCount > 0);
 
   return (
     <div className="page-canvas space-y-5">
@@ -34,22 +43,24 @@ export function MyTripPage() {
         </div>
       </section>
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard icon={<Bookmark className="h-6 w-6" />} label="저장한 여행지" value={saved.length} />
-        <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={itinerary.length} pink />
-        <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={matches.length}  />
+        <StatCard icon={<Bookmark className="h-6 w-6" />} label="저장한 여행지" value={tripHistory.reduce((sum, trip) => sum + trip.savedCount, 0)} />
+        <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={withItinerary.length} to="/my/trips" pink />
+        <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={tripHistory.length} to="/my/matches" />
       </div>
+
       <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}<Link to="/attractions"><Button className="mt-4">추천지 보러가기</Button></Link></Card>
       <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">OddTrip 시작하기</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/tti/start"><Button variant="secondary" className="w-full">TTI 다시 진단</Button></Link><Link to="/decision"><Button variant="secondary" className="w-full">동행 선호 수정</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">날씨 주의 확인</Button></Link></div></Card>
     </div>
   );
 }
 
-function StatCard({ icon, label, value, dark = false, pink = false }: { icon: ReactNode; label: string; value: number; dark?: boolean; pink?: boolean }) {
-  return (
-    <Card className={`${dark ? 'bg-[#101114] text-white' : pink ? 'gradient-panel text-white' : 'bg-white text-[#111111]'}`}>
+function StatCard({ icon, label, value, to, dark = false, pink = false }: { icon: ReactNode; label: string; value: number; to?: string; dark?: boolean; pink?: boolean }) {
+  const card = (
+    <Card className={`${dark ? 'bg-[#101114] text-white' : pink ? 'gradient-panel text-white' : 'bg-white text-[#111111]'} ${to ? 'transition hover:brightness-105' : ''}`}>
       {icon}
       <p className="mt-14 text-sm font-black opacity-62">{label}</p>
       <p className="mt-2 text-5xl font-black tracking-[-0.05em]">{value}</p>
     </Card>
   );
+  return to ? <Link to={to} className="block">{card}</Link> : card;
 }

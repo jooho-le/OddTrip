@@ -26,6 +26,16 @@ async def calculate(
     return {"data": result.model_dump(by_alias=True), "error": None}
 
 
+@router.get("/result", response_model=dict)
+async def get_result(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """The caller's saved result, or null when they have not taken the test."""
+    result = await tti_service.get_saved_result(db, user)
+    return {"data": result.model_dump(by_alias=True) if result else None, "error": None}
+
+
 @router.get("/types", response_model=dict)
 async def get_types(db: AsyncSession = Depends(get_db)):
     types = await tti_service.get_travel_types(db)

@@ -3,10 +3,10 @@ import uuid
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.trip import Attraction, Trip
+from ..models.trip import Place, Trip, TripAttraction
 from ..models.match import Match
 from ..models.user import User
 from ..schemas.attraction import AttractionOut, PublicAttractionGenerateRequest
@@ -27,43 +27,21 @@ DEFAULT_CONTENT_TYPES = ["12", "14", "15", "28", "32", "39"]
 
 
 async def get_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]:
+    rows = await _load_trip_attractions(db, trip_id)
+    return [_attraction_out(link, place) for link, place in rows]
+
+
+async def _load_trip_attractions(
+    db: AsyncSession, trip_id: str
+) -> list[tuple[TripAttraction, Place]]:
+    """Every read of a trip's attractions needs both halves, so always join."""
     result = await db.execute(
-        select(Attraction).where(Attraction.trip_id == trip_id)
+        select(TripAttraction, Place)
+        .join(Place, Place.id == TripAttraction.place_id)
+        .where(TripAttraction.trip_id == trip_id)
+        .order_by(TripAttraction.score.desc().nullslast(), TripAttraction.created_at)
     )
-    rows = result.scalars().all()
-    return [
-        AttractionOut(
-            id=r.id,
-            name=r.name,
-            category=r.category,
-            image_url=r.image_url,
-            description=r.description,
-            reason=r.reason,
-            tags=r.tags_json or [],
-            indoor=r.indoor,
-            active=r.active,
-            famous=r.famous,
-            saved=r.saved,
-            excluded=r.excluded,
-            content_id=r.content_id,
-            content_type_id=r.content_type_id,
-            source=r.source,
-            addr1=r.addr1,
-            addr2=r.addr2,
-            map_x=r.map_x,
-            map_y=r.map_y,
-            area_code=r.area_code,
-            sigungu_code=r.sigungu_code,
-            tel=r.tel,
-            homepage=r.homepage,
-            opening_hours=r.opening_hours_json,
-            closed_days=r.closed_days_json or [],
-            congestion_score=r.congestion_score,
-            hidden_score=r.hidden_score,
-            related_rank=r.related_rank,
-        )
-        for r in rows
-    ]
+    return [(link, place) for link, place in result.all()]
 
 
 async def generate_attractions(db: AsyncSession, trip_id: str) -> list[AttractionOut]:
@@ -80,12 +58,7 @@ async def generate_attractions(db: AsyncSession, trip_id: str) -> list[Attractio
     if not user_a or not user_b:
         raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
 
-    # Delete existing attractions before regenerating
-    old_result = await db.execute(
-        select(Attraction).where(Attraction.trip_id == trip_id)
-    )
-    for old in old_result.scalars().all():
-        await db.delete(old)
+    await _delete_existing_attractions(db, trip_id)
 
     raw = await openai_service.generate_attractions(
         user_a_code=user_a.tti_code or "",
@@ -95,43 +68,34 @@ async def generate_attractions(db: AsyncSession, trip_id: str) -> list[Attractio
         preferences=trip.preferences_json or {},
     )
 
-    attractions = []
+    pairs: list[tuple[TripAttraction, Place]] = []
     for item in raw:
-        attr = Attraction(
+        # Model output has no stable identifier, so every run creates a new
+        # place row rather than trying to match one by name.
+        place = Place(
             id=str(uuid.uuid4()),
-            trip_id=trip_id,
             name=item.get("name", ""),
             category=item.get("category", ""),
             image_url=item.get("imageUrl", ""),
             description=item.get("description", ""),
-            reason=item.get("reason", ""),
-            tags_json=item.get("tags", []),
-            indoor=item.get("indoor", False),
-            active=item.get("active", False),
-            famous=item.get("famous", False),
+            indoor=bool(item.get("indoor", False)),
+            active=bool(item.get("active", False)),
             source="OpenAI",
         )
-        db.add(attr)
-        attractions.append(attr)
+        db.add(place)
+        link = TripAttraction(
+            id=str(uuid.uuid4()),
+            trip_id=trip_id,
+            place_id=place.id,
+            reason=item.get("reason", ""),
+            tags_json=item.get("tags", []),
+            famous=bool(item.get("famous", False)),
+        )
+        db.add(link)
+        pairs.append((link, place))
 
     await db.commit()
-    return [
-        AttractionOut(
-            id=a.id,
-            name=a.name,
-            category=a.category,
-            image_url=a.image_url,
-            description=a.description,
-            reason=a.reason,
-            tags=a.tags_json or [],
-            indoor=a.indoor,
-            active=a.active,
-            famous=a.famous,
-            saved=a.saved,
-            excluded=a.excluded,
-        )
-        for a in attractions
-    ]
+    return [_attraction_out(link, place) for link, place in pairs]
 
 
 async def generate_public_attractions(
@@ -179,94 +143,112 @@ async def generate_public_attractions(
 
     await _delete_existing_attractions(db, trip_id)
 
-    attractions = []
+    pairs: list[tuple[TripAttraction, Place]] = []
+    seen_place_ids: set[str] = set()
     for item in enriched:
         normalized = _to_attraction_payload(item)
-        attr = Attraction(
+        place = await _upsert_place(db, normalized, raw=item)
+        # The unique (trip_id, place_id) constraint means the same place cannot
+        # be linked twice; candidates that collapse onto one place keep the
+        # first (highest ranked) occurrence.
+        if place.id in seen_place_ids:
+            continue
+        seen_place_ids.add(place.id)
+
+        link = TripAttraction(
             id=str(uuid.uuid4()),
             trip_id=trip_id,
-            name=normalized["name"],
-            category=normalized["category"],
-            image_url=normalized["image_url"],
-            description=normalized["description"],
+            place_id=place.id,
             reason=_build_place_intro(normalized),
             tags_json=normalized["tags"],
-            indoor=normalized["indoor"],
-            active=normalized["active"],
             famous=normalized["famous"],
-            content_id=normalized["content_id"],
-            content_type_id=normalized["content_type_id"],
-            source=normalized["source"],
-            addr1=normalized["addr1"],
-            addr2=normalized["addr2"],
-            map_x=normalized["map_x"],
-            map_y=normalized["map_y"],
-            area_code=normalized["area_code"],
-            sigungu_code=normalized["sigungu_code"],
-            tel=normalized["tel"],
-            homepage=normalized["homepage"],
-            opening_hours_json=normalized["opening_hours"],
-            closed_days_json=normalized["closed_days"],
+            score=item.get("_oddtrip_score"),
             congestion_score=normalized["congestion_score"],
             hidden_score=normalized["hidden_score"],
             related_rank=normalized["related_rank"],
-            raw_json=item,
         )
-        db.add(attr)
-        attractions.append(attr)
+        db.add(link)
+        pairs.append((link, place))
 
     await db.commit()
-    return [_attraction_out(a) for a in attractions]
+    return [_attraction_out(link, place) for link, place in pairs]
+
+
+async def _upsert_place(db: AsyncSession, payload: dict[str, Any], *, raw: dict[str, Any]) -> Place:
+    """Find the place by TourAPI content_id, or insert it.
+
+    Rows without a content_id (OpenAI, fallback samples) cannot be matched
+    reliably, so they always become a new row.
+    """
+    content_id = payload["content_id"] or None
+    place: Place | None = None
+    if content_id:
+        result = await db.execute(select(Place).where(Place.content_id == content_id))
+        place = result.scalar_one_or_none()
+
+    if place is None:
+        place = Place(id=str(uuid.uuid4()), content_id=content_id)
+        db.add(place)
+
+    # Refresh the place with the latest values seen from the API.
+    place.content_type_id = payload["content_type_id"]
+    place.source = payload["source"]
+    place.name = payload["name"]
+    place.category = payload["category"]
+    place.image_url = payload["image_url"]
+    place.description = payload["description"]
+    place.addr1 = payload["addr1"]
+    place.addr2 = payload["addr2"]
+    place.latitude = _to_coord(payload["map_y"])
+    place.longitude = _to_coord(payload["map_x"])
+    place.area_code = payload["area_code"]
+    place.sigungu_code = payload["sigungu_code"]
+    place.tel = payload["tel"]
+    place.homepage = payload["homepage"]
+    place.opening_hours_json = payload["opening_hours"]
+    place.closed_days_json = payload["closed_days"]
+    place.indoor = payload["indoor"]
+    place.active = payload["active"]
+    place.raw_json = raw
+
+    await db.flush()
+    return place
+
+
+def _to_coord(value: Any) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _coord_str(value: float | None) -> str | None:
+    """Serialize back to the string form the API has always returned."""
+    return None if value is None else f"{value:.6f}".rstrip("0").rstrip(".")
 
 
 async def toggle_attraction(
     db: AsyncSession, trip_id: str, attraction_id: str, saved: bool | None, excluded: bool | None
 ) -> AttractionOut | None:
     result = await db.execute(
-        select(Attraction).where(
-            Attraction.id == attraction_id, Attraction.trip_id == trip_id
-        )
+        select(TripAttraction, Place)
+        .join(Place, Place.id == TripAttraction.place_id)
+        .where(TripAttraction.id == attraction_id, TripAttraction.trip_id == trip_id)
     )
-    attr = result.scalar_one_or_none()
-    if not attr:
+    row = result.one_or_none()
+    if not row:
         return None
+    link, place = row
 
     if saved is not None:
-        attr.saved = saved
+        link.saved = saved
     if excluded is not None:
-        attr.excluded = excluded
+        link.excluded = excluded
 
     await db.commit()
-    return AttractionOut(
-        id=attr.id,
-        name=attr.name,
-        category=attr.category,
-        image_url=attr.image_url,
-        description=attr.description,
-        reason=attr.reason,
-        tags=attr.tags_json or [],
-        indoor=attr.indoor,
-        active=attr.active,
-        famous=attr.famous,
-        saved=attr.saved,
-        excluded=attr.excluded,
-        content_id=attr.content_id,
-        content_type_id=attr.content_type_id,
-        source=attr.source,
-        addr1=attr.addr1,
-        addr2=attr.addr2,
-        map_x=attr.map_x,
-        map_y=attr.map_y,
-        area_code=attr.area_code,
-        sigungu_code=attr.sigungu_code,
-        tel=attr.tel,
-        homepage=attr.homepage,
-        opening_hours=attr.opening_hours_json,
-        closed_days=attr.closed_days_json or [],
-        congestion_score=attr.congestion_score,
-        hidden_score=attr.hidden_score,
-        related_rank=attr.related_rank,
-    )
+    return _attraction_out(link, place)
 
 
 async def collect_public_context(
@@ -858,41 +840,42 @@ def _merge_detail(item: dict[str, Any], detail: dict[str, Any] | None) -> dict[s
 
 
 async def _delete_existing_attractions(db: AsyncSession, trip_id: str) -> None:
-    old_result = await db.execute(select(Attraction).where(Attraction.trip_id == trip_id))
-    for old in old_result.scalars().all():
-        await db.delete(old)
+    """Drop this trip's links only. The shared place rows stay."""
+    await db.execute(delete(TripAttraction).where(TripAttraction.trip_id == trip_id))
+    await db.flush()
 
 
-def _attraction_out(attr: Attraction) -> AttractionOut:
+def _attraction_out(link: TripAttraction, place: Place) -> AttractionOut:
+    """Flatten the two rows back into the shape the API has always returned."""
     return AttractionOut(
-        id=attr.id,
-        name=attr.name,
-        category=attr.category,
-        image_url=attr.image_url,
-        description=attr.description,
-        reason=attr.reason,
-        tags=attr.tags_json or [],
-        indoor=attr.indoor,
-        active=attr.active,
-        famous=attr.famous,
-        saved=attr.saved,
-        excluded=attr.excluded,
-        content_id=attr.content_id,
-        content_type_id=attr.content_type_id,
-        source=attr.source,
-        addr1=attr.addr1,
-        addr2=attr.addr2,
-        map_x=attr.map_x,
-        map_y=attr.map_y,
-        area_code=attr.area_code,
-        sigungu_code=attr.sigungu_code,
-        tel=attr.tel,
-        homepage=attr.homepage,
-        opening_hours=attr.opening_hours_json,
-        closed_days=attr.closed_days_json or [],
-        congestion_score=attr.congestion_score,
-        hidden_score=attr.hidden_score,
-        related_rank=attr.related_rank,
+        id=link.id,
+        name=place.name,
+        category=place.category,
+        image_url=place.image_url,
+        description=place.description,
+        reason=link.reason,
+        tags=link.tags_json or [],
+        indoor=place.indoor,
+        active=place.active,
+        famous=link.famous,
+        saved=link.saved,
+        excluded=link.excluded,
+        content_id=place.content_id,
+        content_type_id=place.content_type_id,
+        source=place.source,
+        addr1=place.addr1,
+        addr2=place.addr2,
+        map_x=_coord_str(place.longitude),
+        map_y=_coord_str(place.latitude),
+        area_code=place.area_code,
+        sigungu_code=place.sigungu_code,
+        tel=place.tel,
+        homepage=place.homepage,
+        opening_hours=place.opening_hours_json,
+        closed_days=place.closed_days_json or [],
+        congestion_score=link.congestion_score,
+        hidden_score=link.hidden_score,
+        related_rank=link.related_rank,
     )
 
 

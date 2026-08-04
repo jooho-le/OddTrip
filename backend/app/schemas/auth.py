@@ -53,7 +53,14 @@ class AuthLoginIn(BaseModel):
 
 class AuthOut(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     user: UserOut
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
