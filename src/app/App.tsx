@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
-import { useTripStore } from '../entities/tripStore';
+import { useTripStore } from '../entities/trip/model/tripStore';
 import { LandingPage } from '../pages/landing';
 import { AuthPage } from '../pages/auth';
 import { TtiStartPage } from '../pages/tti-start';
@@ -25,6 +25,8 @@ import { TripDetailPage } from '../admin/pages/TripDetailPage';
 import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/AttractionsPage';
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
+import { AccountSettingsPage } from '../pages/account-settings';
+import { ToastViewport } from '../shared/ui/Toast';
 
 export function App() {
   const bootstrap = useTripStore((state) => state.bootstrap);
@@ -35,6 +37,7 @@ export function App() {
 
   return (
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <ToastViewport />
       <Routes>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
@@ -61,6 +64,7 @@ export function App() {
           <Route path="/my" element={<RequireAuth><MyTripPage /></RequireAuth>} />
           <Route path="/my/trips" element={<RequireAuth><TripArchivePage mode="itinerary" /></RequireAuth>} />
           <Route path="/my/matches" element={<RequireAuth><TripArchivePage mode="match" /></RequireAuth>} />
+          <Route path="/settings" element={<RequireAuth><AccountSettingsPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

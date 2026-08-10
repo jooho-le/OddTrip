@@ -1,20 +1,8 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
-const USER_ID_STORAGE_KEY = 'oddtrip.userId';
-const AUTH_TOKEN_STORAGE_KEY = 'oddtrip.authToken';
-const REFRESH_TOKEN_STORAGE_KEY = 'oddtrip.refreshToken';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
 
 function storeSession(data: AuthResponse) {
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.accessToken);
-  localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, data.refreshToken);
-  localStorage.setItem(USER_ID_STORAGE_KEY, data.user.id);
-}
-
-function clearSession() {
-  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(USER_ID_STORAGE_KEY);
+  saveSession(data);
 }
 
 interface AcceptMatchResponse {
@@ -53,6 +41,7 @@ export interface OddtripService {
   getItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
   generateItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
   getSafetyAlerts(tripId: string): Promise<ApiResponse<SafetyAlert[]>>;
+  updateProfile(input: { nickname?: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<UserProfile>>;
 }
 
 export const oddtripService: OddtripService = {
@@ -77,7 +66,7 @@ export const oddtripService: OddtripService = {
   async logout() {
     // Tell the server first so the refresh token stops working; clear locally
     // either way, since the user's intent is to be signed out.
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+    const refreshToken = localStorage.getItem(SESSION_KEYS.refreshToken);
     if (refreshToken) {
       await request('/api/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined);
     }
@@ -85,11 +74,11 @@ export const oddtripService: OddtripService = {
   },
 
   hasAuthToken() {
-    return Boolean(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY));
+    return Boolean(localStorage.getItem(SESSION_KEYS.accessToken));
   },
 
   async getCurrentUser() {
-    if (localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)) {
+    if (localStorage.getItem(SESSION_KEYS.accessToken)) {
       return request<UserProfile>('/api/auth/me', { auth: true });
     }
     throw new Error('로그인이 필요합니다.');
@@ -200,42 +189,12 @@ export const oddtripService: OddtripService = {
 
   getSafetyAlerts(tripId) {
     return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`, { auth: true });
+  },
+
+  updateProfile(input) {
+    return request<UserProfile>('/api/users/me', { method: 'PATCH', auth: true, body: input });
   }
 };
-
-/**
- * Swap the refresh token for a fresh pair.
- *
- * Concurrent 401s share one in-flight call, otherwise several parallel
- * requests would each rotate the token and invalidate each other's result.
- */
-let refreshInFlight: Promise<boolean> | null = null;
-
-function refreshAccessToken(): Promise<boolean> {
-  if (refreshInFlight) return refreshInFlight;
-
-  refreshInFlight = (async () => {
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-    if (!refreshToken) return false;
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken })
-      });
-      if (!response.ok) return false;
-      const payload = await response.json();
-      storeSession(payload.data);
-      return true;
-    } catch {
-      return false;
-    } finally {
-      refreshInFlight = null;
-    }
-  })();
-
-  return refreshInFlight;
-}
 
 async function request<T>(
   path: string,
@@ -245,48 +204,15 @@ async function request<T>(
     auth?: boolean;
     userId?: string;
   } = {},
-  isRetry = false
 ): Promise<ApiResponse<T>> {
-  const userId = options.userId ?? localStorage.getItem(USER_ID_STORAGE_KEY);
-  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-  const headers: HeadersInit = { Accept: 'application/json' };
-
-  if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  if (options.auth || options.userId) {
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    } else {
-      if (!userId) throw new Error('로그인이 필요합니다.');
-      headers['X-User-Id'] = userId;
-    }
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined
-  });
-
-  // The access token is short lived, so a 401 usually just means it expired.
-  // Refresh once and replay; if that fails the session is genuinely over and
-  // we clear it, rather than leaving a dead token to 401 forever.
-  if (response.status === 401 && (options.auth || options.userId) && !isRetry) {
-    if (await refreshAccessToken()) {
-      return request<T>(path, options, true);
-    }
-    clearSession();
+  const userId = options.userId ?? localStorage.getItem(SESSION_KEYS.userId);
+  if ((options.auth || options.userId) && !localStorage.getItem(SESSION_KEYS.accessToken) && !userId) {
     throw new Error('로그인이 필요합니다.');
   }
-
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message = payload?.error ?? payload?.detail ?? 'API 요청에 실패했습니다.';
-    throw new Error(Array.isArray(message) ? '입력값을 확인해주세요.' : message);
-  }
-
-  return payload as ApiResponse<T>;
+  return apiRequest<T>({
+    url: path,
+    method: options.method ?? 'GET',
+    data: options.body,
+    headers: !localStorage.getItem(SESSION_KEYS.accessToken) && userId ? { 'X-User-Id': userId } : undefined
+  });
 }

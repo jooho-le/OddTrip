@@ -1,6 +1,6 @@
 import { CalendarRange, CircleUserRound, Heart, House, MapPinned } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { cn } from '../shared/lib/classNames';
+import { cn } from '../../shared/lib/classNames';
 
 const tabs = [
   { to: '/', label: 'HOME', icon: House },

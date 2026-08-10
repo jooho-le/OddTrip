@@ -1,7 +1,7 @@
 import { ArrowRight, Clock3, Compass, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
 
 export function TtiStartPage() {
@@ -44,17 +44,17 @@ export function TtiStartPage() {
             <div className="mt-10 flex flex-wrap gap-3">
               {existingCode ? (
                 <Link to="/tti/result">
-                  <button className="rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]">
+                  <Button variant="secondary" className="px-8 text-accent shadow-card">
                     내 결과 보기
-                  </button>
+                  </Button>
                 </Link>
               ) : null}
               <Link to="/tti/questions">
-                <button className={existingCode
-                  ? 'rounded-full border border-white/30 bg-white/12 px-8 py-4 text-sm font-black text-white backdrop-blur'
-                  : 'rounded-full bg-white px-8 py-4 text-sm font-black text-[#fd267a] shadow-[0_22px_60px_rgba(253,38,122,0.28)]'}>
+                <Button variant="secondary" className={existingCode
+                  ? 'border-white/30 bg-white/12 px-8 text-white backdrop-blur hover:border-white'
+                  : 'px-8 text-accent shadow-card'}>
                   {existingCode ? '다시 진단하기' : '좋아! 시작할게'}
-                </button>
+                </Button>
               </Link>
             </div>
           </div>

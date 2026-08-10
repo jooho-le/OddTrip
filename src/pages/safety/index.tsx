@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AlertTriangle, CalendarDays, Info, ShieldCheck, Siren, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';

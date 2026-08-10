@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bookmark, CalendarDays, HeartHandshake, Settings, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';

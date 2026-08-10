@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../types';
-import { oddtripService } from '../services/oddtripService';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import { oddtripService } from '../api/oddtripService';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -43,6 +43,7 @@ interface TripState {
   loadItinerary: () => Promise<void>;
   regenerateItinerary: () => Promise<void>;
   loadAlerts: () => Promise<void>;
+  updateProfile: (input: { nickname?: string; homeRegion?: string; avatarUrl?: string }) => Promise<boolean>;
 }
 
 const initialPreferences: JointPreference = {
@@ -134,6 +135,17 @@ export const useTripStore = create<TripState>((set, get) => ({
       }
     } catch {
       set((state) => ({ error: '사용자 정보를 불러오지 못했습니다.', status: { ...state.status, user: 'error' } }));
+    }
+  },
+  async updateProfile(input) {
+    set((state) => ({ status: { ...state.status, profile: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.updateProfile(input);
+      set((state) => ({ user: response.data, status: { ...state.status, profile: 'success' } }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '프로필을 저장하지 못했습니다.', status: { ...state.status, profile: 'error' } }));
+      return false;
     }
   },
   async loadQuestions() {

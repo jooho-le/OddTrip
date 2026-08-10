@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
-import { CardNewsRail } from '../../components/CardNewsRail';
-import { GoogleMap } from '../../components/GoogleMap';
-import { useTripStore } from '../../entities/tripStore';
+import { CardNewsRail } from '../../shared/ui/CardNewsRail';
+import { GoogleMap } from '../../features/map/GoogleMap';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -168,9 +168,9 @@ export function AttractionsPage() {
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-black text-slate-600">{filter} 기준 {filtered.length}곳</p>
         {filter !== '전체' ? (
-          <button type="button" onClick={() => setFilter('전체')} className="rounded-full bg-white px-4 py-2 text-sm font-black text-[#fd267a] shadow-[0_12px_28px_rgba(16,17,20,0.08)]">
+          <Button type="button" variant="secondary" onClick={() => setFilter('전체')} className="min-h-10 px-4 text-accent shadow-card">
             전체 보기
-          </button>
+          </Button>
         ) : null}
       </div>
 

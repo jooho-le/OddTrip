@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Clock, Sparkles } from 'lucide-react';
-import { useTripStore } from '../../entities/tripStore';
-import { GoogleMap } from '../../components/GoogleMap';
+import { useTripStore } from '../../entities/trip/model/tripStore';
+import { GoogleMap } from '../../features/map/GoogleMap';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { MapPlaceholder } from './MapPlaceholder';
 
-type MapPoint = {
+export type MapPoint = {
   id: string;
   name: string;
   lat?: number | string | null;

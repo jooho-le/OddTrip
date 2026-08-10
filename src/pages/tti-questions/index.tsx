@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageCircleQuestion } from 'lucide-react';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { cn } from '../../shared/lib/classNames';

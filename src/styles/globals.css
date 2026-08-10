@@ -3,14 +3,21 @@
 @tailwind utilities;
 
 :root {
-  color: #101828;
-  background: #fff7f2;
+  color: #202126;
+  background: #f8f5f0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+  --color-canvas: #f8f5f0;
+  --color-surface: #ffffff;
+  --color-ink: #202126;
+  --color-muted: #77736e;
+  --color-line: #e7e1da;
+  --color-accent: #ff5a36;
+  --space-page: clamp(1.25rem, 4vw, 2rem);
 }
 
 html, body, #root {
@@ -20,7 +27,7 @@ html, body, #root {
 body {
   margin: 0;
   min-width: 320px;
-  background: #fff7f2;
+  background: var(--color-canvas);
 }
 
 button, input, select, textarea {
@@ -40,7 +47,7 @@ button, input, select, textarea {
   min-height: 100dvh;
   position: relative;
   overflow-x: hidden;
-  background: #fff7f2;
+  background: var(--color-canvas);
 }
 
 .app-shell::before {
@@ -120,12 +127,12 @@ button, input, select, textarea {
 
 .gradient-panel {
   background:
-    linear-gradient(135deg, #ff4458 0%, #ff6b3d 48%, #ffb347 100%);
+    linear-gradient(135deg, #ff4f2e 0%, #ff6b3d 52%, #ff9a4a 100%);
 }
 
 .gradient-panel-alt {
   background:
-    linear-gradient(145deg, #15111f 0%, #fd267a 48%, #ff6036 100%);
+    linear-gradient(145deg, #202126 0%, #863b2c 48%, #ff5a36 100%);
 }
 
 .gradient-panel-soft {
@@ -270,4 +277,20 @@ button, input, select, textarea {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@layer components {
+  .icon-button { @apply grid h-10 w-10 place-items-center rounded-full transition hover:bg-black/5; }
+  .menu-item { @apply flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-ink transition hover:bg-canvas; }
+  .eyebrow { @apply text-[11px] font-black uppercase tracking-[0.16em] text-accent; }
+  .section-heading { @apply mt-4 text-4xl font-black leading-[1.08] tracking-[-0.045em] text-ink md:text-5xl; }
+  .section-copy { @apply mt-5 max-w-2xl text-sm font-medium leading-7 text-muted; }
+  .field-label { @apply block space-y-2; }
+  .field-label > span { @apply flex items-center gap-2 text-sm font-extrabold text-ink; }
+  .field-label input { @apply min-h-12 w-full rounded-xl border border-line bg-canvas px-4 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:cursor-not-allowed disabled:opacity-60; }
+  .field-label small { @apply block text-xs text-muted; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
