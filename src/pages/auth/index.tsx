@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { LockKeyhole, Mail, UserRound } from 'lucide-react';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 
@@ -53,13 +53,14 @@ export function AuthPage() {
           </Button>
         </form>
 
-        <button
+        <Button
           type="button"
-          className="mt-5 w-full rounded-xl bg-[#f5f0e9] px-4 py-3 text-sm font-black text-slate-700"
+          variant="ghost"
+          className="mt-5 w-full rounded-xl bg-canvas"
           onClick={() => setMode((current) => (current === 'login' ? 'register' : 'login'))}
         >
           {mode === 'login' ? '계정이 없어요. 회원가입' : '이미 계정이 있어요. 로그인'}
-        </button>
+        </Button>
       </Card>
     </div>
   );

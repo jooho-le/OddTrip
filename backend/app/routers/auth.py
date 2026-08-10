@@ -41,7 +41,7 @@ async def _issue_tokens(db: AsyncSession, user: User) -> AuthOut:
 
 @router.post("/register", response_model=dict)
 async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(User).where(User.email == body.email))
+    existing = await db.execute(select(User).where(User.email == body.email, User.deleted_at.is_(None)))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
 
@@ -63,7 +63,7 @@ async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=dict)
 async def login(body: AuthLoginIn, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == body.email))
+    result = await db.execute(select(User).where(User.email == body.email, User.deleted_at.is_(None)))
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")

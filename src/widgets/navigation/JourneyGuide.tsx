@@ -1,7 +1,7 @@
 import { CalendarRange, Check, CloudSun, Heart, MapPinned, MessageCircleQuestion, SlidersHorizontal } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useTripStore } from '../entities/tripStore';
-import { cn } from '../shared/lib/classNames';
+import { useTripStore } from '../../entities/trip/model/tripStore';
+import { cn } from '../../shared/lib/classNames';
 
 const steps = [
   { key: 'tti', label: '진단', to: '/tti/start', icon: MessageCircleQuestion },

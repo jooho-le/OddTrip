@@ -17,12 +17,21 @@ class Match(Base):
     matched_user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", server_default="active")
+    user_tti_code_snapshot: Mapped[str | None] = mapped_column(String(4))
+    matched_user_tti_code_snapshot: Mapped[str | None] = mapped_column(String(4))
+    user_tti_scores_snapshot_json: Mapped[list | None] = mapped_column(JSON)
+    matched_user_tti_scores_snapshot_json: Mapped[list | None] = mapped_column(JSON)
     match_level: Mapped[str] = mapped_column(String(20), nullable=False)
     recommendation_score: Mapped[int] = mapped_column(Integer, default=0)
     compatibility: Mapped[str | None] = mapped_column(Text)
     differences_json: Mapped[list | None] = mapped_column(JSON)
     complements_json: Mapped[list | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    deleted_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
 
 
 # A pair may only be matched once, in either direction. Ordering the two ids

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, HeartHandshake } from 'lucide-react';
-import { useTripStore } from '../../entities/tripStore';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 import type { TripSummary } from '../../types';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';

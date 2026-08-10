@@ -8,7 +8,7 @@ from ..dependencies import get_current_user, get_db
 from ..models.match import Match
 from ..models.trip import ItineraryDay, SafetyAlert, Trip, TripAttraction
 from ..models.user import User
-from ..services import match_service
+from ..services import chat_service, match_service
 from ..services.match_service import _calc_score, _count_opposite_axes
 
 router = APIRouter()
@@ -49,26 +49,25 @@ async def accept_match(
 
     # Verify target user exists
     target = await db.get(User, matched_user_id)
-    if not target:
+    if not target or target.deleted_at is not None:
         raise HTTPException(status_code=404, detail="대상 사용자를 찾을 수 없습니다.")
+
+    if not user.tti_code or not user.tti_scores_json or not target.tti_code or not target.tti_scores_json:
+        raise HTTPException(status_code=409, detail="TTI 진단을 완료한 사용자만 매칭할 수 있습니다.")
+    if await chat_service.are_users_blocked(db, user.id, target.id):
+        raise HTTPException(status_code=409, detail="매칭할 수 없는 사용자입니다.")
 
     # Calculate actual match level and score from the latest TTI result.
     user_code = user.tti_code or ""
     target_code = target.tti_code or ""
 
-    if user_code and target_code:
-        count, diff_axes = _count_opposite_axes(user_code, target_code)
-        match_level = {4: "완전 반대", 3: "부분 반대"}.get(count, "추천")
-        score = _calc_score(count, user.tti_scores_json or [], target.tti_scores_json)
-        differences = [match_service.AXIS_LABELS[ax] for ax in diff_axes]
-        complements = []
-        for ax in diff_axes:
-            complements.extend(match_service.COMPLEMENT_TEMPLATES.get(ax, []))
-    else:
-        match_level = "추천"
-        score = 70
-        differences = []
-        complements = []
+    count, diff_axes = _count_opposite_axes(user_code, target_code)
+    match_level = {4: "완전 반대", 3: "부분 반대"}.get(count, "추천")
+    score = _calc_score(count, user.tti_scores_json, target.tti_scores_json)
+    differences = [match_service.AXIS_LABELS[ax] for ax in diff_axes]
+    complements = []
+    for ax in diff_axes:
+        complements.extend(match_service.COMPLEMENT_TEMPLATES.get(ax, []))
 
     compatibility = f"당신의 여행 스타일과 {target.nickname}님의 스타일이 상호보완적입니다."
 
@@ -92,6 +91,11 @@ async def accept_match(
         existing_match.match_level = match_level
         existing_match.recommendation_score = min(score, 100)
         existing_match.compatibility = compatibility
+        existing_match.status = "active"
+        existing_match.user_tti_code_snapshot = user.tti_code
+        existing_match.matched_user_tti_code_snapshot = target.tti_code
+        existing_match.user_tti_scores_snapshot_json = user.tti_scores_json
+        existing_match.matched_user_tti_scores_snapshot_json = target.tti_scores_json
         existing_match.differences_json = differences
         existing_match.complements_json = complements[:4]
 
@@ -104,9 +108,14 @@ async def accept_match(
         if not existing_trip:
             existing_trip = Trip(id=str(uuid.uuid4()), match_id=existing_match.id, status="planning")
             db.add(existing_trip)
+        room = await chat_service.provision_room(db, existing_match)
         await db.commit()
         return {
-            "data": {"matchId": existing_match.id, "tripId": existing_trip.id if existing_trip else None},
+            "data": {
+                "matchId": existing_match.id,
+                "tripId": existing_trip.id if existing_trip else None,
+                "roomId": room.id,
+            },
             "error": None,
         }
 
@@ -114,6 +123,11 @@ async def accept_match(
         id=str(uuid.uuid4()),
         user_id=user.id,
         matched_user_id=matched_user_id,
+        status="active",
+        user_tti_code_snapshot=user.tti_code,
+        matched_user_tti_code_snapshot=target.tti_code,
+        user_tti_scores_snapshot_json=user.tti_scores_json,
+        matched_user_tti_scores_snapshot_json=target.tti_scores_json,
         match_level=match_level,
         recommendation_score=min(score, 100),
         compatibility=compatibility,
@@ -126,10 +140,11 @@ async def accept_match(
     trip_id = str(uuid.uuid4())
     trip = Trip(id=trip_id, match_id=match.id, status="planning")
     db.add(trip)
+    room = await chat_service.provision_room(db, match)
     await db.commit()
 
     return {
-        "data": {"matchId": match.id, "tripId": trip_id},
+        "data": {"matchId": match.id, "tripId": trip_id, "roomId": room.id},
         "error": None,
     }
 

@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { AppHeader } from '../components/AppHeader';
-import { BottomTabs } from '../components/BottomTabs';
-import { JourneyGuide } from '../components/JourneyGuide';
+import { AppHeader } from '../widgets/navigation/AppHeader';
+import { BottomTabs } from '../widgets/navigation/BottomTabs';
+import { JourneyGuide } from '../widgets/navigation/JourneyGuide';
 import { cn } from '../shared/lib/classNames';
 
 export function AppLayout() {

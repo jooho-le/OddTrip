@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { cn } from '../shared/lib/classNames';
+import { cn } from '../../shared/lib/classNames';
 
 const links = [
   { to: '/tti/start', label: 'TTI' },

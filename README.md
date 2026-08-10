@@ -422,17 +422,17 @@ SQLAlchemy Async ORM으로 매핑하고, 스키마 변경은 **Alembic** 마이�
 
 ```txt
 OddTrip/
-├─ src/                  # Frontend (React + TypeScript)
+├─ src/                  # 프론트엔드(React + TypeScript)
 │  ├─ app/               앱 라우팅과 공통 레이아웃
 │  ├─ pages/             화면 단위 페이지
-│  ├─ components/        여러 화면에서 쓰는 컴포넌트
-│  ├─ entities/          Zustand 전역 상태
-│  ├─ services/          백엔드 API 호출 계층
-│  ├─ shared/            공통 UI와 유틸
+│  ├─ widgets/           전역 내비게이션과 앱 공통 위젯
+│  ├─ features/          알림과 지도 등 사용자 기능
+│  ├─ entities/          도메인 API와 Zustand 상태
+│  ├─ shared/            공통 API 클라이언트, UI, 도우미 함수
 │  ├─ styles/            전역 스타일
 │  └─ types/             도메인 타입
 │
-├─ backend/              # Backend (FastAPI)
+├─ backend/              # 백엔드(FastAPI)
 │  └─ app/
 │     ├─ routers/        FastAPI 라우터
 │     ├─ services/       비즈니스 로직

@@ -5,6 +5,7 @@ from sqlalchemy.orm import aliased
 
 from ..dependencies import get_current_user, get_db
 from ..models.match import Match
+from ..models.communication import MatchUserState
 from ..models.trip import ItineraryDay, Trip, TripAttraction
 from ..models.user import User
 from ..schemas.trip import TripPartnerOut, TripSummaryOut
@@ -33,8 +34,16 @@ async def list_trips(
     result = await db.execute(
         select(Trip, Match, partner)
         .join(Match, Match.id == Trip.match_id)
+        .outerjoin(
+            MatchUserState,
+            (MatchUserState.match_id == Match.id) & (MatchUserState.user_id == user.id),
+        )
         .outerjoin(partner, partner.id == partner_id)
-        .where(or_(Match.user_id == user.id, Match.matched_user_id == user.id))
+        .where(
+            or_(Match.user_id == user.id, Match.matched_user_id == user.id),
+            Match.deleted_at.is_(None),
+            or_(MatchUserState.hidden_at.is_(None), MatchUserState.user_id.is_(None)),
+        )
         .order_by(Trip.created_at.desc())
     )
     rows = result.all()
