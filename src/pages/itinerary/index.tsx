@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { CloudSun, Grid3X3, Route, Share2, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { MapView } from '../../widgets/MapView';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -16,6 +17,14 @@ export function ItineraryPage() {
   useEffect(() => {
     if (!itinerary.length) void loadItinerary();
   }, [itinerary.length, loadItinerary]);
+
+  const routePoints = useMemo(
+    () => itinerary
+      .flatMap((day) => day.items)
+      .filter((item) => item.latitude != null && item.longitude != null)
+      .map((item) => ({ id: item.id, name: item.title, lat: item.latitude, lng: item.longitude, address: item.address })),
+    [itinerary],
+  );
 
   if (status.itinerary === 'loading') return <LoadingView label="AI가 일정을 생성하는 중입니다" />;
   if (status.itinerary === 'error') return <ErrorView label="일정 생성 결과를 불러오지 못했습니다" />;
@@ -50,6 +59,7 @@ export function ItineraryPage() {
         </Card>
       ) : null}
       <Card className="flex gap-3 border-0 bg-accent-soft text-ink"><CloudSun className="h-6 w-6 shrink-0 text-accent" /><p className="text-sm font-black leading-6">각 카드를 누르면 상세 지도와 변경 옵션을 확인할 수 있습니다.</p></Card>
+      {routePoints.length ? <MapView title="전체 동선" points={routePoints} /> : null}
       <div className="space-y-5">
         {itinerary.map((day) => (
           <section key={day.day} className="rounded-[38px] border border-line bg-white p-5 shadow-card md:p-7">
@@ -71,7 +81,11 @@ export function ItineraryPage() {
           </section>
         ))}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={() => void regenerateItinerary()}>다시 조정하기</Button><Button icon={<Share2 className="h-4 w-4" />}>공유하기</Button></div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Button variant="secondary" onClick={() => void regenerateItinerary()}>다시 조정하기</Button>
+        <Button variant="secondary" icon={<Share2 className="h-4 w-4" />}>공유하기</Button>
+        <Link to="/approval"><Button className="w-full">일정 검토·승인</Button></Link>
+      </div>
     </div>
   );
 }

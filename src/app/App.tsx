@@ -12,10 +12,20 @@ import { MatchesPage } from '../pages/matches';
 import { MatchDetailPage } from '../pages/match-detail';
 import { ChatListPage } from '../pages/chat';
 import { ChatRoomPage } from '../pages/chat-room';
-import { DecisionPage } from '../pages/decision';
-import { AttractionsPage } from '../pages/attractions';
+import { DecisionHomePage } from '../pages/decision/DecisionHomePage';
+import { Step1SelectPage } from '../pages/decision/Step1SelectPage';
+import { WaitingPage } from '../pages/decision/WaitingPage';
+import { Step2AnalysisPage } from '../pages/decision/Step2AnalysisPage';
+import { Step3ConcessionPage } from '../pages/decision/Step3ConcessionPage';
+import { Step4OddRulePage } from '../pages/decision/Step4OddRulePage';
+import { ProposalListPage } from '../pages/proposal/ProposalListPage';
+import { ProposalComparePage } from '../pages/proposal/ProposalComparePage';
+import { ProposalDetailPage } from '../pages/proposal/ProposalDetailPage';
+import { AttractionListPage } from '../pages/attractions/AttractionListPage';
+import { AttractionDetailPage } from '../pages/attractions/AttractionDetailPage';
 import { ItineraryPage } from '../pages/itinerary';
 import { ItineraryDetailPage } from '../pages/itinerary-detail';
+import { ApprovalPage } from '../pages/approval/ApprovalPage';
 import { SafetyPage } from '../pages/safety';
 import { MyTripPage } from '../pages/my-trip';
 import { TripArchivePage } from '../pages/trip-archive';
@@ -60,10 +70,20 @@ export function App() {
           <Route path="/matches/:id" element={<RequireAuth><MatchDetailPage /></RequireAuth>} />
           <Route path="/chat" element={<RequireAuth><ChatListPage /></RequireAuth>} />
           <Route path="/chat/:roomId" element={<RequireAuth><ChatRoomPage /></RequireAuth>} />
-          <Route path="/decision" element={<RequireAuth><DecisionPage /></RequireAuth>} />
-          <Route path="/attractions" element={<RequireAuth><AttractionsPage /></RequireAuth>} />
+          <Route path="/decision" element={<RequireAuth><DecisionHomePage /></RequireAuth>} />
+          <Route path="/decision/select" element={<RequireAuth><Step1SelectPage /></RequireAuth>} />
+          <Route path="/decision/waiting" element={<RequireAuth><WaitingPage /></RequireAuth>} />
+          <Route path="/decision/analysis" element={<RequireAuth><Step2AnalysisPage /></RequireAuth>} />
+          <Route path="/decision/concession" element={<RequireAuth><Step3ConcessionPage /></RequireAuth>} />
+          <Route path="/decision/odd-rule" element={<RequireAuth><Step4OddRulePage /></RequireAuth>} />
+          <Route path="/proposal" element={<RequireAuth><ProposalListPage /></RequireAuth>} />
+          <Route path="/proposal/compare" element={<RequireAuth><ProposalComparePage /></RequireAuth>} />
+          <Route path="/proposal/:variantId" element={<RequireAuth><ProposalDetailPage /></RequireAuth>} />
+          <Route path="/attractions" element={<RequireAuth><AttractionListPage /></RequireAuth>} />
+          <Route path="/attractions/:id" element={<RequireAuth><AttractionDetailPage /></RequireAuth>} />
           <Route path="/itinerary" element={<RequireAuth><ItineraryPage /></RequireAuth>} />
           <Route path="/itinerary/:id" element={<RequireAuth><ItineraryDetailPage /></RequireAuth>} />
+          <Route path="/approval" element={<RequireAuth><ApprovalPage /></RequireAuth>} />
           <Route path="/safety" element={<RequireAuth><SafetyPage /></RequireAuth>} />
           <Route path="/my" element={<RequireAuth><MyTripPage /></RequireAuth>} />
           <Route path="/my/trips" element={<RequireAuth><TripArchivePage mode="itinerary" /></RequireAuth>} />

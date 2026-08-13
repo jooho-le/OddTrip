@@ -7,7 +7,7 @@ import { useChatStore } from '../../entities/chat/model/chatStore';
 import { Avatar } from '../../shared/ui/Avatar';
 import { NotificationBell, NotificationCenter } from '../../features/notifications/NotificationCenter';
 
-const links = [{ to: '/tti/start', label: '여행 성향' }, { to: '/matches', label: '매칭' }, { to: '/attractions', label: '여행지' }, { to: '/itinerary', label: '일정' }];
+const links = [{ to: '/tti/start', label: '여행 성향' }, { to: '/matches', label: '매칭' }, { to: '/decision', label: '조율' }, { to: '/attractions', label: '여행지' }, { to: '/itinerary', label: '일정' }];
 
 export function AppHeader() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);

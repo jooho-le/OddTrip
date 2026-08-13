@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
 import { CardNewsRail } from '../../shared/ui/CardNewsRail';
 import { GoogleMap } from '../../features/map/GoogleMap';
 import { useTripStore } from '../../entities/trip/model/tripStore';
@@ -11,7 +11,7 @@ import { EmptyView, LoadingView } from '../../shared/ui/StateView';
 
 const filters = ['전체', '실내', '실외', '활동형', '휴식형', '유명', '숨은 명소'];
 
-export function AttractionsPage() {
+export function AttractionListPage() {
   const [filter, setFilter] = useState('전체');
   const [showMap, setShowMap] = useState(false);
   const {
@@ -151,6 +151,7 @@ export function AttractionsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-ink"><Save className="h-4 w-4 text-accent" /></span>
+            <Link to="/proposal"><Button variant="secondary">AI 조율안 보기</Button></Link>
             <Link to="/itinerary" onClick={() => void loadItinerary()}><Button icon={<CalendarDays className="h-4 w-4" />}>일정 보기</Button></Link>
           </div>
         </div>
@@ -178,13 +179,13 @@ export function AttractionsPage() {
         {filtered.map((item, index) => (
           <Card key={item.id} className="motion-card hover-lift overflow-hidden p-0" style={{ animationDelay: `${index * 70}ms` }}>
             <div className="grid min-h-[220px] md:grid-cols-[180px_1fr]">
-              <div className="relative bg-canvas">
+              <Link to={`/attractions/${item.id}`} className="relative block bg-canvas">
                 <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-44 w-full object-cover" />
                 <Badge className="absolute left-4 top-4 bg-accent text-white">{item.saved ? '저장됨' : '추천'}</Badge>
-              </div>
+              </Link>
               <div className="p-5">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">{item.category}</p>
-                <h2 className="mt-2 text-2xl font-black leading-7 text-ink">{item.name}</h2>
+                <Link to={`/attractions/${item.id}`} className="mt-2 block text-2xl font-black leading-7 text-ink hover:text-accent">{item.name}</Link>
                 <p className="mt-3 text-sm font-semibold leading-6 text-muted">{item.addr1 ?? item.category}</p>
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" />
@@ -199,6 +200,9 @@ export function AttractionsPage() {
                   <Button variant="secondary" onClick={() => toggleAttraction(item.id, 'excluded')}>제외하기</Button>
                   <Button onClick={() => toggleAttraction(item.id, 'saved')}>{item.saved ? '저장 취소' : '저장하기'}</Button>
                 </div>
+                <Link to={`/attractions/${item.id}`} className="mt-2 flex items-center justify-center gap-1 rounded-full py-2 text-xs font-black text-accent hover:underline">
+                  상세 보기 <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             </div>
           </Card>
@@ -223,7 +227,7 @@ function toolLabel(tool: string) {
   return labels[tool] ?? tool;
 }
 
-function displayPlaceIntro(item: {
+export function displayPlaceIntro(item: {
   name: string;
   category: string;
   description?: string | null;
