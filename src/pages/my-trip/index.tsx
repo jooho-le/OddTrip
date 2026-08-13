@@ -1,21 +1,24 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, CalendarDays, HeartHandshake, Settings, Sparkles } from 'lucide-react';
+import { Bookmark, CalendarDays, HeartHandshake, MessageCircle, Settings, Sparkles } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { useChatStore } from '../../entities/chat/model/chatStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 
 export function MyTripPage() {
   const { user, result, attractions, tripHistory, loadTripHistory } = useTripStore();
+  const { unreadTotal, loadUnreadCount } = useChatStore();
   const saved = attractions.filter((item) => item.saved);
 
   // The working state resets every session, so the counts have to come from
   // the server rather than from whatever this session happens to have loaded.
   useEffect(() => {
     void loadTripHistory();
-  }, [loadTripHistory]);
+    void loadUnreadCount();
+  }, [loadTripHistory, loadUnreadCount]);
 
   const withItinerary = tripHistory.filter((trip) => trip.itineraryDayCount > 0);
 
@@ -42,10 +45,11 @@ export function MyTripPage() {
           </Card>
         </div>
       </section>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <StatCard icon={<Bookmark className="h-6 w-6" />} label="저장한 여행지" value={tripHistory.reduce((sum, trip) => sum + trip.savedCount, 0)} />
         <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={withItinerary.length} to="/my/trips" pink />
         <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={tripHistory.length} to="/my/matches" />
+        <StatCard icon={<MessageCircle className="h-6 w-6" />} label="안읽은 채팅" value={unreadTotal} to="/chat" dark />
       </div>
 
       <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}<Link to="/attractions"><Button className="mt-4">추천지 보러가기</Button></Link></Card>

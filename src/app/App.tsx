@@ -10,6 +10,8 @@ import { TtiQuestionsPage } from '../pages/tti-questions';
 import { TtiResultPage } from '../pages/tti-result';
 import { MatchesPage } from '../pages/matches';
 import { MatchDetailPage } from '../pages/match-detail';
+import { ChatListPage } from '../pages/chat';
+import { ChatRoomPage } from '../pages/chat-room';
 import { DecisionPage } from '../pages/decision';
 import { AttractionsPage } from '../pages/attractions';
 import { ItineraryPage } from '../pages/itinerary';
@@ -56,6 +58,8 @@ export function App() {
           <Route path="/tti/result" element={<RequireAuth><TtiResultPage /></RequireAuth>} />
           <Route path="/matches" element={<RequireAuth><MatchesPage /></RequireAuth>} />
           <Route path="/matches/:id" element={<RequireAuth><MatchDetailPage /></RequireAuth>} />
+          <Route path="/chat" element={<RequireAuth><ChatListPage /></RequireAuth>} />
+          <Route path="/chat/:roomId" element={<RequireAuth><ChatRoomPage /></RequireAuth>} />
           <Route path="/decision" element={<RequireAuth><DecisionPage /></RequireAuth>} />
           <Route path="/attractions" element={<RequireAuth><AttractionsPage /></RequireAuth>} />
           <Route path="/itinerary" element={<RequireAuth><ItineraryPage /></RequireAuth>} />

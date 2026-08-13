@@ -201,6 +201,73 @@ export interface TripSummary {
   createdAt?: string | null;
 }
 
+export interface ChatCounterpart {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+export interface ChatTrip {
+  id: string;
+  title?: string | null;
+  region?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+}
+
+export type ChatMessageType = 'text' | 'system' | string;
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId?: string | null;
+  sequence: number;
+  clientMessageId: string;
+  type: ChatMessageType;
+  content?: string | null;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+  deletedAt?: string | null;
+  deleted: boolean;
+  displayText?: string | null;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId: string;
+  status: 'active' | 'closed' | string;
+  counterpart: ChatCounterpart;
+  trip?: ChatTrip | null;
+  matchLevel: string;
+  recommendationScore: number;
+  currentStep?: string | null;
+  lastMessage?: ChatMessage | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessagePage {
+  items: ChatMessage[];
+  nextBeforeSequence?: number | null;
+}
+
+export interface ChatRoomPage {
+  items: ChatRoom[];
+  nextBefore?: string | null;
+}
+
+export type ChatReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'sexual_content'
+  | 'hate'
+  | 'fraud'
+  | 'personal_information'
+  | 'other';
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
