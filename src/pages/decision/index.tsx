@@ -33,11 +33,9 @@ export function DecisionPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] gradient-panel p-7 text-white shadow-[0_26px_90px_rgba(253,38,122,0.22)] md:p-10">
-        <div className="absolute -right-12 -top-14 h-72 w-72 rounded-full bg-white/18 drift-a" />
-        <div className="absolute bottom-8 right-16 hidden h-28 w-72 -rotate-6 rounded-[34px] bg-[#101114] md:block" />
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/14 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/78">
-          <Sparkles className="h-4 w-4 text-[#f5d04c]" />
+      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
+        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
+          <Sparkles className="h-4 w-4 text-accent" />
           Together Decision
         </p>
         <h1 className="relative mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
@@ -45,15 +43,15 @@ export function DecisionPage() {
           <br />
           조정하여 함께 어울릴 여행 방식을 찾아보세요.
         </h1>
-        <p className="relative mt-5 max-w-2xl text-sm font-bold leading-6 text-white/74">장소, 활동, 음식, 예산과 속도를 고르고 AI가 여행방식을 추천합니다.</p>
+        <p className="relative mt-5 max-w-2xl text-sm font-bold leading-6 text-white/68">장소, 활동, 음식, 예산과 속도를 고르고 AI가 여행방식을 추천합니다.</p>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
         <Card className="space-y-5 rounded-[24px] p-5 md:p-6">
           <div className="grid gap-2 sm:grid-cols-3">
             {['1. 취향 선택', '2. 우선순위 정리', '3. 추천 생성'].map((item) => (
-              <div key={item} className="flex items-center gap-2 rounded-xl bg-[#f5f0e9] px-3 py-2 text-sm font-black text-slate-700">
-                <CheckCircle2 className="h-4 w-4 text-[#087466]" />
+              <div key={item} className="flex items-center gap-2 rounded-xl bg-canvas px-3 py-2 text-sm font-black text-ink">
+                <CheckCircle2 className="h-4 w-4 text-accent" />
                 {item}
               </div>
             ))}
@@ -61,7 +59,7 @@ export function DecisionPage() {
           {preferenceGroups.map(({ key, title }) => (
             <div key={key}>
               <div className="mb-3 flex items-end justify-between gap-3">
-                <h2 className="text-xl font-black">{title}</h2>
+                <h2 className="text-xl font-black text-ink">{title}</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 {options[key].map((value) => {
@@ -73,9 +71,10 @@ export function DecisionPage() {
                       key={value}
                       type="button"
                       onClick={() => toggle(key, value)}
-                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 ${selected ? 'gradient-panel text-white shadow-[0_14px_34px_rgba(253,38,122,0.22)]' : 'bg-[#fbf5ee] text-slate-700'}`}
+                      aria-pressed={selected}
+                      className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 ${selected ? 'bg-accent text-white shadow-[0_14px_34px_rgba(255,90,54,0.22)]' : 'bg-canvas text-ink'}`}
                     >
-                      {selected ? <span className="grid h-5 w-5 place-items-center rounded-full bg-white/22 text-xs">{selectedIndex + 1}</span> : null}
+                      {selected ? <span className="grid h-5 w-5 place-items-center rounded-full bg-white/25 text-xs">{selectedIndex + 1}</span> : null}
                       {value}
                     </button>
                   );
@@ -83,7 +82,7 @@ export function DecisionPage() {
               </div>
             </div>
           ))}
-          <div className="space-y-4 rounded-[20px] bg-[#101114] p-4 text-white">
+          <div className="space-y-4 rounded-[20px] bg-ink p-4 text-white">
             <div>
               <h2 className="text-xl font-black">선택한 우선순위</h2>
               <p className="mt-1 text-xs font-bold leading-5 text-white/52">선택한 순서 그대로 관광지 추천과 일정 생성에 반영합니다.</p>
@@ -94,20 +93,20 @@ export function DecisionPage() {
           </div>
           <Slider label="일정 강도" value={preferences.pace} onChange={(pace) => updatePreferences({ pace })} />
           <Slider label="예산 사용 한도" value={preferences.budget} onChange={(budget) => updatePreferences({ budget })} />
-          <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm font-semibold"><span>비 예보 시 실내 우선</span><input type="checkbox" checked={preferences.indoorPreferred} onChange={(event) => updatePreferences({ indoorPreferred: event.target.checked })} /></label>
-          <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm font-semibold"><span>숨은 명소 포함</span><input type="checkbox" checked={preferences.hiddenSpots} onChange={(event) => updatePreferences({ hiddenSpots: event.target.checked })} /></label>
+          <label className="flex items-center justify-between rounded-lg bg-canvas p-3 text-sm font-semibold text-ink"><span>비 예보 시 실내 우선</span><input type="checkbox" checked={preferences.indoorPreferred} onChange={(event) => updatePreferences({ indoorPreferred: event.target.checked })} /></label>
+          <label className="flex items-center justify-between rounded-lg bg-canvas p-3 text-sm font-semibold text-ink"><span>숨은 명소 포함</span><input type="checkbox" checked={preferences.hiddenSpots} onChange={(event) => updatePreferences({ hiddenSpots: event.target.checked })} /></label>
         </Card>
         <div className="space-y-4">
-          <Card><h2 className="mb-4 text-2xl font-black">반대 성향 요소</h2><div className="flex flex-wrap gap-2">{conflicts.map((item) => <Badge key={item} className="bg-[#fff0f3] text-[#fd267a]">{item}</Badge>)}</div></Card>
-          <div className="rounded-[30px] border border-black/5 gradient-panel-alt p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
-            <Sparkles className="mb-5 h-7 w-7 text-[#f5d04c]" />
+          <Card><h2 className="mb-4 text-2xl font-black text-ink">반대 성향 요소</h2><div className="flex flex-wrap gap-2">{conflicts.map((item) => <Badge key={item}>{item}</Badge>)}</div></Card>
+          <div className="rounded-[30px] bg-ink p-5 text-white">
+            <Sparkles className="mb-5 h-7 w-7 text-accent" />
             <h2 className="text-3xl font-black tracking-[-0.03em]">AI 제안 생성</h2>
             <p className="mt-3 text-sm font-bold leading-6 text-white/72">
               {status.conflict === 'loading' ? '두 사람의 선호를 분석하는 중입니다.' : decisionSuggestion ?? '우선순위를 정리한 뒤 AI추천을 받아보세요.'}
             </p>
             <Button
               variant="secondary"
-              className="mt-5 w-full bg-white text-[#fd267a] hover:bg-white/92"
+              className="mt-5 w-full bg-white text-accent hover:bg-white/92"
               disabled={status.conflict === 'loading'}
               onClick={() => void resolveDecisionConflict(conflicts)}
             >
@@ -141,8 +140,8 @@ function SelectedOrder({ label, items, onRemove }: { label: string; items: strin
       <p className="mb-2 text-xs font-black text-white/50">{label} 우선순위</p>
       <div className="flex flex-wrap gap-2">
         {items.map((item, index) => (
-          <button key={item} type="button" onClick={() => onRemove(item)} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-[#101114]">
-            <span className="grid h-5 w-5 place-items-center rounded-full bg-[#101114] text-xs text-white">{index + 1}</span>
+          <button key={item} type="button" onClick={() => onRemove(item)} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-black text-ink">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-ink text-xs text-white">{index + 1}</span>
             {item}
             <X className="h-4 w-4 text-slate-500" />
           </button>

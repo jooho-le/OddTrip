@@ -23,12 +23,10 @@ export function SafetyPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
-        <img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-28" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_22%,rgba(245,208,76,0.48),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.48))]" />
+      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
         <div className="relative">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72">
-            <Sparkles className="h-4 w-4 text-[#f5d04c]" />
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
+            <Sparkles className="h-4 w-4 text-accent" />
             날씨와 일정 주의
           </p>
           <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
@@ -36,15 +34,15 @@ export function SafetyPage() {
             <br />
             안전하게.
           </h1>
-          <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">비, 강풍, 재난 알림처럼 일정에 영향을 줄 수 있는 상황을 한 화면에서 확인합니다.</p>
+          <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/68">비, 강풍, 재난 알림처럼 일정에 영향을 줄 수 있는 상황을 한 화면에서 확인합니다.</p>
         </div>
       </section>
       {!alerts.length ? <EmptyView label="현재 알림이 없습니다" /> : null}
-      <Card className="border-[#087466]/15 bg-[#eefaf6]">
+      <Card className="border-accent/15 bg-accent-soft">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-black">일정 조정이 필요할 때</h2>
-            <p className="mt-1 text-sm font-bold text-slate-600">비나 강풍 예보가 있으면 야외 장소를 줄이고 실내 대체 장소를 확인하세요.</p>
+            <h2 className="text-xl font-black text-ink">일정 조정이 필요할 때</h2>
+            <p className="mt-1 text-sm font-bold text-muted">비나 강풍 예보가 있으면 야외 장소를 줄이고 실내 대체 장소를 확인하세요.</p>
           </div>
           <Link to="/itinerary"><Button icon={<CalendarDays className="h-4 w-4" />}>일정으로 돌아가기</Button></Link>
         </div>

@@ -84,17 +84,15 @@ export function AttractionsPage() {
   return (
     <div className="page-canvas space-y-6">
       <section className="grid gap-4 lg:grid-cols-[1fr_390px]">
-        <div className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
-          <img src="https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-32" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(245,208,76,0.46),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.52))]" />
-          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-[#f5d04c]">추천 장소 고르기</p>
+        <div className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
+          <p className="relative text-xs font-black uppercase tracking-[0.22em] text-accent">추천 장소 고르기</p>
           <h1 className="relative mt-6 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
             둘 다 낯설지만
             <br />
             둘 다 원할 수 있는 장소
           </h1>
-          <p className="relative mt-5 max-w-xl text-sm font-bold leading-6 text-white/72">
-            두 사람의 균형점에 가까운 장소를 추천합니다. 
+          <p className="relative mt-5 max-w-xl text-sm font-bold leading-6 text-white/68">
+            두 사람의 균형점에 가까운 장소를 추천합니다.
           </p>
           <div className="mt-7 flex gap-2 overflow-x-auto no-scrollbar">
             {filters.map((item) => (
@@ -103,35 +101,35 @@ export function AttractionsPage() {
                 type="button"
                 onClick={() => setFilter(item)}
                 disabled={!filterCounts[item]}
-                className={`relative inline-flex whitespace-nowrap rounded-full px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 ${filter === item ? 'bg-white text-[#fd267a]' : 'bg-white/12 text-white/72'}`}
+                className={`relative inline-flex whitespace-nowrap rounded-full px-4 py-2 text-sm font-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35 ${filter === item ? 'bg-white text-accent' : 'bg-white/12 text-white/70'}`}
                 aria-pressed={filter === item}
               >
                 {item}
-                <span className={`ml-2 ${filter === item ? 'text-[#fd267a]/70' : 'text-white/50'}`}>{filterCounts[item]}</span>
+                <span className={`ml-2 ${filter === item ? 'text-accent/70' : 'text-white/50'}`}>{filterCounts[item]}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="gradient-panel pulse-sheen rounded-[38px] p-6 text-white shadow-[0_26px_90px_rgba(253,38,122,0.20)]">
+        <div className="rounded-[38px] bg-accent p-6 text-white shadow-[0_26px_90px_rgba(255,90,54,0.20)]">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/50">추천 과정</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-white/60">추천 과정</p>
               <h2 className="mt-2 text-2xl font-black">조건 다시 확인</h2>
             </div>
-            <Button icon={<RefreshCw className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-[#ffd45a] text-black hover:bg-[#ffd45a]/90">
+            <Button icon={<RefreshCw className="h-4 w-4" />} onClick={() => void runTravelAgent()} disabled={status.agent === 'loading'} className="bg-white text-accent hover:bg-white/90">
               {status.agent === 'loading' ? '확인 중' : '다시 보기'}
             </Button>
           </div>
           <div className="mt-5 grid grid-cols-4 gap-2">
             {(agentRun?.steps ?? ['후보 찾기', '상황 확인', '취향 맞춤', '일정 준비']).map((step, index) => (
-              <div key={typeof step === 'string' ? step : step.tool} className={`motion-card min-h-20 rounded-xl p-3 ${agentRun ? stepColor(index) : 'bg-white/12'}`} style={{ animationDelay: `${index * 90}ms` }}>
+              <div key={typeof step === 'string' ? step : step.tool} className={`motion-card min-h-20 rounded-xl p-3 ${agentRun ? 'bg-white/22' : 'bg-white/12'}`} style={{ animationDelay: `${index * 90}ms` }}>
                 <p className="text-xs font-black">{index + 1}</p>
-                <p className="mt-4 text-[11px] font-bold leading-4 text-white/80">{typeof step === 'string' ? step : toolLabel(step.tool)}</p>
+                <p className="mt-4 text-[11px] font-bold leading-4 text-white/85">{typeof step === 'string' ? step : toolLabel(step.tool)}</p>
               </div>
             ))}
           </div>
-          <p className="mt-4 text-xs font-semibold leading-5 text-white/60">
+          <p className="mt-4 text-xs font-semibold leading-5 text-white/70">
             {agentRun ? '현재 조건에 맞춰 추천 순서를 다시 정리했습니다.' : '다시 보기를 누르면 현재 취향과 일정 조건을 기준으로 추천 순서를 다시 정리합니다.'}
           </p>
         </div>
@@ -145,14 +143,14 @@ export function AttractionsPage() {
         ]}
       />
 
-      <Card className="border-[#087466]/15 bg-[#eefaf6]">
+      <Card className="border-accent/15 bg-accent-soft">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="text-xl font-black">동행의 장소 고르기</h2>
-            <p className="mt-1 text-sm font-bold text-slate-600">가고 싶은 곳은 저장하고, 부담스러운 곳은 제외한 뒤 일정을 확인하세요.</p>
+            <h2 className="text-xl font-black text-ink">동행의 장소 고르기</h2>
+            <p className="mt-1 text-sm font-bold text-muted">가고 싶은 곳은 저장하고, 부담스러운 곳은 제외한 뒤 일정을 확인하세요.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-700"><Save className="h-4 w-4 text-[#087466]" /> </span>
+            <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-black text-ink"><Save className="h-4 w-4 text-accent" /></span>
             <Link to="/itinerary" onClick={() => void loadItinerary()}><Button icon={<CalendarDays className="h-4 w-4" />}>일정 보기</Button></Link>
           </div>
         </div>
@@ -166,7 +164,7 @@ export function AttractionsPage() {
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-black text-slate-600">{filter} 기준 {filtered.length}곳</p>
+        <p className="text-sm font-black text-muted">{filter} 기준 {filtered.length}곳</p>
         {filter !== '전체' ? (
           <Button type="button" variant="secondary" onClick={() => setFilter('전체')} className="min-h-10 px-4 text-accent shadow-card">
             전체 보기
@@ -180,22 +178,22 @@ export function AttractionsPage() {
         {filtered.map((item, index) => (
           <Card key={item.id} className="motion-card hover-lift overflow-hidden p-0" style={{ animationDelay: `${index * 70}ms` }}>
             <div className="grid min-h-[220px] md:grid-cols-[180px_1fr]">
-              <div className="relative bg-[#e7edf7]">
+              <div className="relative bg-canvas">
                 <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=80'} alt={item.name} className="h-full min-h-44 w-full object-cover" />
-                <Badge className="absolute left-4 top-4 bg-[#ff5a1f] text-black">{item.saved ? '저장됨' : '추천'}</Badge>
+                <Badge className="absolute left-4 top-4 bg-accent text-white">{item.saved ? '저장됨' : '추천'}</Badge>
               </div>
               <div className="p-5">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2388ff]">{item.category}</p>
-                <h2 className="mt-2 text-2xl font-black leading-7 text-black">{item.name}</h2>
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{item.addr1 ?? item.category}</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-accent">{item.category}</p>
+                <h2 className="mt-2 text-2xl font-black leading-7 text-ink">{item.name}</h2>
+                <p className="mt-3 text-sm font-semibold leading-6 text-muted">{item.addr1 ?? item.category}</p>
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" tone="orange" />
-                  <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" tone="mint" />
-                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" tone="blue" emptyText="정보 없음" />
+                  <Metric label="혼잡" value={item.congestionScore ?? null} suffix="점" />
+                  <Metric label="숨은명소" value={item.hiddenScore ?? null} suffix="점" />
+                  <Metric label="연관" value={item.relatedRank ?? null} suffix="위" emptyText="정보 없음" />
                 </div>
-                <div className="mt-4 rounded-2xl bg-[#f6f4ec] p-3">
-                  <p className="text-xs font-black text-slate-500">장소 소개</p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">{displayPlaceIntro(item)}</p>
+                <div className="mt-4 rounded-2xl bg-canvas p-3">
+                  <p className="text-xs font-black text-muted">장소 소개</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-ink">{displayPlaceIntro(item)}</p>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Button variant="secondary" onClick={() => toggleAttraction(item.id, 'excluded')}>제외하기</Button>
@@ -223,10 +221,6 @@ function toolLabel(tool: string) {
     prepare_itinerary_generation: '일정 준비'
   };
   return labels[tool] ?? tool;
-}
-
-function stepColor(index: number) {
-  return ['bg-[#2388ff]', 'bg-[#ff5a1f]', 'bg-[#21b8a5]', 'bg-[#ffd45a] text-black'][index % 4];
 }
 
 function displayPlaceIntro(item: {
@@ -262,10 +256,10 @@ function inferPlaceDetail(name: string, category: string) {
 function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { title: string; description: string; primaryTo: string; primaryLabel: string }) {
   return (
     <Card className="space-y-4 rounded-[24px]">
-      <Sparkles className="h-6 w-6 text-[#ff5a1f]" />
+      <Sparkles className="h-6 w-6 text-accent" />
       <div>
-        <h1 className="text-2xl font-black text-black">{title}</h1>
-        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{description}</p>
+        <h1 className="text-2xl font-black text-ink">{title}</h1>
+        <p className="mt-2 text-sm font-semibold leading-6 text-muted">{description}</p>
       </div>
       <Link to={primaryTo}>
         <Button>{primaryLabel}</Button>
@@ -274,16 +268,11 @@ function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { tit
   );
 }
 
-function Metric({ label, value, suffix, tone, emptyText = '-' }: { label: string; value: number | null; suffix: string; tone: 'orange' | 'mint' | 'blue'; emptyText?: string }) {
-  const toneClass = {
-    orange: 'bg-[#ffe7d8]',
-    mint: 'bg-[#e1f8f4]',
-    blue: 'bg-[#e6f1ff]'
-  }[tone];
+function Metric({ label, value, suffix, emptyText = '-' }: { label: string; value: number | null; suffix: string; emptyText?: string }) {
   return (
-    <div className={`rounded-2xl p-3 ${toneClass}`}>
-      <p className="text-[11px] font-black text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-black text-black">{value === null ? emptyText : `${value}${suffix}`}</p>
+    <div className="rounded-2xl bg-canvas p-3">
+      <p className="text-[11px] font-black text-muted">{label}</p>
+      <p className="mt-1 text-sm font-black text-ink">{value === null ? emptyText : `${value}${suffix}`}</p>
     </div>
   );
 }
