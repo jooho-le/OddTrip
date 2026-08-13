@@ -41,6 +41,7 @@ OddTrip은 단순히 비슷한 사람을 추천하는 앱이 아닙니다. 사�
   - [🗄️ 구현 — 데이터 모델](#️-구현--데이터-모델)
   - [🧰 구현 — 기술 스택](#-구현--기술-스택)
   - [📂 구현 — 폴더 구조](#-구현--폴더-구조)
+  - [📱 구현 — 프론트엔드 화면 구성 (매칭 후)](#-구현--프론트엔드-화면-구성-매칭-후)
   - [🔌 구현 — API 구성](#-구현--api-구성)
 
 <br/>
@@ -443,6 +444,23 @@ OddTrip/
 │
 └─ tests/                플래너 단위 테스트
 ```
+
+## 📱 구현 — 프론트엔드 화면 구성 (매칭 후)
+
+매칭 성사 이후의 채팅·공동 조율·AI 추천·일정·승인·안전 플로우는 `front` 브랜치에서 구현한다. 화면은 `src/pages` 아래 도메인별 폴더로 구성하며, 색상·타이포그래피·컴포넌트는 공통 디자인 시스템(`shared/ui`) 토큰을 따른다.
+
+| 도메인 | 페이지 | 주요 구성 |
+| :-- | :-- | :-- |
+| **Chat** | `ChatListPage`, `ChatRoomPage` | 채팅방 목록(프로필·최근 메시지·안읽음), 상단 정보(TTI 유형·반대도·신고/차단), 텍스트/이미지/장소·일정 공유, 시스템 메시지, 조율 퀵 액션, 채팅 투표, 조율 카드 |
+| **Decision** | `DecisionHomePage`, `Step1SelectPage`, `WaitingPage`, `Step2AnalysisPage`, `Step3ConcessionPage`, `Step4OddRulePage` | 공동 조율 진행률, 1단계 각자 독립 선택(장소·활동·음식·운영), 상대 제출 대기, 2단계 차이 분석, 3단계 양보 범위 설정, 4단계 Odd Rule 선택 |
+| **AI Proposal** | `ProposalListPage`, `ProposalComparePage`, `ProposalDetailPage` | AI 조율안 생성 중 상태, 균형형/도전형/안정형 목록, 반영률·일정강도 비교, 조율안 상세(추천 관광지·예상 일정·투표) |
+| **Attractions** | `AttractionListPage`, `AttractionDetailPage` | 공통/개별 성향 반영 관광지 목록, 카드(저장·제외·채팅 공유·투표), 상세(운영시간·날씨·두 사람 점수) |
+| **Itinerary** | `ItineraryPage`, `ItineraryDetailPage` | 일차별 일정, 지도 동선, 이동/체류 시간, 날씨·추천 근거, 장소 상세와 변경 요청 |
+| **Approval** | `ApprovalPage` | 승인 요청 알림, 내/상대 검토 상태, 수정 요청(활동량·이동량·예산·장소 변경), 수정안 재생성, 양쪽 승인 완료 |
+| **Safety** | `SafetyPage` | 여행지 날씨, 재난·안전 알림, 우천 대체 일정, 안전 정보 공유 |
+| **My Trip (일부)** | `ChatHistoryPage`, `OngoingTripPage`, `PastTripPage`, `SavedAttractionsPage` | 진행 중/종료된 채팅, 진행 중 여행(조율 진행률·AI 조율안·승인 대기), 지난 여행, 저장한 관광지 |
+
+> 매칭 전 영역(Landing·Auth·TTI·Matching·Match Request·My Trip 일부)은 별도 담당으로 분리되어 있으며, 이 표는 `front` 브랜치에서 진행하는 매칭 후 화면 범위만을 정리한 것이다.
 
 ## 🔌 구현 — API 구성
 
