@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Clock3, Info, RefreshCw, Sparkles } from 'lucide-react';
+import { CheckCircle2, Clock3, Info, RefreshCw } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -50,13 +50,10 @@ export function ApprovalPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Approval
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">완성된 일정을 검토하고 승인해요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">Approval</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">완성된 일정을 검토하고 승인해요.</h1>
+      </header>
 
       <Card className="flex items-start gap-3 border-accent/20 bg-accent-soft text-sm font-bold text-accent">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />

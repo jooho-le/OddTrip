@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useDecisionStore } from '../../entities/decision/model/decisionStore';
 import type { ConcessionFlexibility, ConcessionImportance } from '../../entities/decision/types';
 import { Button } from '../../shared/ui/Button';
@@ -32,13 +32,10 @@ export function Step3ConcessionPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Step 3 · 양보 범위 설정
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">항목별로 얼마나 양보할 수 있는지 정해봐요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">Step 03 · 양보 범위 설정</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">항목별로 얼마나 양보할 수 있는지 정해봐요.</h1>
+      </header>
 
       {!negotiableItems.length ? (
         <EmptyView label="지금은 조율이 필요한 항목이 없어요. Step 1에서 제외 항목이나 극단적인 일정 강도를 선택하면 여기에 나타나요." />

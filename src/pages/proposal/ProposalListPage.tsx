@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Info, Sparkles } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -17,12 +17,9 @@ export function ProposalListPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          AI Proposal
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">세 가지 방식으로 다시 짜본 여행이에요.</h1>
+      <section className="rounded-[32px] bg-ink p-7 text-white md:p-9">
+        <p className="eyebrow">AI Proposal</p>
+        <h1 className="mt-3 max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-4xl">세 가지 방식으로 다시 짜본 여행이에요.</h1>
       </section>
 
       <Card className="flex items-start gap-3 border-accent/20 bg-accent-soft text-sm font-bold text-accent">

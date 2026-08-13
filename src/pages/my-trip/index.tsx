@@ -60,7 +60,7 @@ export function MyTripPage() {
 
 function StatCard({ icon, label, value, to, dark = false, pink = false }: { icon: ReactNode; label: string; value: number; to?: string; dark?: boolean; pink?: boolean }) {
   const card = (
-    <Card className={`${dark ? 'bg-[#101114] text-white' : pink ? 'gradient-panel text-white' : 'bg-white text-[#111111]'} ${to ? 'transition hover:brightness-105' : ''}`}>
+    <Card className={`${dark ? 'bg-ink text-white' : pink ? 'gradient-panel text-white' : 'bg-white text-[#111111]'} ${to ? 'transition hover:brightness-105' : ''}`}>
       {icon}
       <p className="mt-14 text-sm font-black opacity-62">{label}</p>
       <p className="mt-2 text-5xl font-black tracking-[-0.05em]">{value}</p>

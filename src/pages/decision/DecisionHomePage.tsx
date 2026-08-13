@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useDecisionStore } from '../../entities/decision/model/decisionStore';
 import { Avatar } from '../../shared/ui/Avatar';
@@ -7,6 +7,14 @@ import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { ProgressBar } from '../../shared/ui/ProgressBar';
+import { cn } from '../../shared/lib/classNames';
+
+const STEPS = [
+  { no: '01', title: '각자 독립 선택' },
+  { no: '02', title: '차이 분석' },
+  { no: '03', title: '양보 범위 설정' },
+  { no: '04', title: 'Odd Rule 선택' },
+];
 
 export function DecisionHomePage() {
   const { selectedMatch, matches, user, result } = useTripStore();
@@ -16,6 +24,7 @@ export function DecisionHomePage() {
   const hasConcessions = Object.keys(concessions).length > 0;
 
   const progress = oddRuleConfirmedAt ? 100 : oddRule ? 80 : hasConcessions ? 60 : submittedAt ? 40 : 10;
+  const currentStepIndex = oddRuleConfirmedAt ? 4 : oddRule || hasConcessions ? 3 : submittedAt ? 2 : 1;
 
   const task = oddRuleConfirmedAt
     ? { label: 'Odd Rule까지 확정했어요. 이제 AI 조율안을 확인해볼 차례예요.', to: '/proposal', cta: 'AI 조율안 보기' }
@@ -30,11 +39,21 @@ export function DecisionHomePage() {
   return (
     <div className="page-canvas space-y-5">
       <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          공동 조율 홈
-        </p>
-        <h1 className="mt-6 max-w-2xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-5xl">둘의 취향을 하나의 여행으로 조율해요.</h1>
+        <p className="eyebrow">공동 조율 홈</p>
+        <h1 className="mt-3 max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-4xl">둘의 취향을 하나의 여행으로 조율해요.</h1>
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {STEPS.map((step, index) => {
+            const stepNumber = index + 1;
+            const done = stepNumber < currentStepIndex || (stepNumber === currentStepIndex && Boolean(oddRuleConfirmedAt));
+            const active = stepNumber === currentStepIndex && !done;
+            return (
+              <div key={step.no} className={cn('rounded-2xl border p-3', done ? 'border-accent/40 bg-accent/10' : active ? 'border-white/40 bg-white/10' : 'border-white/10 bg-white/5')}>
+                <span className={cn('text-xs font-black', done || active ? 'text-accent' : 'text-white/55')}>{step.no}</span>
+                <p className={cn('mt-3 text-xs font-bold leading-4', done || active ? 'text-white' : 'text-white/60')}>{step.title}</p>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <div className="grid gap-4 md:grid-cols-[1fr_1.2fr]">

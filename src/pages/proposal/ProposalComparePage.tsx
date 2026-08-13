@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -15,13 +15,10 @@ export function ProposalComparePage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          조율안 비교
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">세 가지 안을 나란히 비교해보세요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">조율안 비교</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">세 가지 안을 나란히 비교해보세요.</h1>
+      </header>
 
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[520px] border-collapse text-sm">

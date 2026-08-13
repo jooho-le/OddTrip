@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, MessageCircle } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useDecisionStore } from '../../entities/decision/model/decisionStore';
 import { Badge } from '../../shared/ui/Badge';
@@ -22,13 +22,10 @@ export function Step2AnalysisPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Step 2 · 차이 분석
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">내 선택과 상대 성향 차이를 살펴봐요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">Step 02 · 차이 분석</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">내 선택과 상대 성향 차이를 살펴봐요.</h1>
+      </header>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="space-y-3">

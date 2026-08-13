@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudSun, Grid3X3, Route, Share2, Sparkles } from 'lucide-react';
+import { CloudSun, Grid3X3, Route, Share2 } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { MapView } from '../../widgets/MapView';
 import { Badge } from '../../shared/ui/Badge';
@@ -34,16 +34,13 @@ export function ItineraryPage() {
       <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
         <div className="relative grid gap-8 md:grid-cols-[1fr_300px] md:items-end">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-              <Sparkles className="h-4 w-4 text-accent" />
-              AI Itinerary
-            </p>
-            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
+            <p className="eyebrow">Itinerary</p>
+            <h1 className="mt-3 max-w-4xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">
               3일간의 낯선 동행 여행을
               <br />
               OddTrip의 추천으로.
             </h1>
-            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/68">장소, 이동, 식사, 휴식을 시간대별로 분리해서 보여줍니다.</p>
+            <p className="mt-4 max-w-2xl text-sm font-bold leading-6 text-white/68">장소, 이동, 식사, 휴식을 시간대별로 분리해서 보여줍니다.</p>
           </div>
           <div className="motion-card rounded-[34px] bg-white p-6 text-ink">
             <Route className="h-7 w-7 text-accent" />

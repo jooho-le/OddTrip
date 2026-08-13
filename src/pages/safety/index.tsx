@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AlertTriangle, CalendarDays, Info, ShieldCheck, Siren, Sparkles } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Info, ShieldCheck, Siren } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Button } from '../../shared/ui/Button';
@@ -23,19 +23,10 @@ export function SafetyPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <div className="relative">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-            <Sparkles className="h-4 w-4 text-accent" />
-            날씨와 일정 주의
-          </p>
-          <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
-            동행의 여행을
-            <br />
-            안전하게.
-          </h1>
-          <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/68">비, 강풍, 재난 알림처럼 일정에 영향을 줄 수 있는 상황을 한 화면에서 확인합니다.</p>
-        </div>
+      <section className="rounded-[32px] bg-ink p-7 text-white md:p-9">
+        <p className="eyebrow">날씨와 일정 주의</p>
+        <h1 className="mt-3 max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-4xl">동행의 여행을 안전하게.</h1>
+        <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-white/68">비, 강풍, 재난 알림처럼 일정에 영향을 줄 수 있는 상황을 한 화면에서 확인합니다.</p>
       </section>
       {!alerts.length ? <EmptyView label="현재 알림이 없습니다" /> : null}
       <Card className="border-accent/15 bg-accent-soft">

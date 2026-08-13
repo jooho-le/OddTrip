@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircle, Sparkles } from 'lucide-react';
+import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { useDecisionStore } from '../../entities/decision/model/decisionStore';
 import { ODD_RULES } from '../../entities/decision/types';
 import { Button } from '../../shared/ui/Button';
@@ -20,13 +20,10 @@ export function Step4OddRulePage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Step 4 · Odd Rule 선택
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">둘의 취향을 어떤 방식으로 섞을지 정해요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">Step 04 · Odd Rule 선택</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">둘의 취향을 어떤 방식으로 섞을지 정해요.</h1>
+      </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {ODD_RULES.map((rule) => {

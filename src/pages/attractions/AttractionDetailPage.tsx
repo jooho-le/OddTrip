@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { Bookmark, Clock, MapPin, Phone, ShieldAlert, Sparkles, Users } from 'lucide-react';
+import { Bookmark, Clock, MapPin, Phone, ShieldAlert, Users } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { MapView } from '../../widgets/MapView';
 import { Badge } from '../../shared/ui/Badge';
@@ -32,14 +32,18 @@ export function AttractionDetailPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink text-white">
-        <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1200&q=86'} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
-        <div className="relative p-7 md:p-10">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72"><Sparkles className="h-4 w-4 text-accent" />{item.category}</p>
-          <h1 className="mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">{item.name}</h1>
-          {item.addr1 ? <p className="mt-4 flex items-center gap-2 text-sm font-bold text-white/70"><MapPin className="h-4 w-4" />{item.addr1} {item.addr2 ?? ''}</p> : null}
+      <header className="grid gap-4 md:grid-cols-[1fr_260px] md:items-start">
+        <div>
+          <p className="eyebrow">{item.category}</p>
+          <h1 className="mt-2 text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">{item.name}</h1>
+          {item.addr1 ? <p className="mt-3 flex items-center gap-2 text-sm font-bold text-muted"><MapPin className="h-4 w-4" />{item.addr1} {item.addr2 ?? ''}</p> : null}
         </div>
-      </section>
+        <img
+          src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=86'}
+          alt=""
+          className="h-40 w-full rounded-2xl object-cover md:h-32"
+        />
+      </header>
 
       <Card className="space-y-3">
         <div className="flex flex-wrap gap-2">

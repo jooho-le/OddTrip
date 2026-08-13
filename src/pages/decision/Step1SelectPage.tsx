@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Save, Sparkles, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Save, X } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useDecisionStore } from '../../entities/decision/model/decisionStore';
 import { Button } from '../../shared/ui/Button';
@@ -49,15 +49,12 @@ export function Step1SelectPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Step 1 · 각자 독립 선택
-        </p>
-        <h1 className="relative mt-6 max-w-3xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-6xl">
+      <header>
+        <p className="eyebrow">Step 01 · 각자 독립 선택</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">
           다른 사람 눈치 보지 말고, 내가 원하는 여행을 먼저 골라보세요.
         </h1>
-      </section>
+      </header>
 
       {submittedAt ? (
         <Card className="border-accent/20 bg-accent-soft text-sm font-bold text-accent">

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Clock, Sparkles } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { GoogleMap } from '../../features/map/GoogleMap';
 import { Badge } from '../../shared/ui/Badge';
@@ -24,14 +24,11 @@ export function ItineraryDetailPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <Sparkles className="h-4 w-4 text-accent" />
-          Itinerary Detail
-        </p>
-        <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">{item.title}</h1>
-        <p className="mt-5 text-sm font-bold text-white/68">{item.location} · {item.duration}</p>
-      </section>
+      <header>
+        <p className="eyebrow">Itinerary Detail</p>
+        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">{item.title}</h1>
+        <p className="mt-2 text-sm font-bold text-muted">{item.location} · {item.duration}</p>
+      </header>
       <Card className="space-y-4">
         <div className="flex flex-wrap gap-2"><Badge>{item.time}</Badge>{item.moveTime ? <Badge className="bg-ink text-white">이동 {item.moveTime}</Badge> : null}</div>
         <p className="text-sm font-bold leading-6 text-ink">{item.description}</p>

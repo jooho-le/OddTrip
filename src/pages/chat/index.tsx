@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EyeOff, MessageCircleMore, MessagesSquare } from 'lucide-react';
+import { EyeOff, MessageCircleMore } from 'lucide-react';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Badge } from '../../shared/ui/Badge';
@@ -53,11 +53,8 @@ export function ChatListPage() {
   return (
     <div className="page-canvas space-y-5">
       <section className="rounded-[32px] bg-ink p-7 text-white md:p-9">
-        <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-          <MessagesSquare className="h-4 w-4 text-accent" />
-          Chat
-        </p>
-        <h1 className="mt-6 max-w-2xl text-4xl font-black leading-tight tracking-[-0.03em] md:text-5xl">매칭된 상대와 대화하며 여행을 조율해요.</h1>
+        <p className="eyebrow">Chat</p>
+        <h1 className="mt-3 max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-4xl">매칭된 상대와 대화하며 여행을 조율해요.</h1>
         <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-white/68">채팅방에서 선호를 나누고, 장소와 일정을 함께 정할 수 있어요.</p>
       </section>
 

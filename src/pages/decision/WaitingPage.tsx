@@ -15,9 +15,10 @@ export function WaitingPage() {
 
   return (
     <div className="page-canvas space-y-5">
-      <section className="rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <h1 className="text-4xl font-black leading-tight tracking-[-0.03em] md:text-5xl">상대 선택을 기다리는 중이에요.</h1>
-      </section>
+      <header>
+        <p className="eyebrow">상대 선택 대기</p>
+        <h1 className="mt-2 text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">상대 선택을 기다리는 중이에요.</h1>
+      </header>
 
       <Card className="space-y-4">
         <div className="flex items-center gap-3 rounded-2xl bg-accent-soft p-4">

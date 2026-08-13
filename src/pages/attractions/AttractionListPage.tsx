@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarDays, Map, RefreshCw, Save, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, Compass, Map, RefreshCw, Save } from 'lucide-react';
 import { CardNewsRail } from '../../shared/ui/CardNewsRail';
 import { GoogleMap } from '../../features/map/GoogleMap';
 import { useTripStore } from '../../entities/trip/model/tripStore';
@@ -260,7 +260,7 @@ function inferPlaceDetail(name: string, category: string) {
 function PrerequisiteCard({ title, description, primaryTo, primaryLabel }: { title: string; description: string; primaryTo: string; primaryLabel: string }) {
   return (
     <Card className="space-y-4 rounded-[24px]">
-      <Sparkles className="h-6 w-6 text-accent" />
+      <Compass className="h-6 w-6 text-accent" />
       <div>
         <h1 className="text-2xl font-black text-ink">{title}</h1>
         <p className="mt-2 text-sm font-semibold leading-6 text-muted">{description}</p>
