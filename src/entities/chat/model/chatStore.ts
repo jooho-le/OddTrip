@@ -19,7 +19,7 @@ interface ChatState {
   socket: WebSocket | null;
   socketRefCount: number;
 
-  loadRooms: (status?: 'active' | 'closed') => Promise<void>;
+  loadRooms: (status?: 'active' | 'closed', options?: { more?: boolean }) => Promise<void>;
   loadRoom: (roomId: string) => Promise<ChatRoom | undefined>;
   loadMessages: (roomId: string, options?: { more?: boolean }) => Promise<void>;
   sendMessage: (roomId: string, content: string) => Promise<void>;
@@ -29,6 +29,7 @@ interface ChatState {
   hideRoom: (roomId: string) => Promise<void>;
   loadUnreadCount: () => Promise<void>;
   setActiveRoom: (roomId: string | undefined) => void;
+  clearError: () => void;
   connectSocket: () => void;
   disconnectSocket: () => void;
 }
@@ -44,11 +45,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   socket: null,
   socketRefCount: 0,
 
-  async loadRooms(status) {
+  async loadRooms(status, options = {}) {
+    const { more = false } = options;
+    const before = more ? get().roomsNextBefore ?? undefined : undefined;
     set({ roomsStatus: 'loading', error: undefined });
     try {
-      const response = await chatService.getRooms({ status, limit: 30 });
-      set({ rooms: response.data.items, roomsNextBefore: response.data.nextBefore, roomsStatus: 'success' });
+      const response = await chatService.getRooms({ status, before, limit: 30 });
+      set((state) => ({
+        rooms: more ? [...state.rooms, ...response.data.items] : response.data.items,
+        roomsNextBefore: response.data.nextBefore,
+        roomsStatus: 'success',
+      }));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : '채팅방 목록을 불러오지 못했습니다.', roomsStatus: 'error' });
     }
@@ -197,6 +204,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ activeRoomId: roomId });
   },
 
+  clearError() {
+    set({ error: undefined });
+  },
+
   connectSocket() {
     const state = get();
     set({ socketRefCount: state.socketRefCount + 1 });
@@ -235,7 +246,7 @@ function handleSocketEvent(
   set: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void,
   get: () => ChatState,
 ) {
-  if (event.event === 'message.created') {
+  if (event.event === 'message.created' || event.event === 'system.created') {
     const message = event.data;
     const state = get();
     const isActive = state.activeRoomId === message.roomId;
@@ -276,6 +287,27 @@ function handleSocketEvent(
 
   if (event.event === 'room.created') {
     void get().loadRooms();
+    return;
+  }
+
+  if (event.event === 'room.closed') {
+    const { roomId } = event.data;
+    set((current) => ({ rooms: current.rooms.map((room) => (room.id === roomId ? { ...room, status: 'closed' } : room)) }));
+    if (get().activeRoomId === roomId) void get().loadMessages(roomId);
+    return;
+  }
+
+  if (event.event === 'match.ended') {
+    const { matchId, roomId } = event.data;
+    set((current) => ({ rooms: current.rooms.map((room) => (room.matchId === matchId ? { ...room, status: 'closed' } : room)) }));
+    const closedRoomId = roomId ?? get().rooms.find((room) => room.matchId === matchId)?.id;
+    if (closedRoomId && get().activeRoomId === closedRoomId) void get().loadMessages(closedRoomId);
+    return;
+  }
+
+  if (event.event === 'user.blocked') {
+    const { matchId } = event.data;
+    set((current) => ({ rooms: current.rooms.map((room) => (room.matchId === matchId ? { ...room, status: 'closed' } : room)) }));
   }
 }
 

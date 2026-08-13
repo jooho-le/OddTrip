@@ -75,8 +75,10 @@ export function buildChatSocketUrl(): string | null {
 export type ChatSocketEvent =
   | { event: 'message.created'; data: ChatMessage }
   | { event: 'message.deleted'; data: ChatMessage }
+  | { event: 'system.created'; data: ChatMessage }
   | { event: 'room.read'; data: { roomId: string; userId: string; lastReadSequence: number } }
   | { event: 'room.created'; data: unknown }
-  | { event: 'match.ended'; data: unknown }
-  | { event: 'user.blocked'; data: unknown }
+  | { event: 'room.closed'; data: { roomId: string; closedAt?: string } }
+  | { event: 'match.ended'; data: { matchId: string; roomId: string | null; status: string; endedAt: string } }
+  | { event: 'user.blocked'; data: { matchId: string } }
   | { event: 'pong'; data?: undefined };

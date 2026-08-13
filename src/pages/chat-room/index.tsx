@@ -34,6 +34,7 @@ export function ChatRoomPage() {
     messagesStatus,
     messagesNextBefore,
     counterpartRead,
+    error,
     loadRoom,
     loadMessages,
     sendMessage,
@@ -41,6 +42,7 @@ export function ChatRoomPage() {
     reportMessage,
     markRead,
     setActiveRoom,
+    clearError,
     connectSocket,
     disconnectSocket,
   } = useChatStore();
@@ -75,6 +77,12 @@ export function ChatRoomPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!error) return;
+    showToast(error, 'info');
+    clearError();
+  }, [error, showToast, clearError]);
 
   if (!roomId) return <Navigate to="/chat" replace />;
   if (status === 'error' && !messages.length) return <ErrorView label="채팅방을 불러오지 못했습니다" />;
@@ -161,7 +169,7 @@ export function ChatRoomPage() {
           return (
             <div key={message.id} className={cn('flex items-end gap-2', isMine ? 'flex-row-reverse' : 'flex-row')}>
               <div className={cn('group max-w-[75%] rounded-3xl px-4 py-2.5 text-sm font-semibold leading-6', isMine ? 'bg-accent text-white' : 'border border-line bg-white text-ink')}>
-                {message.deleted ? <span className="italic opacity-70">삭제된 메시지입니다.</span> : message.content}
+                {message.deleted ? <span className="italic opacity-70">{message.displayText ?? '삭제된 메시지입니다.'}</span> : message.content}
                 {!message.deleted && !isMine ? (
                   <button
                     type="button"
