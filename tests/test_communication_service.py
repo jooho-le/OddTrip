@@ -58,6 +58,7 @@ async def _test_match_request_acceptance_provisions_chat_and_trip() -> None:
         accepted, match = await communication_service.accept_match_request(db, request.id, receiver)
 
         assert accepted.match_id == match.id
+        assert accepted.user_ids == [requester.id, receiver.id]
         assert match.status == "active"
         assert match.user_tti_code_snapshot == requester.tti_code
         assert match.matched_user_tti_code_snapshot == receiver.tti_code
@@ -208,6 +209,7 @@ def test_communication_routes_are_registered() -> None:
     assert ("/api/match-requests", "POST") in routes
     assert ("/api/match-requests/{request_id}/accept", "POST") in routes
     assert ("/api/matches/{match_id}/end", "POST") in routes
+    assert ("/api/me/matches/{match_id}", "DELETE") in routes
     assert ("/api/users/{user_id}/block", "POST") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}", "DELETE") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}/reports", "POST") in routes

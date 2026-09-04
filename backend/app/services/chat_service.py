@@ -452,6 +452,18 @@ async def build_room_out(db: AsyncSession, room: ChatRoom, match: Match, user_id
         trip=ChatTripOut.model_validate(trip) if trip else None,
         match_level=match.match_level,
         recommendation_score=match.recommendation_score,
+        my_tti_code_snapshot=(
+            match.user_tti_code_snapshot
+            if match.user_id == user_id
+            else match.matched_user_tti_code_snapshot
+        ),
+        counterpart_tti_code_snapshot=(
+            match.matched_user_tti_code_snapshot
+            if match.user_id == user_id
+            else match.user_tti_code_snapshot
+        ),
+        differences=match.differences_json or [],
+        complements=match.complements_json or [],
         current_step=trip.status if trip else None,
         last_message=message_to_out(last_message) if last_message else None,
         unread_count=int(unread.scalar_one()),
