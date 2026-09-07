@@ -30,9 +30,8 @@ export function Step1SelectPage() {
       <article className="paper">
         <header className="paper-head"><h1>공동 선호 조사서</h1><p>ODDTRIP FORM 02 · SHARED PREFERENCE</p></header>
         <div className="paper-body">
-          <p className="paper-note">독립 선택 화면의 정보 구조를 유지하되, 현재 서버는 개인별 답안을 분리하지 않습니다. 아래 응답은 여행 단위의 <b>공동 선호</b>로 저장됩니다.</p>
-          <div className="document-lock"><b>저장 범위 안내</b><br />상대에게 숨겨진 개인 답안이나 양쪽 제출 상태는 저장되지 않습니다. 공동 선호 API가 지원하는 항목만 전송합니다.</div>
-          <div className="info-table"><span className="label">작성자</span><span>{user?.nickname ?? '여행자'}</span><span className="label">문서 범위</span><span>공동 선호</span><span className="label">저장 위치</span><span>현재 여행</span><span className="label">연결 상태</span><span>API 연결</span></div>
+          <p className="paper-note">둘이 함께 원하는 장소와 활동, 음식 취향을 한 문서로 정리합니다. 아래 응답은 현재 여행의 <b>공동 선호</b>로 저장됩니다.</p>
+          <div className="info-table"><span className="label">작성자</span><span>{user?.nickname ?? '여행자'}</span><span className="label">문서 범위</span><span>공동 선호</span><span className="label">저장 위치</span><span>현재 여행</span><span className="label">작성 상태</span><span>{status.preferences === 'success' ? '저장됨' : '작성 중'}</span></div>
           <h2 className="form-section-title">1. 장소 분위기</h2><ChoiceList values={choices.places} selected={preferences.places} busy={status.trip === 'loading'} onToggle={(value) => toggle('places', value)} />
           <h2 className="form-section-title">2. 활동 방식</h2><ChoiceList values={choices.activities} selected={preferences.activities} busy={status.trip === 'loading'} onToggle={(value) => toggle('activities', value)} />
           <h2 className="form-section-title">3. 음식 취향</h2><ChoiceList values={choices.foods} selected={preferences.foods} busy={status.trip === 'loading'} onToggle={(value) => toggle('foods', value)} />
@@ -44,7 +43,7 @@ export function Step1SelectPage() {
           <div className="sign"><span>작성일 {new Date().toLocaleDateString('ko-KR')}</span><span>공동 선호 문서</span></div>
         </div>
       </article>
-      <div className="form-actions"><button onClick={() => navigate('/decision')}>나가기</button><span className="hint">{status.trip === 'loading' ? '기존 공동 선호를 불러오는 중입니다.' : status.preferences === 'success' ? '서버에 저장되었습니다.' : '공동 선호 API에 저장됩니다.'}</span><button className="submit ready" disabled={status.trip === 'loading' || status.preferences === 'loading'} aria-busy={status.trip === 'loading' || status.preferences === 'loading'} onClick={() => void save()}>{status.trip === 'loading' ? '불러오는 중…' : status.preferences === 'loading' ? '저장 중…' : '저장하고 분석 보기'}</button></div>
+      <div className="form-actions"><button onClick={() => navigate('/trip/overview')}>나가기</button><span className="hint">{status.trip === 'loading' ? '기존 공동 선호를 불러오는 중입니다.' : status.preferences === 'success' ? '현재 여행에 저장되었습니다.' : '작성한 내용은 현재 여행에 저장됩니다.'}</span><button className="submit ready" disabled={status.trip === 'loading' || status.preferences === 'loading'} aria-busy={status.trip === 'loading' || status.preferences === 'loading'} onClick={() => void save()}>{status.trip === 'loading' ? '불러오는 중…' : status.preferences === 'loading' ? '저장 중…' : '저장하고 분석 보기'}</button></div>
     </main>
   );
 }

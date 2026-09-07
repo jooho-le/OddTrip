@@ -29,7 +29,7 @@ export function MatchesPage() {
 
   return (
     <main className="page"><div className="container">
-      <header className="page-heading"><div><h1>동행 찾기</h1><p>현재 TTI 결과와 백엔드 추천으로 후보를 불러옵니다.</p></div></header>
+      <header className="page-heading"><div><h1>동행 찾기</h1><p>내 여행 성향을 새로운 방향으로 넓혀줄 사람을 추천합니다.</p></div></header>
       <div className="filter-row" role="tablist">{([['candidates', '추천 후보'], ['received', '받은 요청'], ['sent', '보낸 요청']] as const).map(([key, label]) => <button key={key} className={tab === key ? 'on' : ''} onClick={() => setParams(key === 'candidates' ? {} : { tab: key })} role="tab" aria-selected={tab === key}>{label}<span className="tab-count">{counts[key]}</span></button>)}</div>
       {error || requests.error ? <div className="error-strip" role="alert"><span>{requests.error ?? error}</span><button onClick={() => { void requests.load(); if (user?.ttiCode) void loadMatches(); }}>다시 시도</button></div> : null}
 
@@ -37,7 +37,7 @@ export function MatchesPage() {
         !user?.ttiCode ? <Empty title="TTI 진단이 먼저 필요합니다." copy="저장된 여행 성향이 있어야 추천 후보를 계산할 수 있습니다." action={<Link className="solid-btn" to="/tti/start">TTI 시작</Link>} />
           : status.matches === 'loading' ? <LoadingRows />
           : matches.length ? <section className="mate-grid">{[...matches].sort((a, b) => b.recommendationScore - a.recommendationScore).map((candidate) => <article className="mate-card" key={candidate.id}>{candidate.avatarUrl ? <img src={candidate.avatarUrl} alt="" /> : <CandidateInitial name={candidate.nickname} />}<div className="mate-card-body"><small>{candidate.ttiCode} · {candidate.matchLevel} · 추천 {candidate.recommendationScore}%</small><h2>{candidate.nickname}의 여행 방식</h2><p>{candidate.summary}</p><Link className="line-btn accent" to={`/matches/${candidate.id}`}>상세 비교</Link></div></article>)}</section>
-          : <Empty title="현재 추천 후보가 없습니다." copy="조건에 맞는 사용자가 생기면 이곳에 표시됩니다. 정적 후보로 채우지 않습니다." />
+          : <Empty title="현재 추천 후보가 없습니다." copy="조건에 맞는 새로운 여행자가 생기면 이곳에 표시됩니다." />
       ) : null}
 
       {tab === 'received' ? requests.status === 'loading' ? <LoadingRows /> : requests.received.length ? <RequestList items={requests.received} direction="received" busyId={requests.actionId} onAccept={(id) => void accept(id)} onReject={(id) => void requests.reject(id)} /> : <Empty title="받은 동행 요청이 없습니다." copy="새 요청이 도착하면 수락하거나 거절할 수 있습니다." /> : null}

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function ItineraryPage() {
   const { itinerary, loadItinerary, regenerateItinerary, status, error, activeTripId, tripHistory } = useTripStore();
   const [day, setDay] = useState(1);
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
   useEffect(() => { void loadItinerary(); }, [loadItinerary]);
   useEffect(() => {
@@ -27,17 +29,17 @@ export function ItineraryPage() {
         <section>
           <div className="section-title">
             <h2>공동 일정</h2>
-            <p>현재 여행의 일정 API 결과입니다.</p>
+            <p>저장한 장소와 공동 선호로 구성한 일정입니다.</p>
             <button className="line-btn right" disabled={status.itinerary === 'loading'} onClick={() => void regenerateItinerary()}>{status.itinerary === 'loading' ? '일정 처리 중…' : '일정 다시 생성'}</button>
           </div>
           {error && status.itinerary === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadItinerary()}>다시 시도</button></div> : null}
-          {hasRegionMismatch ? <div className="backend-wait itinerary-region-warning" role="alert"><h3>지역 불일치 · 일정 사용 중지</h3><p>{activeTrip?.region ?? '현재 여행'} 일정에 {foreignRegions.join('·')} 지역으로 표시된 항목이 포함되어 있습니다. 이 응답은 비교용 DEMO로만 표시하며 실제 일정의 승인·공유 대상으로 사용하지 않습니다.</p></div> : null}
-          {status.itinerary === 'loading' && !itinerary.length ? <div className="skeleton-stack" role="status" aria-label="일정 API 응답을 기다리는 중"><div className="skeleton-row" /><div className="skeleton-row" /></div> : null}
+          {hasRegionMismatch ? <div className="backend-wait itinerary-region-warning" role="alert"><h3>지역이 다른 항목을 확인해 주세요.</h3><p>{activeTrip?.region ?? '현재 여행'} 일정에 {foreignRegions.join('·')} 지역으로 표시된 항목이 포함되어 있어 승인과 공유를 잠시 중지했습니다.</p></div> : null}
+          {status.itinerary === 'loading' && !itinerary.length ? <div className="skeleton-stack" role="status" aria-label="일정을 불러오는 중"><div className="skeleton-row" /><div className="skeleton-row" /></div> : null}
           {itinerary.length ? (
             <>
               <div className="day-tabs">
                 {itinerary.map((item) => <button className={day === item.day ? 'on' : ''} key={item.day} onClick={() => setDay(item.day)}>{item.day}일차</button>)}
-                <button disabled>지도·동선 · 준비 중</button>
+                <button type="button" onClick={() => showComingSoon('지도와 이동 동선')}>지도·동선</button>
               </div>
               <div className="day-list">
                 {selected?.items.map((item) => (
@@ -48,7 +50,7 @@ export function ItineraryPage() {
                       <h3><Link to={'/itinerary/' + item.id}>{item.title}</Link></h3>
                       <p>{item.description || item.location || '설명 미제공'}</p>
                       <small>{item.duration}{item.moveTime ? ' · 이동 ' + item.moveTime : ''} · {item.location || '위치 미제공'}</small>
-                      <span className="source-label">{findForeignRegions(activeTrip?.region, [item.title, item.location, item.address ?? '']).length ? 'DEMO · 지역 불일치 · 일정 API 응답' : '출처 미제공 · 일정 API 응답'}</span>
+                      <span className="source-label">{findForeignRegions(activeTrip?.region, [item.title, item.location, item.address ?? '']).length ? '지역 불일치 · 출처 미제공' : '출처 미제공'}</span>
                     </div>
                   </div>
                 ))}
@@ -57,26 +59,26 @@ export function ItineraryPage() {
           ) : status.itinerary !== 'loading' ? (
             <div className="empty-state itinerary-empty">
               <strong>생성된 일정이 없습니다.</strong>
-              <p>저장한 관광지와 공동 선호를 바탕으로 일정 생성 API를 실행할 수 있습니다.</p>
+              <p>저장한 관광지와 공동 선호를 바탕으로 새 일정을 만들 수 있습니다.</p>
               <button className="solid-btn" onClick={() => void regenerateItinerary()}>일정 생성</button>
             </div>
           ) : null}
         </section>
         <aside>
           <div className="approval-box">
-            <div className="side-head">일정 승인 <span>{hasRegionMismatch ? '지역 불일치 · 승인 불가' : 'API 연결 대기'}</span></div>
+            <div className="side-head">일정 확인 <span>{hasRegionMismatch ? '확인 필요' : '함께 검토'}</span></div>
             <div className="approval-body">
-              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>나</span><b>내 승인</b><span style={{ color: '#999' }}>미저장</span></div>
-              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#eee' }}>?</span><b>동행 승인</b><span style={{ color: '#999' }}>조회 불가</span></div>
-              <Link className="line-btn" style={{ display: 'block', width: '100%', marginTop: 13, textAlign: 'center' }} to="/approval">승인 화면 보기</Link>
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>나</span><b>내 확인</b><span style={{ color: '#999' }}>검토 전</span></div>
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#eee' }}>?</span><b>동행 확인</b><span style={{ color: '#999' }}>검토 전</span></div>
+              <Link className="line-btn" style={{ display: 'block', width: '100%', marginTop: 13, textAlign: 'center' }} to="/approval">승인 안내 보기</Link>
             </div>
           </div>
-          <div className="weather-card"><h3>안전 정보</h3><p>날씨·안전 API 응답은 별도 화면에서 확인합니다. 이곳에 정적 예보를 표시하지 않습니다.</p><Link className="text-link" style={{ display: 'inline-block', marginTop: 10 }} to="/safety">안전 정보 열기 →</Link></div>
+          <div className="weather-card"><h3>안전 정보</h3><p>여행 지역과 일정에 관련된 주의사항을 별도 화면에서 확인합니다.</p><Link className="text-link" style={{ display: 'inline-block', marginTop: 10 }} to="/safety">안전 정보 열기 →</Link></div>
         </aside>
       </div>
       <div className="workflow-cta">
-        <p><b>일정 생성은 실제 API에 연결됩니다.</b>일정 항목의 원천 출처는 현재 응답에 없으며, 공유·버전 관리·양쪽 승인·수정 요청은 성공 상태를 만들지 않습니다.</p>
-        <div className="button-row"><button className="line-btn unsupported-button" disabled>일정 공유 · 연결 대기</button><Link className="solid-btn" to="/approval">승인 범위 확인</Link></div>
+        <p><b>일정을 다시 만들기 전에 저장 장소를 확인해 주세요.</b>현재 일정 항목에는 원천 출처가 제공되지 않았습니다.</p>
+        <div className="button-row"><button className="line-btn" type="button" onClick={() => showComingSoon('일정 공유')}>일정 공유</button><Link className="solid-btn" to="/approval">일정 승인</Link></div>
       </div>
     </TripWorkspaceShell>
   );

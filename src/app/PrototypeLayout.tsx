@@ -1,68 +1,57 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useProtoStore } from '../features/prototype/protoStore';
-import { img } from '../features/prototype/protoData';
+import { useChatStore } from '../entities/chat/model/chatStore';
 import { useTripStore } from '../entities/trip/model/tripStore';
+import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
 
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
   { to: '/matches', label: '동행 찾기', match: ['/matches'] },
-  { to: '/my', label: '내 여행', match: ['/my', '/trip'] }
+  { to: '/my', label: '내 여행', match: ['/my', '/trip', '/decision', '/proposal', '/attractions', '/itinerary', '/safety', '/approval'] },
 ];
 
 export function PrototypeLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const user = useTripStore((state) => state.user);
+  const logout = useTripStore((state) => state.logout);
+  const unreadTotal = useChatStore((state) => state.unreadTotal);
+  const loadUnreadCount = useChatStore((state) => state.loadUnreadCount);
+  const connectSocket = useChatStore((state) => state.connectSocket);
+  const disconnectSocket = useChatStore((state) => state.disconnectSocket);
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
-  const chatOpen = useProtoStore((s) => s.chatOpen);
-  const setChatOpen = useProtoStore((s) => s.setChatOpen);
-  const messages = useProtoStore((s) => s.messages);
-  const sendMessage = useProtoStore((s) => s.sendMessage);
-  const toastMessage = useProtoStore((s) => s.toastMessage);
-  const toast = useProtoStore((s) => s.toast);
+  useEffect(() => {
+    void loadUnreadCount();
+    connectSocket();
+    return () => disconnectSocket();
+  }, [loadUnreadCount, connectSocket, disconnectSocket]);
 
-  const user = useTripStore((s) => s.user);
-  const logout = useTripStore((s) => s.logout);
+  useEffect(() => { setProfileOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!profileOpen) return;
+    const close = () => setProfileOpen(false);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [profileOpen]);
 
-  // 세션(스토어 + localStorage 토큰)을 실제로 비운 뒤 인트로로 돌아갑니다.
   const signOut = () => {
     logout();
     setProfileOpen(false);
     navigate('/', { replace: true });
   };
 
-  useEffect(() => { setProfileOpen(false); }, [location.pathname]);
-
-  useEffect(() => {
-    document.body.classList.toggle('no-scroll', chatOpen);
-    return () => document.body.classList.remove('no-scroll');
-  }, [chatOpen]);
-
-  useEffect(() => {
-    const node = messagesRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [messages]);
-
-  const send = () => {
-    const value = inputRef.current?.value.trim();
-    if (!value || !inputRef.current) return;
-    sendMessage(value);
-    inputRef.current.value = '';
-  };
+  const nickname = user?.nickname ?? '여행자';
 
   return (
     <>
       <div id="appShell">
         <div className="utility-bar">
           <div className="utility-inner">
-            <Link className="intro-return" to="/">OddTrip 소개</Link>
-            <span>도움말</span>
-            {user
-              ? <button type="button" className="intro-return" onClick={signOut}>로그아웃</button>
-              : <button type="button" className="intro-return" onClick={() => navigate('/auth')}>로그인</button>}
+            <Link className="intro-return" to="/about">OddTrip 소개</Link>
+            <button type="button" className="intro-return" onClick={() => showComingSoon('도움말')}>도움말</button>
+            <button type="button" className="intro-return" onClick={signOut}>로그아웃</button>
           </div>
         </div>
         <header className="header">
@@ -80,10 +69,22 @@ export function PrototypeLayout() {
               ))}
             </nav>
             <div className="header-tools">
-              <button type="button" className="round-btn" aria-label="채팅 열기" onClick={() => setChatOpen(true)}>💬︎<span className="tool-dot"></span></button>
-              <button type="button" className="round-btn" aria-label="알림 보기" onClick={() => toast('새 알림 2개 · 지우님 제출 완료, 부산 비 소식')}>🔔︎<span className="tool-dot"></span></button>
-              <button type="button" className="profile-btn" onClick={(event) => { event.stopPropagation(); setProfileOpen((open) => !open); }}>
-                <img src={img('photo-1494790108377-be9c29b29330', 120, 80)} alt="은진" /><span>은진</span>⌄
+              <button type="button" className="round-btn" aria-label={unreadTotal ? `채팅 열기, 읽지 않은 메시지 ${unreadTotal}개` : '채팅 열기'} onClick={() => navigate('/chat')}>
+                💬︎{unreadTotal > 0 ? <span className="tool-count">{unreadTotal > 99 ? '99+' : unreadTotal}</span> : null}
+              </button>
+              <button
+                type="button"
+                className="round-btn"
+                aria-label="알림 기능 안내"
+                onClick={() => showComingSoon('여행 알림', '여행 단계와 날씨를 알려주는 서버 알림은 현재 준비 중인 기능입니다. 채팅의 읽지 않은 메시지는 채팅 버튼에서 별도로 확인할 수 있습니다.')}
+              >
+                🔔︎
+              </button>
+              <button type="button" className="profile-btn" aria-expanded={profileOpen} onClick={(event) => { event.stopPropagation(); setProfileOpen((open) => !open); }}>
+                {user?.avatarUrl
+                  ? <img src={user.avatarUrl} alt="" />
+                  : <span className="profile-initial" aria-hidden="true">{nickname.slice(0, 1)}</span>}
+                <span>{nickname}</span>⌄
               </button>
             </div>
           </div>
@@ -99,43 +100,21 @@ export function PrototypeLayout() {
             <div className="footer-copy">Different tastes, one trip.<br />서로 다른 여행 취향을 한 번의 여행으로 조율합니다.</div>
           </div>
           <nav className="footer-links" aria-label="사이트 정보">
-            <Link to="/">서비스 소개</Link>
-            <a href="#">이용약관</a>
-            <a href="#">개인정보처리방침</a>
+            <Link to="/about">서비스 소개</Link>
+            <button type="button" onClick={() => showComingSoon('이용약관')}>이용약관</button>
+            <button type="button" onClick={() => showComingSoon('개인정보처리방침')}>개인정보처리방침</button>
             <a href="mailto:hello@oddtrip.example">문의</a>
           </nav>
         </div>
         <div className="footer-bottom">© 2026 OddTrip. All rights reserved.</div>
       </footer>
 
-      <div className={chatOpen ? 'scrim' : 'scrim hidden'} onClick={() => setChatOpen(false)}></div>
-      <aside className={chatOpen ? 'drawer' : 'drawer hidden'} aria-label="채팅 패널">
-        <div className="drawer-head">
-          <h2>지우님과의 채팅</h2>
-          <button type="button" aria-label="채팅 닫기" onClick={() => setChatOpen(false)}>×</button>
-        </div>
-        <div className="chat-context"><b>부산 2박 3일</b><p>현재 단계 · 함께 정하기</p></div>
-        <div className="messages" ref={messagesRef}>
-          {messages.map((message, index) => (
-            <div className={message.me ? 'bubble me' : 'bubble'} key={`${index}-${message.text}`}>{message.text}</div>
-          ))}
-        </div>
-        <div className="message-box">
-          <input ref={inputRef} placeholder="메시지를 입력하세요" onKeyDown={(event) => { if (event.key === 'Enter') send(); }} />
-          <button type="button" onClick={send}>전송</button>
-        </div>
-      </aside>
-
-      <div className={profileOpen ? 'profile-menu' : 'profile-menu hidden'}>
+      <div className={profileOpen ? 'profile-menu' : 'profile-menu hidden'} onClick={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => navigate('/my')}>내 여행</button>
-        <button type="button" onClick={() => navigate('/survey/tti')}>여행 성향 다시 진단</button>
+        <button type="button" onClick={() => navigate('/tti/start')}>여행 성향 다시 진단</button>
         <button type="button" onClick={() => navigate('/settings')}>계정 설정</button>
-        {user
-          ? <button type="button" onClick={signOut}>로그아웃</button>
-          : <button type="button" onClick={() => navigate('/auth')}>로그인</button>}
+        <button type="button" onClick={signOut}>로그아웃</button>
       </div>
-
-      <div className={toastMessage ? 'toast show' : 'toast'}>{toastMessage}</div>
     </>
   );
 }

@@ -6,10 +6,29 @@ import { PrototypeLayout } from './PrototypeLayout';
 import { IntroCurtain } from '../features/intro-transition/IntroCurtain';
 import { IntroLandingPage } from '../pages/intro/IntroLandingPage';
 import { HomePage } from '../pages/home/HomePage';
-import { MatesPage, MateDetailPage } from '../pages/matches/MatesPage';
-import { MyTripsPage } from '../pages/my-trip/MyTripsPage';
-import { TripWorkspacePage } from '../pages/trip/TripWorkspacePage';
-import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
+import { MatchesPage } from '../pages/matches';
+import { MatchDetailPage } from '../pages/match-detail';
+import { MyTripPage } from '../pages/my-trip';
+import { TtiStartPage } from '../pages/tti-start';
+import { TtiQuestionsPage } from '../pages/tti-questions';
+import { TtiResultPage } from '../pages/tti-result';
+import { DecisionHomePage } from '../pages/decision/DecisionHomePage';
+import { Step1SelectPage } from '../pages/decision/Step1SelectPage';
+import { Step2AnalysisPage } from '../pages/decision/Step2AnalysisPage';
+import { Step3ConcessionPage } from '../pages/decision/Step3ConcessionPage';
+import { Step4OddRulePage } from '../pages/decision/Step4OddRulePage';
+import { WaitingPage } from '../pages/decision/WaitingPage';
+import { ProposalListPage } from '../pages/proposal/ProposalListPage';
+import { ProposalComparePage } from '../pages/proposal/ProposalComparePage';
+import { ProposalDetailPage } from '../pages/proposal/ProposalDetailPage';
+import { AttractionListPage } from '../pages/attractions/AttractionListPage';
+import { AttractionDetailPage } from '../pages/attractions/AttractionDetailPage';
+import { ItineraryPage } from '../pages/itinerary';
+import { ItineraryDetailPage } from '../pages/itinerary-detail';
+import { ApprovalPage } from '../pages/approval/ApprovalPage';
+import { SafetyPage } from '../pages/safety';
+import { ChatListPage } from '../pages/chat';
+import { ChatRoomPage } from '../pages/chat-room';
 import { AuthPage } from '../pages/auth';
 import { AccountSettingsPage } from '../pages/account-settings';
 import { AdminLayout } from '../admin/AdminLayout';
@@ -21,6 +40,7 @@ import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/Attracti
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
 import { ToastViewport } from '../shared/ui/Toast';
+import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 
 export function App() {
   const bootstrap = useTripStore((state) => state.bootstrap);
@@ -38,6 +58,7 @@ export function App() {
   return (
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <ToastViewport />
+      <UiNoticeDialog />
       <IntroCurtain />
       <ScrollToTop />
       <Routes>
@@ -51,38 +72,65 @@ export function App() {
           <Route path="operations" element={<OperationsPage />} />
         </Route>
 
-        {/* 인트로 랜딩 — 자체 nav/footer, 셸 없음 */}
-        <Route path="/" element={<IntroLandingPage />} />
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/about" element={<IntroLandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
 
-        {/* 프로토타입 앱 셸 */}
-        <Route element={<PrototypeLayout />}>
+        <Route element={<RequireAuth><PrototypeLayout /></RequireAuth>}>
           <Route path="/home" element={<HomePage />} />
-          <Route path="/matches" element={<MatesPage />} />
-          <Route path="/matches/:index" element={<MateDetailPage />} />
-          <Route path="/my" element={<MyTripsPage />} />
+          <Route path="/matches" element={<MatchesPage />} />
+          <Route path="/matches/:id" element={<MatchDetailPage />} />
+          <Route path="/my" element={<MyTripPage />} />
+          <Route path="/my/*" element={<Navigate to="/my" replace />} />
+
           <Route path="/trip" element={<Navigate to="/trip/overview" replace />} />
-          <Route path="/trip/:tab" element={<TripWorkspacePage />} />
-          <Route path="/survey/:key" element={<SurveyFormPage />} />
-          <Route path="/settings" element={<RequireAuth><AccountSettingsPage /></RequireAuth>} />
+          <Route path="/trip/overview" element={<DecisionHomePage />} />
+          <Route path="/trip/coordination" element={<ProposalListPage />} />
+          <Route path="/trip/places" element={<AttractionListPage />} />
+          <Route path="/trip/schedule" element={<ItineraryPage />} />
+
+          <Route path="/tti/start" element={<TtiStartPage />} />
+          <Route path="/tti/questions" element={<TtiQuestionsPage />} />
+          <Route path="/tti/result" element={<TtiResultPage />} />
+          <Route path="/survey/tti" element={<Navigate to="/tti/start" replace />} />
+          <Route path="/survey/preference" element={<Navigate to="/decision/select" replace />} />
+          <Route path="/survey/concession" element={<Navigate to="/decision/concession" replace />} />
+          <Route path="/survey/rule" element={<Navigate to="/decision/odd-rule" replace />} />
+          <Route path="/survey/approval" element={<Navigate to="/approval" replace />} />
+
+          <Route path="/decision" element={<DecisionHomePage />} />
+          <Route path="/decision/select" element={<Step1SelectPage />} />
+          <Route path="/decision/analysis" element={<Step2AnalysisPage />} />
+          <Route path="/decision/concession" element={<Step3ConcessionPage />} />
+          <Route path="/decision/odd-rule" element={<Step4OddRulePage />} />
+          <Route path="/decision/waiting" element={<WaitingPage />} />
+          <Route path="/proposal" element={<ProposalListPage />} />
+          <Route path="/proposal/compare" element={<ProposalComparePage />} />
+          <Route path="/proposal/:variantId" element={<ProposalDetailPage />} />
+          <Route path="/attractions" element={<AttractionListPage />} />
+          <Route path="/attractions/:id" element={<AttractionDetailPage />} />
+          <Route path="/itinerary" element={<ItineraryPage />} />
+          <Route path="/itinerary/:id" element={<ItineraryDetailPage />} />
+          <Route path="/approval" element={<ApprovalPage />} />
+          <Route path="/safety" element={<SafetyPage />} />
+
+          <Route path="/chat" element={<ChatListPage />} />
+          <Route path="/chat/:roomId" element={<ChatRoomPage />} />
+          <Route path="/settings" element={<AccountSettingsPage />} />
         </Route>
 
-        {/* 이전 라우트 호환 */}
-        <Route path="/tti/start" element={<Navigate to="/survey/tti" replace />} />
-        <Route path="/tti/questions" element={<Navigate to="/survey/tti" replace />} />
-        <Route path="/tti/result" element={<Navigate to="/home" replace />} />
-        <Route path="/decision/*" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/proposal/*" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/attractions/*" element={<Navigate to="/trip/places" replace />} />
-        <Route path="/itinerary/*" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/approval" element={<Navigate to="/survey/approval" replace />} />
-        <Route path="/safety" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/chat/*" element={<Navigate to="/home" replace />} />
-        <Route path="/my/*" element={<Navigate to="/my" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
+}
+
+function RootRoute() {
+  const user = useTripStore((state) => state.user);
+  const status = useTripStore((state) => state.status.user);
+  const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
+  if (hasToken && !user && status !== 'error') return <RouteGateLoading />;
+  return user && hasToken ? <Navigate to="/home" replace /> : <IntroLandingPage />;
 }
 
 function ScrollToTop() {
@@ -96,9 +144,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const status = useTripStore((state) => state.status.user);
   const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
 
-  if (hasToken && !user && status !== 'error') {
-    return <RouteGateLoading />;
-  }
+  if (hasToken && !user && status !== 'error') return <RouteGateLoading />;
   if (!hasToken) {
     const expired = sessionStorage.getItem('oddtrip.sessionExpired') === '1';
     return <Navigate to={expired ? '/auth?expired=1' : '/auth'} replace />;
@@ -112,12 +158,11 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const status = useTripStore((state) => state.status.user);
   const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
   if (hasToken && !user && status !== 'error') return <RouteGateLoading />;
-  if (!hasToken) return <Navigate to="/auth" replace />;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  if (!hasToken || !user) return <Navigate to="/auth" replace />;
+  if (user.role !== 'admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function RouteGateLoading() {
-  return <div className="app-loading" role="status"><div className="app-loading-card"><strong><span style={{ color: 'var(--orange)', display: 'inline' }}>odd</span>trip</strong><span>세션을 확인하고 있습니다.</span><div className="loading-line" /></div></div>;
+  return <div className="app-loading" role="status"><div className="app-loading-card"><strong><span style={{ color: 'var(--orange)', display: 'inline' }}>odd</span>trip</strong><span>여행 공간을 불러오고 있습니다.</span><div className="loading-line" /></div></div>;
 }

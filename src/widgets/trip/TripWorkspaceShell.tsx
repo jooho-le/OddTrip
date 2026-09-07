@@ -6,10 +6,10 @@ import type { TripSummary } from '../../types';
 type TripTab = 'overview' | 'coordination' | 'places' | 'schedule';
 
 const tabs: Array<{ key: TripTab; label: string; to: string }> = [
-  { key: 'overview', label: '개요', to: '/decision' },
-  { key: 'coordination', label: '조율', to: '/proposal' },
-  { key: 'places', label: '여행지', to: '/attractions' },
-  { key: 'schedule', label: '일정', to: '/itinerary' },
+  { key: 'overview', label: '개요', to: '/trip/overview' },
+  { key: 'coordination', label: '조율', to: '/trip/coordination' },
+  { key: 'places', label: '여행지', to: '/trip/places' },
+  { key: 'schedule', label: '일정', to: '/trip/schedule' },
 ];
 
 export function TripWorkspaceShell({ active, children }: { active: TripTab; children: ReactNode }) {
@@ -22,7 +22,7 @@ export function TripWorkspaceShell({ active, children }: { active: TripTab; chil
     <main className="page"><div className="container">
       {trip ? <TripCover trip={trip} nickname={user?.nickname} /> : <section className="trip-cover empty-trip"><div>{status.trip === 'loading' ? <><span className="eyebrow" style={{ color: '#ffb39f' }}>LOADING TRIP</span><h1>여행 공간을 불러오고 있습니다.</h1><div className="loading-line" /></> : <><span className="eyebrow" style={{ color: '#ffb39f' }}>NO CURRENT TRIP</span><h1>진행 중인 여행이 없습니다.</h1><p>동행 요청이 수락되면 여행 공간이 생성됩니다.</p><Link className="solid-btn" to="/matches">동행 찾기</Link></>}</div></section>}
       <nav className="local-nav" aria-label="개별 여행 메뉴">{tabs.map((tab) => <Link className={active === tab.key ? 'active' : ''} key={tab.key} to={tab.to}>{tab.label}</Link>)}</nav>
-      <div className="trip-context-note"><span>{trip ? `${trip.region ?? '지역 미정'} · ${dateRange(trip.startDate, trip.endDate)} · ${statusLabel(trip.status)}` : '여행을 만든 뒤 API 데이터가 표시됩니다.'}</span><span className="demo-label">COVER IMAGE · DEMO</span></div>
+      <div className="trip-context-note"><span>{trip ? `${trip.region ?? '지역 미정'} · ${dateRange(trip.startDate, trip.endDate)} · ${statusLabel(trip.status)}` : '여행을 만든 뒤 상세 내용이 표시됩니다.'}</span></div>
       {error && status.trip === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><Link className="text-link" to="/matches">동행 찾기</Link></div> : null}
       <div className="workspace">{children}</div>
     </div></main>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useIntroTransitionStore } from '../../features/intro-transition/introTransitionStore';
+import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import './intro.css';
 
 /** Where `OddTrip 시작하기` lands after the curtain. */
-const START_ROUTE = '/home';
+const START_ROUTE = '/auth';
 
 const PROBLEMS = [
   { no: '01', title: '일정 조율이 어려웠습니다', text: '누가 먼저 양보할지 정하지 못한 채 일정이 미뤄집니다.' },
@@ -32,10 +33,16 @@ export function IntroLandingPage() {
   const navRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLElement>(null);
   const run = useIntroTransitionStore((state) => state.run);
+  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
   const start = useCallback(() => {
     run(() => navigate(START_ROUTE));
   }, [navigate, run]);
+
+  useEffect(() => {
+    showDemoOnce('intro-flow-demo', '소개 화면의 여행 기록과 조율 과정은 서비스 흐름을 보여주는 예시입니다. 로그인 후에는 계정에 연결된 여행과 동행 정보만 표시됩니다.');
+  }, [showDemoOnce]);
 
   // dark page background + smooth in-page anchors while the intro is mounted
   useEffect(() => {
@@ -269,7 +276,7 @@ export function IntroLandingPage() {
           <div className="actions" data-reveal>
             <button type="button" className="intro-start" onClick={start}>OddTrip 시작하기 <span style={{ marginLeft: 16 }}>→</span></button>
           </div>
-          <p className="note" data-reveal>가입 없이 성향 조사서부터 둘러볼 수 있습니다</p>
+          <p className="note" data-reveal>계정을 만들고 여행 성향 조사부터 시작합니다</p>
         </div>
       </section>
 
@@ -281,8 +288,8 @@ export function IntroLandingPage() {
           </div>
           <nav className="footer-links" aria-label="사이트 정보">
             <a href="#introTop">서비스 소개</a>
-            <a href="#">이용약관</a>
-            <a href="#">개인정보처리방침</a>
+            <button type="button" onClick={() => showComingSoon('이용약관')}>이용약관</button>
+            <button type="button" onClick={() => showComingSoon('개인정보처리방침')}>개인정보처리방침</button>
             <a href="mailto:hello@oddtrip.example">문의</a>
           </nav>
         </div>

@@ -145,8 +145,8 @@
 .footer-brand i{font-style:normal;color:#ff5a36}
 .footer-copy{margin-top:10px;font-size:11px;line-height:1.7;color:#7e7976}
 .footer-links{display:flex;justify-content:flex-end;gap:18px;flex-wrap:wrap;align-content:start}
-.footer-links a{color:#aaa4a0;font-size:11px}
-.footer-links a:hover{color:#ff5a36}
+.footer-links a,.footer-links button{color:#aaa4a0;font-size:11px}
+.footer-links a:hover,.footer-links button:hover{color:#ff5a36}
 .footer-bottom{max-width:1160px;margin:auto;padding:16px 24px 24px;border-top:1px solid #1c1a19;font-size:10px;color:#66615f}
 .app-footer{background:#161616}
 

@@ -31,7 +31,7 @@ export function AuthPage() {
   return (
     <main className="auth-page">
       <section className="auth-image" aria-label="OddTrip 여행 이미지">
-        <div className="auth-image-copy"><span className="eyebrow" style={{ color: '#ffb39f' }}>DIFFERENT TASTES, ONE TRIP</span><h1>다른 취향 그대로,<br />하나의 여행으로.</h1><p>계정은 TTI 결과, 동행 요청, 채팅과 공동 여행을 한 흐름으로 연결합니다.</p><span className="demo-label" style={{ marginTop: 16 }}>IMAGE · DEMO</span></div>
+        <div className="auth-image-copy"><span className="eyebrow" style={{ color: '#ffb39f' }}>DIFFERENT TASTES, ONE TRIP</span><h1>다른 취향 그대로,<br />하나의 여행으로.</h1><p>계정은 TTI 결과, 동행 요청, 채팅과 공동 여행을 한 흐름으로 연결합니다.</p></div>
       </section>
       <section className="auth-panel">
         <div className="auth-panel-inner">
@@ -47,7 +47,6 @@ export function AuthPage() {
             {error ? <div className="error-strip" role="alert">{error}</div> : null}
             <button className="solid-btn" disabled={status.auth === 'loading'} aria-busy={status.auth === 'loading'}>{status.auth === 'loading' ? '처리 중…' : mode === 'login' ? '로그인' : '가입하고 TTI 시작'}</button>
           </form>
-          <p className="data-note">인증 정보는 현재 백엔드의 access/refresh token 계약에 연결됩니다.</p>
         </div>
       </section>
     </main>
