@@ -8,6 +8,7 @@ export interface UserProfile {
   nickname: string;
   avatarUrl?: string | null;
   homeRegion?: string | null;
+  role?: 'user' | 'admin' | string;
   ttiCode?: TtiCode;
 }
 
@@ -63,6 +64,45 @@ export interface MatchCandidate {
   recommendationScore: number;
   differences: string[];
   complements: string[];
+}
+
+export type MatchRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+
+export interface MatchRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+  status: MatchRequestStatus;
+  expiresAt?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  requester: UserProfile;
+  receiver: UserProfile;
+  counterpart?: UserProfile | null;
+  matchLevel: '완전 반대' | '부분 반대' | '추천';
+  recommendationScore: number;
+  differences: string[];
+  complements: string[];
+}
+
+export interface MatchRequestCreate {
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+}
+
+export interface MatchAcceptResult {
+  requestId: string;
+  matchId: string;
+  roomId: string;
+  tripId: string;
+  userIds: string[];
 }
 
 export interface JointPreference {
@@ -200,6 +240,73 @@ export interface TripSummary {
   itineraryDayCount: number;
   createdAt?: string | null;
 }
+
+export interface ChatCounterpart {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+export interface ChatTrip {
+  id: string;
+  title?: string | null;
+  region?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+}
+
+export type ChatMessageType = 'text' | 'system' | string;
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId?: string | null;
+  sequence: number;
+  clientMessageId: string;
+  type: ChatMessageType;
+  content?: string | null;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+  deletedAt?: string | null;
+  deleted: boolean;
+  displayText?: string | null;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId: string;
+  status: 'active' | 'closed' | string;
+  counterpart: ChatCounterpart;
+  trip?: ChatTrip | null;
+  matchLevel: string;
+  recommendationScore: number;
+  currentStep?: string | null;
+  lastMessage?: ChatMessage | null;
+  unreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessagePage {
+  items: ChatMessage[];
+  nextBeforeSequence?: number | null;
+}
+
+export interface ChatRoomPage {
+  items: ChatRoom[];
+  nextBefore?: string | null;
+}
+
+export type ChatReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'sexual_content'
+  | 'hate'
+  | 'fraud'
+  | 'personal_information'
+  | 'other';
 
 export interface AuthResponse {
   accessToken: string;

@@ -1,0 +1,13 @@
+import { type FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useTripStore } from '../../entities/trip/model/tripStore';
+
+export function AccountSettingsPage() {
+  const { user, updateProfile, status, error } = useTripStore();
+  const [nickname, setNickname] = useState(user?.nickname ?? '');
+  const [homeRegion, setHomeRegion] = useState(user?.homeRegion ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  useEffect(() => { setNickname(user?.nickname ?? ''); setHomeRegion(user?.homeRegion ?? ''); setAvatarUrl(user?.avatarUrl ?? ''); }, [user]);
+  const submit = async (event: FormEvent) => { event.preventDefault(); await updateProfile({ nickname, homeRegion: homeRegion || undefined, avatarUrl: avatarUrl || undefined }); };
+  return <main className="page"><div className="container"><header className="page-heading"><div><Link className="text-btn" to="/my">‹ 내 여행</Link><h1 style={{ marginTop: 9 }}>계정 설정</h1></div><p>현재 사용자 프로필 API에 저장됩니다.</p></header><section className="match-detail"><aside className="match-profile"><div style={{ height: 240, display: 'grid', placeItems: 'center', background: '#242424' }}>{avatarUrl ? <img style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover' }} src={avatarUrl} alt="프로필 미리보기" /> : <span style={{ color: '#fff', fontSize: 64, fontWeight: 900 }}>{nickname.slice(0, 1) || '?'}</span>}</div><div className="match-profile-body"><span className="status">{user?.role ?? 'user'}</span><h2>{user?.nickname ?? '여행자'}</h2><p>{user?.email ?? '이메일 미제공'}<br />TTI {user?.ttiCode ?? '미완료'}</p></div></aside><form className="match-request-form" style={{ marginTop: 0 }} onSubmit={submit}><div className="section-title"><h2>프로필 정보</h2><p>닉네임, 지역, 이미지 URL</p></div><div className="form-grid"><label className="field full"><span>닉네임</span><input required maxLength={50} value={nickname} onChange={(event) => setNickname(event.target.value)} /></label><label className="field full"><span>생활 지역</span><input maxLength={100} value={homeRegion} onChange={(event) => setHomeRegion(event.target.value)} /></label><label className="field full"><span>프로필 이미지 URL</span><input type="url" maxLength={500} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} /></label></div>{error ? <div className="error-strip">{error}</div> : null}<p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '비밀번호·계정 삭제는 현재 프로필 API 범위에 없습니다.'}</p><button className="solid-btn" style={{ marginTop: 14 }} disabled={status.profile === 'loading'}>{status.profile === 'loading' ? '저장 중…' : '프로필 저장'}</button></form></section></div></main>;
+}

@@ -102,7 +102,7 @@ async def create_match_request(
     )
     db.add(request)
     await db.commit()
-    return _request_out(request, receiver)
+    return _request_out(request, requester, receiver, requester.id)
 
 
 async def list_match_requests(
@@ -135,7 +135,10 @@ async def list_match_requests(
     result = []
     for request in requests:
         counterpart_id = request.requester_id if direction == "received" else request.receiver_id
-        result.append(_request_out(request, await db.get(User, counterpart_id)))
+        requester = await db.get(User, request.requester_id)
+        receiver = await db.get(User, request.receiver_id)
+        if requester and receiver:
+            result.append(_request_out(request, requester, receiver, user_id))
     return result
 
 
@@ -145,8 +148,11 @@ async def get_match_request(db: AsyncSession, request_id: str, user_id: str) -> 
         request.status = "expired"
         request.responded_at = _now()
         await db.commit()
-    counterpart_id = request.receiver_id if request.requester_id == user_id else request.requester_id
-    return _request_out(request, await db.get(User, counterpart_id))
+    requester = await db.get(User, request.requester_id)
+    receiver = await db.get(User, request.receiver_id)
+    if not requester or not receiver:
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
+    return _request_out(request, requester, receiver, user_id)
 
 
 async def accept_match_request(db: AsyncSession, request_id: str, user: User) -> tuple[MatchAcceptOut, Match]:
@@ -231,7 +237,13 @@ async def accept_match_request(db: AsyncSession, request_id: str, user: User) ->
     request.responded_at = now
     request.updated_at = now
     await db.commit()
-    return MatchAcceptOut(request_id=request.id, match_id=match.id, room_id=room.id, trip_id=trip.id), match
+    return MatchAcceptOut(
+        request_id=request.id,
+        match_id=match.id,
+        room_id=room.id,
+        trip_id=trip.id,
+        user_ids=[requester.id, receiver.id],
+    ), match
 
 
 async def respond_to_request(db: AsyncSession, request_id: str, user: User, action: str) -> MatchRequestOut:
@@ -245,8 +257,11 @@ async def respond_to_request(db: AsyncSession, request_id: str, user: User, acti
     request.status = "rejected" if action == "reject" else "cancelled"
     request.responded_at = _now()
     await db.commit()
-    counterpart_id = request.requester_id if request.receiver_id == user.id else request.receiver_id
-    return _request_out(request, await db.get(User, counterpart_id))
+    requester = await db.get(User, request.requester_id)
+    receiver = await db.get(User, request.receiver_id)
+    if not requester or not receiver:
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
+    return _request_out(request, requester, receiver, user.id)
 
 
 async def end_match(db: AsyncSession, match_id: str, user_id: str) -> tuple[MatchEndOut, Match]:
@@ -370,7 +385,23 @@ async def report_user(
     return ChatReportOut.model_validate(report)
 
 
-def _request_out(request: MatchRequest, counterpart: User | None) -> MatchRequestOut:
+def _request_out(
+    request: MatchRequest,
+    requester: User,
+    receiver: User,
+    viewer_id: str,
+) -> MatchRequestOut:
+    count, diff_axes = _count_opposite_axes(requester.tti_code or "", receiver.tti_code or "")
+    score = _calc_score(
+        count,
+        requester.tti_scores_json or [],
+        receiver.tti_scores_json,
+    )
+    differences = [match_service.AXIS_LABELS[axis] for axis in diff_axes]
+    complements: list[str] = []
+    for axis in diff_axes:
+        complements.extend(match_service.COMPLEMENT_TEMPLATES.get(axis, []))
+    counterpart = receiver if viewer_id == requester.id else requester
     return MatchRequestOut(
         id=request.id,
         requester_id=request.requester_id,
@@ -383,5 +414,11 @@ def _request_out(request: MatchRequest, counterpart: User | None) -> MatchReques
         expires_at=request.expires_at,
         responded_at=request.responded_at,
         created_at=request.created_at,
-        counterpart=UserOut.model_validate(counterpart) if counterpart else None,
+        requester=UserOut.model_validate(requester),
+        receiver=UserOut.model_validate(receiver),
+        counterpart=UserOut.model_validate(counterpart),
+        match_level={4: "완전 반대", 3: "부분 반대"}.get(count, "추천"),
+        recommendation_score=min(score, 100),
+        differences=differences,
+        complements=complements[:4],
     )

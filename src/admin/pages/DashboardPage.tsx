@@ -6,7 +6,7 @@ import { PageHeading, Panel, StatusPill } from '../ui';
 
 export function DashboardPage() {
   return <>
-    <PageHeading eyebrow="Overview" title="오늘의 OddTrip" description="회원부터 매칭, 여행 생성과 외부 데이터 상태까지 서비스 흐름을 한눈에 확인합니다." action={<div className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-slate-500 shadow-sm">2026년 7월 22일 · 실시간</div>} />
+    <PageHeading eyebrow="Overview" title="오늘의 OddTrip" description="회원부터 매칭, 여행 생성과 외부 데이터 상태까지 서비스 흐름을 한눈에 확인합니다." action={<div className="rounded-2xl bg-white px-4 py-3 text-xs font-bold text-slate-500 shadow-sm">2026년 7월 22일 · 데모 기준</div>} />
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Metric icon={<Users />} label="전체 회원" value="1,284" change="+12.8%" tone="dark" />
       <Metric icon={<HeartHandshake />} label="매칭 성사율" value="68.4%" change="+4.2%" tone="coral" />
@@ -17,7 +17,7 @@ export function DashboardPage() {
       <Panel>
         <div className="flex items-start justify-between"><div><p className="text-lg font-black">서비스 성장</p><p className="mt-1 text-xs text-slate-400">최근 7일 가입자 및 여행 생성</p></div><button className="rounded-xl bg-slate-100 p-2"><MoreHorizontal className="h-4 w-4" /></button></div>
         <div className="mt-8 flex h-56 items-end gap-3 border-b border-slate-100 px-2">
-          {[38, 52, 47, 67, 58, 81, 92].map((height, index) => <div key={index} className="flex flex-1 items-end justify-center gap-1"><div className="w-2/5 rounded-t-lg bg-[#17201f]" style={{ height: `${height}%` }} /><div className="w-2/5 rounded-t-lg bg-[#ff6b55]" style={{ height: `${height * .68}%` }} /></div>)}
+          {[38, 52, 47, 67, 58, 81, 92].map((height, index) => <div key={index} className="flex h-full flex-1 items-end justify-center gap-1"><div className="w-2/5 rounded-t-lg bg-[#17201f]" style={{ height: `${height}%` }} /><div className="w-2/5 rounded-t-lg bg-[#ff6b55]" style={{ height: `${height * .68}%` }} /></div>)}
         </div>
         <div className="mt-3 grid grid-cols-7 text-center text-[10px] font-bold text-slate-400">{['수', '목', '금', '토', '일', '월', '오늘'].map(day => <span key={day}>{day}</span>)}</div>
         <div className="mt-5 flex gap-5 text-xs font-bold"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-[#17201f]" />신규 회원</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-[#ff6b55]" />여행 생성</span></div>

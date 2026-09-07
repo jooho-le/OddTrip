@@ -1,136 +1,55 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircleQuestion } from 'lucide-react';
-import { useTripStore } from '../../entities/tripStore';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { cn } from '../../shared/lib/classNames';
-import { ErrorView, LoadingView } from '../../shared/ui/StateView';
+import { useTripStore } from '../../entities/trip/model/tripStore';
 
 const values = [-2, -1, 0, 1, 2];
-const axisLabels: Record<string, string> = {
-  PW: '준비 방식',
-  NC: '탐색 방식',
-  FA: '활동 취향',
-  HS: '여행 속도',
-};
 
 export function TtiQuestionsPage() {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
-  const { questions, answers, setAnswer, calculateResult, loadQuestions, status } = useTripStore();
+  const { questions, answers, setAnswer, calculateResult, loadQuestions, status, error } = useTripStore();
 
-  useEffect(() => {
-    void loadQuestions();
-  }, [loadQuestions]);
+  useEffect(() => { void loadQuestions(); }, [loadQuestions]);
 
-  if (status.questions === 'loading') return <LoadingView label="TTI 질문을 불러오는 중입니다" />;
-  if (status.questions === 'error') return <ErrorView label="TTI 질문을 불러오지 못했습니다. 백엔드와 DB seed를 확인해주세요." />;
-  if (!questions.length) return <Card>표시할 TTI 질문이 없습니다.</Card>;
+  if (status.questions === 'loading' || status.questions === 'idle') return <StateDocument title="여행 성향 조사서" message="질문을 불러오고 있습니다." loading />;
+  if (status.questions === 'error') return <StateDocument title="여행 성향 조사서" message={error ?? '질문을 불러오지 못했습니다.'} action={() => void loadQuestions()} />;
+  if (!questions.length) return <StateDocument title="여행 성향 조사서" message="표시할 질문이 없습니다." />;
 
   const question = questions[index];
   const answer = answers.find((item) => item.questionId === question.id);
   const progress = Math.round(((index + 1) / questions.length) * 100);
-  const answerOptions = values.map((value) => getAnswerOption(value, question));
-
   const complete = async () => {
     const result = await calculateResult();
     if (result) navigate('/tti/result');
   };
 
   return (
-    <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-6 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-8">
-        <img src="https://images.unsplash.com/photo-1517760444937-f6397edcbbcd?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-28" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_88%_22%,rgba(245,208,76,0.46),transparent_26%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.58))]" />
-        <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/70">
-              <MessageCircleQuestion className="h-4 w-4 text-[#f5d04c]" />
-              question {index + 1}
-            </p>
-            <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-[-0.05em] md:text-7xl">나의 여행 선택 방식</h1>
-          </div>
-          <div className="rounded-[28px] bg-white p-4 text-[#111111] md:w-72">
-            <p className="text-sm font-black">{index + 1} / {questions.length} 문항</p>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full gradient-panel transition-all" style={{ width: `${progress}%` }} /></div>
-          </div>
+    <main className="page form-page">
+      <div className="form-toolbar"><button onClick={() => navigate('/tti/start')}>‹ 조사 안내로 돌아가기</button><span>{index + 1} / {questions.length} 문항</span><div className="form-progress"><i style={{ width: `${progress}%` }} /></div></div>
+      <article className="paper">
+        <header className="paper-head"><h1>여행 성향 조사서</h1><p>ODDTRIP FORM 01 · TRAVEL TYPE INDICATOR</p></header>
+        <div className="paper-body">
+          <p className="paper-note">가장 가까운 선택을 고르세요. 응답은 마지막 문항에서 서버에 저장됩니다.</p>
+          <div className="info-table"><span className="label">문항</span><span>{index + 1} / {questions.length}</span><span className="label">분류</span><span>{question.axis}</span><span className="label">저장 상태</span><span>제출 전</span><span className="label">결과</span><span>4글자 TTI</span></div>
+          <h2 className="form-section-title">{String(index + 1).padStart(2, '0')}. 아래 문항에 답해주세요.</h2>
+          <section className="question"><div className="question-head"><b>Q</b><span>{question.prompt}</span></div><div className="scale">{values.map((value) => <button key={value} className={answer?.value === value ? 'on' : ''} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value })}>{optionLabel(value, question.leftLabel, question.rightLabel)}</button>)}</div></section>
+          {error ? <div className="error-strip" role="alert">{error}</div> : null}
+          <div className="sign"><span>응답자 {new Date().toLocaleDateString('ko-KR')}</span><span>온라인 서명 __________</span></div>
         </div>
-      </section>
-
-      <Card className="space-y-5 rounded-[24px] p-5 md:p-6">
-        <div>
-          <BadgeLabel text={axisLabels[question.axis] ?? '여행 선택'} />
-          <h2 className="mt-4 max-w-4xl text-2xl font-black leading-tight md:text-4xl">{question.prompt}</h2>
-        </div>
-        <div className="grid gap-3 md:grid-cols-5">
-          {answerOptions.map((option) => (
-            <button key={option.value} onClick={() => setAnswer({ questionId: question.id, axis: question.axis, value: option.value })} className={cn('motion-card min-h-32 rounded-[18px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(16,17,20,0.10)]', answer?.value === option.value ? 'border-transparent gradient-panel text-white ring-4 ring-[#fd267a]/15' : 'border-black/5 bg-[#fbf5ee] text-[#111111]')}>
-              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-60">{option.kicker}</p>
-              <p className="mt-5 text-base font-black leading-5">{option.title}</p>
-              <p className="mt-2 text-xs font-bold leading-5 opacity-70">{option.description}</p>
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" disabled={index === 0} onClick={() => setIndex((current) => current - 1)}>이전</Button>
-          {index < questions.length - 1 ? (
-            <Button className="flex-1" disabled={!answer} onClick={() => setIndex((current) => current + 1)}>다음</Button>
-          ) : (
-            <Button className="flex-1" disabled={!answer || status.tti === 'loading'} onClick={complete}>{status.tti === 'loading' ? '계산 중' : '결과 보기'}</Button>
-          )}
-        </div>
-      </Card>
-    </div>
+      </article>
+      <div className="form-actions"><button disabled={index === 0} onClick={() => setIndex((value) => value - 1)}>이전</button><span className="hint">{answer ? '응답이 선택되었습니다.' : '한 항목을 선택해주세요.'}</span>{index < questions.length - 1 ? <button className={answer ? 'submit ready' : 'submit'} disabled={!answer} onClick={() => setIndex((value) => value + 1)}>다음 문항</button> : <button className={answer ? 'submit ready' : 'submit'} disabled={!answer || status.tti === 'loading'} aria-busy={status.tti === 'loading'} onClick={() => void complete()}>{status.tti === 'loading' ? '계산 중…' : '제출하고 결과 보기'}</button>}</div>
+    </main>
   );
 }
 
-function BadgeLabel({ text }: { text: string }) {
-  return <span className="rounded-full bg-[#101114] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-white">{text}</span>;
+function optionLabel(value: number, left: string, right: string) {
+  if (value === -2) return left;
+  if (value === -1) return `조금 ${left}`;
+  if (value === 1) return `조금 ${right}`;
+  if (value === 2) return right;
+  return '둘 다 괜찮음';
 }
 
-function getAnswerOption(value: number, question: {
-  leftLetter: string;
-  rightLetter: string;
-  leftLabel: string;
-  rightLabel: string;
-}) {
-  if (value === -2) {
-    return {
-      value,
-      kicker: '강한 선호',
-      title: question.leftLabel,
-      description: '망설임 없이 이 선택',
-    };
-  }
-  if (value === -1) {
-    return {
-      value,
-      kicker: '약한 선호',
-      title: question.leftLabel,
-      description: '굳이 고르면 이쪽',
-    };
-  }
-  if (value === 1) {
-    return {
-      value,
-      kicker: '약한 선호',
-      title: question.rightLabel,
-      description: '굳이 고르면 이쪽',
-    };
-  }
-  if (value === 2) {
-    return {
-      value,
-      kicker: '강한 선호',
-      title: question.rightLabel,
-      description: '망설임 없이 이 선택',
-    };
-  }
-  return {
-    value,
-    kicker: '중간',
-    title: '둘 다 괜찮음',
-    description: '상황에 따라 선택',
-  };
+function StateDocument({ title, message, loading = false, action }: { title: string; message: string; loading?: boolean; action?: () => void }) {
+  return <main className="page form-page"><article className="paper"><header className="paper-head"><h1>{title}</h1><p>ODDTRIP DOCUMENT</p></header><div className="paper-body"><div className="empty-state" role={loading ? 'status' : 'alert'}><strong>{message}</strong>{loading ? <div className="loading-line" /> : null}{action ? <button className="solid-btn" style={{ marginTop: 18 }} onClick={action}>다시 시도</button> : null}</div></div></article></main>;
 }
