@@ -1,31 +1,60 @@
 import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import {
+  FEED_THUMB_FALLBACKS,
+  imageUrl,
+  PROFILE_FALLBACKS,
+} from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
-import type { TripSummary } from '../../types';
+import type { MatchCandidate, TripSummary } from '../../types';
 
-const coverImage = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=90';
+const coverImage = imageUrl('photo-1507525428034-b723cf961d3e', 1600, 90);
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { user, tripHistory, matches, status, error, loadTripHistory, loadMatches, openTrip } = useTripStore();
+  const location = useLocation();
+  const {
+    user,
+    activeTripId,
+    tripHistory,
+    matches,
+    preferences,
+    status,
+    error,
+    loadTripHistory,
+    loadMatches,
+    openTrip,
+  } = useTripStore();
   const { unreadTotal, loadUnreadCount } = useChatStore();
   const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   useEffect(() => {
     void loadTripHistory();
     void loadUnreadCount();
     if (user?.ttiCode) void loadMatches();
-  }, [loadTripHistory, loadUnreadCount, loadMatches, user?.ttiCode]);
+    if (location.pathname === '/home') {
+      showDemoOnce('home-recent-notices', '홈의 최근 알림 두 건은 HTML 디자인을 보존하기 위한 예시입니다. 실제 서버 알림 기능과 연결된 값이 아닙니다.');
+    }
+  }, [loadTripHistory, loadUnreadCount, loadMatches, showDemoOnce, user?.ttiCode, location.pathname]);
 
   const activeTrip = tripHistory.find((trip) => !['completed', 'cancelled'].includes(trip.status));
+
+  useEffect(() => {
+    if (activeTrip && activeTripId !== activeTrip.tripId) void openTrip(activeTrip.tripId);
+  }, [activeTrip, activeTripId, openTrip]);
+
   const completedTrips = tripHistory.filter((trip) => trip.status === 'completed').length;
   const savedPlaces = tripHistory.reduce((sum, trip) => sum + trip.savedCount, 0);
+  const preferenceDone = hasPreferenceInput(preferences);
+  const stage = activeTrip ? tripStage(activeTrip) : '동행 찾는 중';
+  const pending = Number(!user?.ttiCode) + Number(Boolean(activeTrip && !preferenceDone));
 
   const openActiveTrip = async () => {
     if (!activeTrip) {
-      navigate('/matches');
+      navigate(user?.ttiCode ? '/matches' : '/survey/tti');
       return;
     }
     await openTrip(activeTrip.tripId);
@@ -39,60 +68,43 @@ export function HomePage() {
           <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadTripHistory()}>다시 시도</button></div>
         ) : null}
 
-        {activeTrip ? (
-          <section className="home-hero" aria-label="현재 여행">
-            <img className="home-hero-image" src={coverImage} alt="" />
-            <div className="home-hero-copy">
-              <span className="home-hero-status">{tripStatus(activeTrip.status)}</span>
-              <h1>{tripTitle(activeTrip, user?.nickname)}</h1>
-              <p>{dateRange(activeTrip.startDate, activeTrip.endDate)} · {activeTrip.region ?? '지역 미정'}</p>
-              <button type="button" onClick={() => void openActiveTrip()}>현재 여행 바로 가기 <i>→</i></button>
-            </div>
-          </section>
-        ) : (
-          <section className="home-hero-empty">
-            <div>
-              <span className="eyebrow">FIRST ODDTRIP</span>
-              <h1>첫 동행을 찾아볼까요?</h1>
-              <p>{user?.ttiCode ? '내 여행 방식과 다른 후보에게 동행 요청을 보낼 수 있습니다.' : '먼저 여행 성향 조사서를 작성해 주세요.'}</p>
-              <Link className="solid-btn" to={user?.ttiCode ? '/matches' : '/tti/start'}>{user?.ttiCode ? '동행 찾기' : '성향 조사 시작'}</Link>
-            </div>
-          </section>
-        )}
+        <section className="home-hero" aria-label={activeTrip ? `${activeTrip.region ?? '현재'} 여행` : '새 동행 찾기'}>
+          <img className="home-hero-image" src={coverImage} alt="" />
+          <div className="home-hero-copy">
+            <span className="home-hero-status">{stage}</span>
+            <h1>{activeTrip ? tripTitle(activeTrip, user?.nickname) : `${user?.nickname ?? '여행자'}님의 다음 OddTrip`}</h1>
+            <p>{activeTrip ? `${dateRange(activeTrip.startDate, activeTrip.endDate)} · ${activeTrip.region ?? '지역 미정'}` : '여행 성향을 기록하고 새로운 동행을 찾아보세요.'}</p>
+            <button type="button" onClick={() => void openActiveTrip()}>{activeTrip ? '현재 여행 바로 가기' : user?.ttiCode ? '동행 찾기' : '여행 성향 작성하기'} <i>→</i></button>
+          </div>
+        </section>
 
         <div className="home-grid">
           <section>
             <div className="home-feed" style={{ marginTop: 0 }}>
               <div className="section-title">
-                <h2>새로운 동행 후보</h2>
-                <p>내 여행 성향을 넓혀줄 사람을 살펴보세요.</p>
+                <h2>새로운 동행 기록</h2>
+                <p>동행 전 상대의 여행 방식을 살펴보세요.</p>
                 <Link className="text-btn right" to="/matches">전체 보기 →</Link>
               </div>
               <div className="feed-tabs">
-                <button type="button" className="on">추천 순</button>
-                <button type="button" onClick={() => showComingSoon('최근 가입 순 필터')}>최근 가입</button>
+                <button type="button" className="on">추천 기록</button>
+                <button type="button" onClick={() => showComingSoon('최근 기록 필터')}>최근 기록</button>
                 <button type="button" onClick={() => showComingSoon('일정 일치 필터')}>일정 일치</button>
               </div>
-              {error && status.matches === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadMatches()}>다시 시도</button></div> : null}
-              {status.matches === 'loading' && !matches.length ? <LoadingRows /> : null}
-              {matches.slice(0, 3).map((candidate) => (
-                <article className="feed-data-row" key={candidate.id}>
-                  {candidate.avatarUrl ? <img className="avatar" src={candidate.avatarUrl} alt="" /> : <InitialAvatar name={candidate.nickname} />}
-                  <div>
-                    <small>{candidate.ttiCode} · {candidate.matchLevel}</small>
-                    <h3>{candidate.nickname}의 여행 방식</h3>
-                    <p>{candidate.summary}</p>
+              <div>
+                {status.matches === 'loading' && !matches.length ? <LoadingFeed /> : null}
+                {matches.slice(0, 3).map((candidate, index) => <CandidateRecord candidate={candidate} index={index} key={candidate.id} />)}
+                {status.matches === 'success' && !matches.length ? (
+                  <div className="empty-state">
+                    <strong>{user?.ttiCode ? '현재 추천할 동행 기록이 없습니다.' : '여행 성향 조사가 먼저 필요합니다.'}</strong>
+                    <p>{user?.ttiCode ? '새로운 후보가 생기면 이곳에서 바로 확인할 수 있습니다.' : '조사 결과가 저장되면 실제 매칭 후보를 불러옵니다.'}</p>
+                    <Link className="solid-btn" to={user?.ttiCode ? '/matches' : '/survey/tti'}>{user?.ttiCode ? '동행 찾기' : '조사서 작성'}</Link>
                   </div>
-                  <Link className="line-btn accent" to={'/matches/' + candidate.id}>상세 비교</Link>
-                </article>
-              ))}
-              {status.matches === 'success' && !matches.length ? (
-                <div className="empty-state">
-                  <strong>{user?.ttiCode ? '아직 추천할 후보가 없습니다.' : '여행 성향 조사가 필요합니다.'}</strong>
-                  <p>{user?.ttiCode ? '새 후보가 생기면 이곳에서 바로 확인할 수 있습니다.' : '조사 결과가 있어야 서로 다른 여행자를 추천할 수 있습니다.'}</p>
-                  <Link className="solid-btn" to="/tti/start">{user?.ttiCode ? '성향 다시 확인' : '성향 조사 시작'}</Link>
-                </div>
-              ) : null}
+                ) : null}
+                {error && status.matches === 'error' ? (
+                  <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadMatches()}>다시 시도</button></div>
+                ) : null}
+              </div>
             </div>
           </section>
 
@@ -100,7 +112,7 @@ export function HomePage() {
             <div className="side-box">
               <div className="my-summary">
                 <div className="my-summary-row">
-                  {user?.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : <InitialAvatar name={user?.nickname ?? '여행자'} />}
+                  <ProfileImage src={user?.avatarUrl} name={user?.nickname ?? '여행자'} index={0} />
                   <div><b>{user?.nickname ?? '여행자'}님의 OddTrip</b><p>{user?.ttiCode ?? 'TTI 작성 전'} · {user?.homeRegion ?? '지역 미설정'}</p></div>
                 </div>
                 <div className="summary-stats">
@@ -112,32 +124,21 @@ export function HomePage() {
             </div>
 
             <div className="side-box">
-              <div className="side-head">채팅 <span>{unreadTotal ? unreadTotal + '개 안 읽음' : '모두 읽음'}</span></div>
+              <div className="side-head">최근 알림 <span>{unreadTotal ? `${unreadTotal}개 채팅 안 읽음` : '예시 2건'}</span></div>
               <div className="notice-list">
-                <Link className="notice-item" to="/chat">
-                  {unreadTotal ? '읽지 않은 대화가 ' + unreadTotal + '개 있습니다.' : '새로 도착한 대화가 없습니다.'}
-                  <time>채팅 열기 →</time>
-                </Link>
+                <div className="notice-item">동행이 독립 선택을 제출했습니다.<time>오늘 20:14</time></div>
+                <div className="notice-item">여행 일정에 비 소식이 있어요.<time>오늘 18:32</time></div>
               </div>
             </div>
 
             <div className="side-box">
-              <div className="side-head">여행 문서 <span>{activeTrip ? '현재 여행' : '동행 연결 전'}</span></div>
+              <div className="side-head">작성할 조사서 <span>{pending ? `${pending}건 작성 필요` : '지원 문서 확인 완료'}</span></div>
               <div className="survey-hub">
-                <DocumentRow number="1" title="여행 성향 조사서" meta="내 프로필 · TTI" state={user?.ttiCode ? '결과 보기' : '작성 필요'} done={Boolean(user?.ttiCode)} to="/tti/start" />
-                <DocumentRow number="2" title="공동 선호 조사서" meta={activeTrip?.region ?? '여행 생성 후'} state={activeTrip ? '작성하기' : '대기'} locked={!activeTrip} to="/decision/select" />
-                <DocumentRow number="3" title="개인 양보 범위" meta={activeTrip ? '화면 체험' : '여행 생성 후'} state={activeTrip ? '둘러보기' : '대기'} locked={!activeTrip} to="/decision/concession" />
-                <DocumentRow number="4" title="Odd Rule 선택서" meta={activeTrip ? '화면 체험' : '여행 생성 후'} state={activeTrip ? '둘러보기' : '대기'} locked={!activeTrip} to="/decision/odd-rule" />
-                <button
-                  type="button"
-                  className={'survey-row ' + (!activeTrip ? 'locked' : '')}
-                  disabled={!activeTrip}
-                  onClick={() => showComingSoon('일정 확인·승인', '양쪽 일정 승인과 수정 요청은 현재 준비 중인 기능입니다. 생성된 일정은 일정 탭에서 확인할 수 있습니다.')}
-                >
-                  <span className="survey-no">5</span>
-                  <span className="survey-copy"><b>일정 확인·승인서</b><small>{activeTrip ? '일정 생성 후' : '여행 생성 후'}</small></span>
-                  <span className="survey-state">{activeTrip ? '안내 보기' : '대기'}</span>
-                </button>
+                <SurveyRow number="1" title="여행 성향 조사서" meta="내 프로필 · TTI" state={user?.ttiCode ? '완료 · 수정' : '작성 필요'} done={Boolean(user?.ttiCode)} onClick={() => navigate('/survey/tti?from=home')} />
+                <SurveyRow number="2" title="독립 선택 조사서" meta={activeTrip ? `${activeTrip.region ?? '현재 여행'} · ${activeTrip.partner?.nickname ?? '동행'}` : '여행 생성 후'} state={preferenceDone ? '완료 · 수정' : activeTrip ? '작성 필요' : '이전 단계 대기'} done={preferenceDone} locked={!activeTrip} onClick={() => navigate('/survey/preference?from=home')} />
+                <SurveyRow number="3" title="양보 범위 조사서" meta={activeTrip ? `${activeTrip.region ?? '현재 여행'} · ${activeTrip.partner?.nickname ?? '동행'}` : '여행 생성 후'} state={activeTrip ? '열어보기' : '이전 단계 대기'} locked={!activeTrip} onClick={() => navigate('/survey/concession?from=home')} />
+                <SurveyRow number="4" title="Odd Rule 선택서" meta={activeTrip ? `${activeTrip.region ?? '현재 여행'} · ${activeTrip.partner?.nickname ?? '동행'}` : '여행 생성 후'} state={activeTrip ? '열어보기' : '이전 단계 대기'} locked={!activeTrip} onClick={() => navigate('/survey/rule?from=home')} />
+                <SurveyRow number="5" title="일정 확인·승인서" meta={activeTrip ? `${activeTrip.region ?? '현재 여행'} · ${activeTrip.partner?.nickname ?? '동행'}` : '여행 생성 후'} state={activeTrip?.itineraryDayCount ? '확인하기' : '일정 생성 후'} locked={!activeTrip?.itineraryDayCount} onClick={() => navigate('/survey/approval?from=home')} />
               </div>
             </div>
           </aside>
@@ -147,28 +148,76 @@ export function HomePage() {
   );
 }
 
-function DocumentRow({ number, title, meta, state, done = false, locked = false, to }: { number: string; title: string; meta: string; state: string; done?: boolean; locked?: boolean; to: string }) {
-  const content = <><span className="survey-no">{done ? '✓' : number}</span><span className="survey-copy"><b>{title}</b><small>{meta}</small></span><span className="survey-state">{state}</span></>;
-  if (locked) return <button type="button" className="survey-row locked" disabled>{content}</button>;
-  return <Link className={'survey-row ' + (done ? 'done' : '')} to={to}>{content}</Link>;
+function CandidateRecord({ candidate, index }: { candidate: MatchCandidate; index: number }) {
+  const fallback = PROFILE_FALLBACKS[(index + 1) % PROFILE_FALLBACKS.length];
+  const thumbs = FEED_THUMB_FALLBACKS[index % FEED_THUMB_FALLBACKS.length];
+  return (
+    <article className="feed-row">
+      <div className="feed-person">
+        <img className="avatar" src={candidate.avatarUrl ?? imageUrl(fallback, 120)} alt="" />
+        <b>{candidate.nickname}</b>
+        <span>{candidate.ttiCode} · {candidate.matchLevel}</span>
+      </div>
+      <div className="feed-copy">
+        <small>{candidate.ageRange} · {candidate.region}</small>
+        <h3>{candidate.nickname}의 여행 방식</h3>
+        <p>{candidate.summary}</p>
+        <div className="feed-tags">{candidate.complements.slice(0, 3).map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>
+        <Link className="text-btn accent" to={`/matches/${candidate.id}`} style={{ marginTop: 11, display: 'inline-block' }}>여행 기록 더 보기 →</Link>
+      </div>
+      <div className="feed-thumbs" aria-hidden="true">
+        {thumbs.map((photo) => <span key={photo} style={{ backgroundImage: `url('${imageUrl(photo, 220, 72)}')` }} />)}
+      </div>
+    </article>
+  );
 }
 
-function InitialAvatar({ name }: { name: string }) {
-  return <span className="avatar" aria-hidden="true" style={{ width: 52, height: 52, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff', fontSize: 13, fontWeight: 800 }}>{name.slice(0, 1)}</span>;
+function SurveyRow({ number, title, meta, state, done = false, locked = false, onClick }: { number: string; title: string; meta: string; state: string; done?: boolean; locked?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={['survey-row', done ? 'done' : '', locked ? 'locked' : ''].filter(Boolean).join(' ')}
+      disabled={locked}
+      onClick={onClick}
+    >
+      <span className="survey-no">{done ? '✓' : number}</span>
+      <span className="survey-copy"><b>{title}</b><small>{meta}</small></span>
+      <span className="survey-state">{state}</span>
+    </button>
+  );
 }
 
-function LoadingRows() {
-  return <div className="skeleton-stack" role="status" aria-label="동행 후보를 불러오는 중">{[0, 1, 2].map((item) => <div className="skeleton-row" key={item} />)}</div>;
+function ProfileImage({ src, name, index }: { src?: string | null; name: string; index: number }) {
+  return <img className="avatar" src={src ?? imageUrl(PROFILE_FALLBACKS[index % PROFILE_FALLBACKS.length], 120)} alt={`${name} 프로필`} />;
 }
 
-function tripStatus(status: string) {
-  return ({ planning: '조율 중', confirmed: '여행 준비', completed: '여행 완료', cancelled: '취소됨' } as Record<string, string>)[status] ?? status;
+function LoadingFeed() {
+  return <div className="skeleton-stack" role="status" aria-label="동행 기록을 불러오는 중">{[0, 1].map((item) => <div className="skeleton-row" key={item} />)}</div>;
+}
+
+function tripStage(trip: TripSummary) {
+  if (trip.status === 'completed') return '여행 완료';
+  if (trip.itineraryDayCount > 0) return '승인 대기';
+  if (trip.attractionCount > 0 || trip.savedCount > 0) return '여행지 선택';
+  return '조율 중';
 }
 
 function tripTitle(trip: TripSummary, nickname?: string) {
-  return trip.title || (nickname ?? '나') + ' × ' + (trip.partner?.nickname ?? '동행') + '의 ' + (trip.region ?? 'OddTrip') + ' 여행';
+  return trip.title || `${nickname ?? '나'} × ${trip.partner?.nickname ?? '동행'}의 ${trip.region ?? 'OddTrip'} 여행`;
 }
 
 function dateRange(start?: string | null, end?: string | null) {
   return start || end ? [start, end].filter(Boolean).join(' — ') : '날짜 미정';
+}
+
+function hasPreferenceInput(preferences: ReturnType<typeof useTripStore.getState>['preferences']) {
+  return Boolean(
+    preferences.places.length
+    || preferences.activities.length
+    || preferences.foods.length
+    || preferences.indoorPreferred
+    || preferences.hiddenSpots
+    || preferences.pace !== 50
+    || preferences.budget !== 50
+  );
 }

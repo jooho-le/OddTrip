@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useIntroTransitionStore } from '../../features/intro-transition/introTransitionStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import './intro.css';
@@ -34,7 +34,6 @@ export function IntroLandingPage() {
   const progressRef = useRef<HTMLElement>(null);
   const run = useIntroTransitionStore((state) => state.run);
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
   const start = useCallback(() => {
     run(() => navigate(START_ROUTE));
@@ -288,8 +287,9 @@ export function IntroLandingPage() {
           </div>
           <nav className="footer-links" aria-label="사이트 정보">
             <a href="#introTop">서비스 소개</a>
-            <button type="button" onClick={() => showComingSoon('이용약관')}>이용약관</button>
-            <button type="button" onClick={() => showComingSoon('개인정보처리방침')}>개인정보처리방침</button>
+            <Link to="/legal/terms">이용약관</Link>
+            <Link to="/legal/community">커뮤니티 운영정책</Link>
+            <Link to="/legal/privacy">개인정보 처리 안내</Link>
             <a href="mailto:hello@oddtrip.example">문의</a>
           </nav>
         </div>
