@@ -1,49 +1,6 @@
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { CheckCircle2, Clock3, MessageCircle, Pencil } from 'lucide-react';
-import { useTripStore } from '../../entities/trip/model/tripStore';
-import { useDecisionStore } from '../../entities/decision/model/decisionStore';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
+import { Link } from 'react-router-dom';
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function WaitingPage() {
-  const navigate = useNavigate();
-  const { selectedMatch, matches } = useTripStore();
-  const { submittedAt, editSelections } = useDecisionStore();
-  const partner = selectedMatch ?? matches[0];
-
-  if (!submittedAt) return <Navigate to="/decision/select" replace />;
-
-  return (
-    <div className="page-canvas space-y-5">
-      <header>
-        <p className="eyebrow">상대 선택 대기</p>
-        <h1 className="mt-2 text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">상대 선택을 기다리는 중이에요.</h1>
-      </header>
-
-      <Card className="space-y-4">
-        <div className="flex items-center gap-3 rounded-2xl bg-accent-soft p-4">
-          <CheckCircle2 className="h-6 w-6 shrink-0 text-accent" />
-          <div>
-            <p className="text-sm font-black text-ink">내 제출 상태 · 완료</p>
-            <p className="text-xs font-bold text-muted">{new Date(submittedAt).toLocaleString('ko-KR')}에 제출했어요.</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-2xl border border-dashed border-line bg-canvas p-4">
-          <Clock3 className="h-6 w-6 shrink-0 text-muted" />
-          <div>
-            <p className="text-sm font-black text-ink">{partner?.nickname ?? '상대방'}의 제출 상태 · 알 수 없음</p>
-            <p className="text-xs font-bold text-muted">상대방 제출 여부는 백엔드에 사용자별 저장 기능이 추가되면 실시간으로 표시돼요. 지금은 채팅으로 직접 확인해주세요.</p>
-          </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Link to="/chat"><Button variant="secondary" icon={<MessageCircle className="h-4 w-4" />} className="w-full">채팅으로 확인하기</Button></Link>
-          <Button variant="secondary" icon={<Pencil className="h-4 w-4" />} onClick={() => { editSelections(); navigate('/decision/select'); }} className="w-full">내 선택 수정하기</Button>
-        </div>
-
-        <Button className="w-full" onClick={() => navigate('/decision/analysis')}>다음 단계로 이동 (차이 분석 보기)</Button>
-      </Card>
-    </div>
-  );
+  return <TripWorkspaceShell active="coordination"><div className="coord-layout"><section><div className="section-title"><h2>제출 상태</h2><p>개인별 상태 API가 준비되기 전의 안전한 표현입니다.</p></div><div className="backend-wait"><h3>상대의 제출 여부를 확인할 수 없습니다.</h3><p>현재 여행의 공동 선호는 저장할 수 있지만, 사용자별 독립 답안과 제출 시각을 조회하는 계약이 없습니다. 임의로 “상대 제출 완료” 상태를 만들지 않습니다.</p></div><div className="workflow-cta"><p><b>공동 선호는 계속 수정할 수 있습니다.</b>현재 지원 범위에서 저장한 뒤 차이 분석 API를 실행하세요.</p><div className="button-row"><Link className="line-btn" to="/decision/select">공동 선호 수정</Link><Link className="solid-btn" to="/decision/analysis">분석 보기</Link></div></div></section><aside><div className="side-box"><div className="side-head">연결 상태 <span>API</span></div><div className="notice-list"><div className="notice-item">공동 선호 저장<time>지원됨</time></div><div className="notice-item">개인별 제출 상태<time>백엔드 연결 대기</time></div></div></div></aside></div></TripWorkspaceShell>;
 }

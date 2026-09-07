@@ -1,77 +1,37 @@
 import { useEffect } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { EmptyView } from '../../shared/ui/StateView';
-import { useToast } from '../../shared/ui/Toast';
-import { PROPOSAL_VARIANTS, buildProposalItems, summarizeProposal, type ProposalVariantId } from './proposalVariants';
+import { sourceLabel } from '../../shared/lib/sourceLabel';
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
+import { PROPOSAL_VARIANTS, buildProposalItems, type ProposalVariantId } from './proposalVariants';
 
 export function ProposalDetailPage() {
-  const { variantId } = useParams<{ variantId: string }>();
-  const navigate = useNavigate();
-  const showToast = useToast((state) => state.show);
-  const { attractions, activeTripId, loadAttractions, regenerateItinerary } = useTripStore();
+  const { variantId = 'balanced' } = useParams();
+  const variant = PROPOSAL_VARIANTS.find((item) => item.id === variantId) ?? PROPOSAL_VARIANTS[0];
+  const { attractions, loadAttractions } = useTripStore();
 
-  useEffect(() => {
-    if (!attractions.length && activeTripId) void loadAttractions();
-  }, [attractions.length, activeTripId, loadAttractions]);
+  useEffect(() => { if (!attractions.length) void loadAttractions(); }, [attractions.length, loadAttractions]);
 
-  const variant = PROPOSAL_VARIANTS.find((item) => item.id === variantId);
-  if (!variant) return <Navigate to="/proposal" replace />;
-
-  const items = buildProposalItems(attractions, variant.id as ProposalVariantId, 10);
-  const summary = summarizeProposal(items);
-
-  const proceed = async () => {
-    await regenerateItinerary();
-    showToast(`'${variant.title}' 안을 참고해서 일정을 새로 만들었어요.`);
-    navigate('/itinerary');
-  };
-
+  const items = buildProposalItems(attractions, variant.id as ProposalVariantId);
   return (
-    <div className="page-canvas space-y-5">
-      <header>
-        <p className="eyebrow">{variant.title}</p>
-        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">{variant.description}</h1>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Badge>{summary.count}곳</Badge>
-          <Badge>실내 {summary.indoorRatio}%</Badge>
-          {summary.avgHidden != null ? <Badge>숨은명소 평균 {summary.avgHidden}점</Badge> : null}
-        </div>
+    <TripWorkspaceShell active="coordination">
+      <header className="page-heading">
+        <div><Link className="text-btn" to="/proposal">‹ 조율안 목록</Link><h1 style={{ marginTop: 9 }}>{variant.title} · 상세</h1></div>
+        <p>관광지 API 결과를 로컬 기준으로 정렬한 읽기 전용 안입니다.</p>
       </header>
-
-      {!items.length ? <EmptyView label="아직 추천 관광지가 없어요. 관광지 페이지에서 먼저 추천을 받아보세요." /> : null}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map((item) => (
-          <Link key={item.id} to={`/attractions/${item.id}`}>
-            <Card className="hover-lift flex gap-3">
-              <img src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=300&q=80'} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
-              <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-wide text-accent">{item.category}</p>
-                <h2 className="truncate text-lg font-black text-ink">{item.name}</h2>
-                <p className="mt-1 line-clamp-2 text-xs font-semibold text-muted">{item.reason ?? item.addr1 ?? item.category}</p>
-              </div>
-            </Card>
-          </Link>
-        ))}
+      <div className="detail-note"><h3>{variant.description}</h3><p>실제 AI 조율안 ID, 투표, 확정 상태는 존재하지 않습니다.</p><span className="demo-label" style={{ marginTop: 10 }}>DEMO LOGIC</span></div>
+      <div className="day-list">
+        {items.length ? items.map((item, index) => (
+          <div className="schedule-row" key={item.id}>
+            <time>{String(index + 1).padStart(2, '0')}</time>
+            <span className="route-dot" />
+            <div className="schedule-copy"><h3>{item.name}</h3><p>{item.description ?? item.reason ?? item.addr1 ?? '장소 설명 미제공'}</p><small>{item.category} · {sourceLabel(item.source)}</small></div>
+          </div>
+        )) : (
+          <div className="empty-state"><strong>비교할 관광지가 없습니다.</strong><p>여행지 화면에서 실제 추천 데이터를 먼저 불러오세요.</p><Link className="solid-btn" to="/attractions">여행지 열기</Link></div>
+        )}
       </div>
-
-      <Card className="space-y-3">
-        <h2 className="text-lg font-black text-ink">이 안 공유하기</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="ghost" disabled className="cursor-not-allowed opacity-50" title="채팅 연동 준비 중">채팅으로 공유 (준비 중)</Button>
-          <Button variant="ghost" disabled className="cursor-not-allowed opacity-50" title="투표 기능 준비 중">투표하기 (준비 중)</Button>
-        </div>
-      </Card>
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Link to="/proposal"><Button variant="secondary">다른 안 보기</Button></Link>
-        <Button icon={<CalendarDays className="h-4 w-4" />} onClick={() => void proceed()}>이 안 참고해서 일정 만들기</Button>
-      </div>
-    </div>
+      <div className="workflow-cta"><p><b>이 안으로 확정할 수 없습니다.</b>저장 성공처럼 표시하지 않고 백엔드 계약을 기다립니다.</p><button className="line-btn unsupported-button" disabled>이 안으로 선택 · 연결 대기</button></div>
+    </TripWorkspaceShell>
   );
 }

@@ -1,123 +1,75 @@
 import { useEffect } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
-import { Bookmark, Clock, MapPin, Phone, ShieldAlert, Users } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { MapView } from '../../widgets/MapView';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { LoadingView } from '../../shared/ui/StateView';
-import { displayPlaceIntro } from './AttractionListPage';
+import { sourceLabel } from '../../shared/lib/sourceLabel';
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function AttractionDetailPage() {
-  const { id } = useParams();
-  const { attractions, status, activeTripId, loadAttractions, toggleAttraction } = useTripStore();
+  const { id = '' } = useParams();
+  const { attractions, loadAttractions, toggleAttraction, status, error } = useTripStore();
 
-  useEffect(() => {
-    if (!attractions.length && activeTripId) void loadAttractions();
-  }, [attractions.length, activeTripId, loadAttractions]);
+  useEffect(() => { if (!attractions.length) void loadAttractions(); }, [attractions.length, loadAttractions]);
 
-  if (!attractions.length && status.attractions === 'loading') {
-    return <LoadingView label="관광지 정보를 불러오는 중입니다" />;
-  }
-
-  const item = attractions.find((entry) => entry.id === id);
+  const item = attractions.find((attraction) => attraction.id === id);
   if (!item) {
-    if (!activeTripId) return <Navigate to="/attractions" replace />;
-    return <Card>관광지 정보를 찾을 수 없습니다.</Card>;
+    return (
+      <TripWorkspaceShell active="places">
+        <div className="empty-state">
+          <strong>{status.attractions === 'loading' ? '장소를 불러오고 있습니다.' : '장소를 찾을 수 없습니다.'}</strong>
+          <p>{error ?? '추천 목록으로 돌아가 다시 선택해주세요.'}</p>
+          <Link className="solid-btn" to="/attractions">여행지 목록</Link>
+        </div>
+      </TripWorkspaceShell>
+    );
   }
 
-  const hasCoordinates = item.mapY != null && item.mapX != null;
-  const openingEntries = item.openingHours ? Object.entries(item.openingHours) : [];
+  const homepage = safeExternalUrl(item.homepage);
 
   return (
-    <div className="page-canvas space-y-5">
-      <header className="grid gap-4 md:grid-cols-[1fr_260px] md:items-start">
-        <div>
-          <p className="eyebrow">{item.category}</p>
-          <h1 className="mt-2 text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">{item.name}</h1>
-          {item.addr1 ? <p className="mt-3 flex items-center gap-2 text-sm font-bold text-muted"><MapPin className="h-4 w-4" />{item.addr1} {item.addr2 ?? ''}</p> : null}
-        </div>
-        <img
-          src={item.imageUrl ?? 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=700&q=86'}
-          alt=""
-          className="h-40 w-full rounded-2xl object-cover md:h-32"
-        />
+    <TripWorkspaceShell active="places">
+      <header className="page-heading">
+        <div><Link className="text-btn" to="/attractions">‹ 여행지 목록</Link><h1 style={{ marginTop: 9 }}>{item.name}</h1></div>
+        <p>{item.category}</p>
       </header>
-
-      <Card className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {item.saved ? <Badge className="bg-accent text-white">저장됨</Badge> : null}
-          {item.indoor ? <Badge>실내</Badge> : <Badge>실외</Badge>}
-          {item.famous ? <Badge>유명</Badge> : <Badge>숨은 명소</Badge>}
-        </div>
-        <p className="text-sm font-semibold leading-6 text-ink">{displayPlaceIntro(item)}</p>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="space-y-3">
-          <h2 className="flex items-center gap-2 text-xl font-black text-ink"><Clock className="h-5 w-5 text-accent" />운영 정보</h2>
-          {openingEntries.length ? (
-            <ul className="space-y-1 text-sm font-semibold text-ink">
-              {openingEntries.map(([day, hours]) => (
-                <li key={day} className="flex justify-between border-b border-line py-1 last:border-0"><span className="text-muted">{day}</span><span>{String(hours)}</span></li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm font-semibold text-muted">운영시간 정보가 없습니다.</p>
-          )}
-          <p className="text-sm font-semibold text-ink"><span className="text-muted">휴무일 · </span>{item.closedDays?.length ? item.closedDays.join(', ') : '정보 없음'}</p>
-          {item.tel ? <p className="flex items-center gap-2 text-sm font-semibold text-ink"><Phone className="h-4 w-4 text-muted" />{item.tel}</p> : null}
-          {item.homepage ? <a href={item.homepage} target="_blank" rel="noreferrer" className="block text-sm font-bold text-accent underline">홈페이지 방문</a> : null}
-        </Card>
-
-        <Card className="space-y-3">
-          <h2 className="text-xl font-black text-ink">추천 근거 · 지표</h2>
-          <p className="text-sm font-semibold leading-6 text-ink">{item.reason ?? '두 사람의 여행 성향 균형점을 기준으로 추천된 장소입니다.'}</p>
-          <div className="grid grid-cols-3 gap-2">
-            <MiniStat label="혼잡" value={item.congestionScore} suffix="점" />
-            <MiniStat label="숨은명소" value={item.hiddenScore} suffix="점" />
-            <MiniStat label="연관순위" value={item.relatedRank} suffix="위" />
+      <section className="match-detail">
+        <article className="match-profile">
+          {item.imageUrl ? <img src={item.imageUrl} alt={item.name} /> : <div className="place-card-image place-card-placeholder" style={{ height: 300 }}>이미지 미제공</div>}
+          <div className="match-profile-body">
+            <span className="source-label">{sourceLabel(item.source)}</span>
+            <h2>{item.name}</h2>
+            <p>{item.addr1 ?? '주소 미제공'} {item.addr2 ?? ''}<br />{item.tel ?? '전화번호 미제공'}</p>
+            <div className="button-row" style={{ marginTop: 16 }}>
+              <button className="line-btn" onClick={() => void toggleAttraction(item.id, 'excluded')}>{item.excluded ? '제외 취소' : '제외'}</button>
+              <button className="solid-btn" onClick={() => void toggleAttraction(item.id, 'saved')}>{item.saved ? '저장 취소' : '여행에 저장'}</button>
+            </div>
           </div>
-          <div className="flex items-start gap-2 rounded-2xl border border-dashed border-line bg-canvas p-3 text-xs font-bold text-muted">
-            <Users className="mt-0.5 h-4 w-4 shrink-0" />
-            두 사람 각각의 반영 점수는 백엔드에 사용자별 스코어가 추가되면 여기 표시됩니다.
+        </article>
+        <div>
+          <div className="section-title"><h2>장소 정보</h2><p>제공된 값만 표시합니다.</p></div>
+          <div className="axis-list">
+            <Info label="소개" value={item.description ?? item.reason ?? '설명 미제공'} />
+            <Info label="운영 시간" value={item.openingHours ? JSON.stringify(item.openingHours) : '정보 미제공'} />
+            <Info label="휴무일" value={item.closedDays?.join(', ') || '정보 미제공'} />
+            <Info label="위치 좌표" value={item.mapY && item.mapX ? item.mapY + ', ' + item.mapX : '정보 미제공'} />
           </div>
-        </Card>
-      </div>
-
-      {hasCoordinates ? (
-        <MapView title="위치" points={[{ id: item.id, name: item.name, lat: item.mapY, lng: item.mapX, address: item.addr1 }]} />
-      ) : null}
-
-      <Card className="space-y-3">
-        <h2 className="text-xl font-black text-ink">이 장소로 할 수 있는 일</h2>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant={item.saved ? 'secondary' : 'primary'} icon={<Bookmark className="h-4 w-4" />} onClick={() => toggleAttraction(item.id, 'saved')}>
-            {item.saved ? '저장 취소' : '저장하기'}
-          </Button>
-          <Button variant="secondary" onClick={() => toggleAttraction(item.id, 'excluded')}>제외하기</Button>
+          {homepage ? <a className="line-btn accent" style={{ display: 'inline-block', marginTop: 18 }} href={homepage} target="_blank" rel="noreferrer">제공된 홈페이지 열기</a> : null}
+          <div className="backend-wait" style={{ marginTop: 18 }}><h3>장소 개인 투표</h3><p>여행 단위 저장·제외는 지원하지만 사용자별 찬반 투표 데이터는 저장할 수 없습니다.</p></div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="ghost" disabled className="cursor-not-allowed opacity-50" title="채팅 연동 준비 중">채팅으로 공유 (준비 중)</Button>
-          <Button variant="ghost" disabled className="cursor-not-allowed opacity-50" title="투표 기능 준비 중">일정 포함 투표 (준비 중)</Button>
-        </div>
-        <div className="flex items-start gap-2 rounded-2xl bg-accent-soft p-3 text-xs font-bold text-accent">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          채팅 공유·투표는 백엔드에 관련 API가 추가되면 연결됩니다. 지금은 저장/제외만 실제로 동작해요.
-        </div>
-      </Card>
-
-      <Link to="/attractions"><Button variant="secondary">목록으로 돌아가기</Button></Link>
-    </div>
+      </section>
+    </TripWorkspaceShell>
   );
 }
 
-function MiniStat({ label, value, suffix }: { label: string; value?: number | null; suffix: string }) {
-  return (
-    <div className="rounded-2xl bg-canvas p-3 text-center">
-      <p className="text-[11px] font-black text-muted">{label}</p>
-      <p className="mt-1 text-sm font-black text-ink">{value == null ? '-' : `${value}${suffix}`}</p>
-    </div>
-  );
+function Info({ label, value }: { label: string; value: string }) {
+  return <div className="axis-row"><b>{label}</b><div style={{ color: '#666', fontSize: 11, lineHeight: 1.6 }}>{value}</div><em>API</em></div>;
+}
+
+function safeExternalUrl(value?: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

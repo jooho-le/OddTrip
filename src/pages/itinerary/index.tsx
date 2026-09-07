@@ -1,88 +1,91 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudSun, Grid3X3, Route, Share2 } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { MapView } from '../../widgets/MapView';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
-import type { ItineraryItemType } from '../../types';
-
-const typeLabel: Record<ItineraryItemType, string> = { place: '장소', move: '이동', meal: '식사', rest: '휴식' };
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function ItineraryPage() {
-  const { itinerary, loadItinerary, regenerateItinerary, status } = useTripStore();
+  const { itinerary, loadItinerary, regenerateItinerary, status, error, activeTripId, tripHistory } = useTripStore();
+  const [day, setDay] = useState(1);
 
+  useEffect(() => { void loadItinerary(); }, [loadItinerary]);
   useEffect(() => {
-    if (!itinerary.length) void loadItinerary();
-  }, [itinerary.length, loadItinerary]);
+    if (itinerary.length && !itinerary.some((item) => item.day === day)) setDay(itinerary[0].day);
+  }, [itinerary, day]);
 
-  const routePoints = useMemo(
-    () => itinerary
-      .flatMap((day) => day.items)
-      .filter((item) => item.latitude != null && item.longitude != null)
-      .map((item) => ({ id: item.id, name: item.title, lat: item.latitude, lng: item.longitude, address: item.address })),
-    [itinerary],
+  const selected = itinerary.find((item) => item.day === day);
+  const activeTrip = tripHistory.find((item) => item.tripId === activeTripId)
+    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const foreignRegions = findForeignRegions(
+    activeTrip?.region,
+    itinerary.flatMap((itineraryDay) => itineraryDay.items.flatMap((item) => [item.title, item.location, item.address ?? ''])),
   );
-
-  if (status.itinerary === 'loading') return <LoadingView label="AI가 일정을 생성하는 중입니다" />;
-  if (status.itinerary === 'error') return <ErrorView label="일정 생성 결과를 불러오지 못했습니다" />;
+  const hasRegionMismatch = foreignRegions.length > 0;
 
   return (
-    <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-ink p-7 text-white md:p-10">
-        <div className="relative grid gap-8 md:grid-cols-[1fr_300px] md:items-end">
-          <div>
-            <p className="eyebrow">Itinerary</p>
-            <h1 className="mt-3 max-w-4xl text-3xl font-black leading-tight tracking-[-0.03em] md:text-5xl">
-              3일간의 낯선 동행 여행을
-              <br />
-              OddTrip의 추천으로.
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm font-bold leading-6 text-white/68">장소, 이동, 식사, 휴식을 시간대별로 분리해서 보여줍니다.</p>
+    <TripWorkspaceShell active="schedule">
+      <div className="schedule-grid">
+        <section>
+          <div className="section-title">
+            <h2>공동 일정</h2>
+            <p>현재 여행의 일정 API 결과입니다.</p>
+            <button className="line-btn right" disabled={status.itinerary === 'loading'} onClick={() => void regenerateItinerary()}>{status.itinerary === 'loading' ? '일정 처리 중…' : '일정 다시 생성'}</button>
           </div>
-          <div className="motion-card rounded-[34px] bg-white p-6 text-ink">
-            <Route className="h-7 w-7 text-accent" />
-            <p className="mt-12 text-5xl font-black tracking-[-0.05em]">{itinerary.length || 3} days</p>
-            <p className="mt-2 text-sm font-bold text-muted">weather + route + safety</p>
-          </div>
-        </div>
-      </section>
-      {!itinerary.length ? (
-        <Card className="border-accent/15 bg-accent-soft">
-          <EmptyView label="생성된 일정이 없습니다" />
-          <Link to="/attractions"><Button icon={<Grid3X3 className="h-4 w-4" />} className="mt-4">관광지 저장하러 가기</Button></Link>
-        </Card>
-      ) : null}
-      <Card className="flex gap-3 border-0 bg-accent-soft text-ink"><CloudSun className="h-6 w-6 shrink-0 text-accent" /><p className="text-sm font-black leading-6">각 카드를 누르면 상세 지도와 변경 옵션을 확인할 수 있습니다.</p></Card>
-      {routePoints.length ? <MapView title="전체 동선" points={routePoints} /> : null}
-      <div className="space-y-5">
-        {itinerary.map((day) => (
-          <section key={day.day} className="rounded-[38px] border border-line bg-white p-5 shadow-card md:p-7">
-            <div className="mb-5"><h2 className="text-3xl font-black tracking-[-0.035em] text-ink">{day.day}일차 · {day.title}</h2><p className="mt-2 text-sm font-bold text-muted">{day.weather} · {day.caution}</p></div>
-            <div className="space-y-3 border-l-4 border-accent/20 pl-5">
-              {day.items.map((item, index) => (
-                <Link to={`/itinerary/${item.id}`} key={item.id} className="block">
-                  <Card className="reveal-card relative p-4 hover:border-accent/50" style={{ animationDelay: `${index * 70}ms` }}>
-                    <span className="absolute -left-[31px] top-6 h-5 w-5 rounded-full border-4 border-white bg-accent" />
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div><p className="text-sm font-black text-accent">{item.time}</p><h3 className="text-xl font-black text-ink">{item.title}</h3><p className="text-sm font-bold text-muted">{item.location} · {item.duration}</p></div>
-                      <Badge>{typeLabel[item.type]}</Badge>
+          {error && status.itinerary === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadItinerary()}>다시 시도</button></div> : null}
+          {hasRegionMismatch ? <div className="backend-wait itinerary-region-warning" role="alert"><h3>지역 불일치 · 일정 사용 중지</h3><p>{activeTrip?.region ?? '현재 여행'} 일정에 {foreignRegions.join('·')} 지역으로 표시된 항목이 포함되어 있습니다. 이 응답은 비교용 DEMO로만 표시하며 실제 일정의 승인·공유 대상으로 사용하지 않습니다.</p></div> : null}
+          {status.itinerary === 'loading' && !itinerary.length ? <div className="skeleton-stack" role="status" aria-label="일정 API 응답을 기다리는 중"><div className="skeleton-row" /><div className="skeleton-row" /></div> : null}
+          {itinerary.length ? (
+            <>
+              <div className="day-tabs">
+                {itinerary.map((item) => <button className={day === item.day ? 'on' : ''} key={item.day} onClick={() => setDay(item.day)}>{item.day}일차</button>)}
+                <button disabled>지도·동선 · 준비 중</button>
+              </div>
+              <div className="day-list">
+                {selected?.items.map((item) => (
+                  <div className="schedule-row" key={item.id}>
+                    <time>{item.time}</time>
+                    <span className="route-dot" />
+                    <div className="schedule-copy">
+                      <h3><Link to={'/itinerary/' + item.id}>{item.title}</Link></h3>
+                      <p>{item.description || item.location || '설명 미제공'}</p>
+                      <small>{item.duration}{item.moveTime ? ' · 이동 ' + item.moveTime : ''} · {item.location || '위치 미제공'}</small>
+                      <span className="source-label">{findForeignRegions(activeTrip?.region, [item.title, item.location, item.address ?? '']).length ? 'DEMO · 지역 불일치 · 일정 API 응답' : '출처 미제공 · 일정 API 응답'}</span>
                     </div>
-                    <p className="mt-3 text-sm font-bold leading-6 text-muted">{item.description}</p>
-                  </Card>
-                </Link>
-              ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : status.itinerary !== 'loading' ? (
+            <div className="empty-state itinerary-empty">
+              <strong>생성된 일정이 없습니다.</strong>
+              <p>저장한 관광지와 공동 선호를 바탕으로 일정 생성 API를 실행할 수 있습니다.</p>
+              <button className="solid-btn" onClick={() => void regenerateItinerary()}>일정 생성</button>
             </div>
-          </section>
-        ))}
+          ) : null}
+        </section>
+        <aside>
+          <div className="approval-box">
+            <div className="side-head">일정 승인 <span>{hasRegionMismatch ? '지역 불일치 · 승인 불가' : 'API 연결 대기'}</span></div>
+            <div className="approval-body">
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>나</span><b>내 승인</b><span style={{ color: '#999' }}>미저장</span></div>
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#eee' }}>?</span><b>동행 승인</b><span style={{ color: '#999' }}>조회 불가</span></div>
+              <Link className="line-btn" style={{ display: 'block', width: '100%', marginTop: 13, textAlign: 'center' }} to="/approval">승인 화면 보기</Link>
+            </div>
+          </div>
+          <div className="weather-card"><h3>안전 정보</h3><p>날씨·안전 API 응답은 별도 화면에서 확인합니다. 이곳에 정적 예보를 표시하지 않습니다.</p><Link className="text-link" style={{ display: 'inline-block', marginTop: 10 }} to="/safety">안전 정보 열기 →</Link></div>
+        </aside>
       </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Button variant="secondary" onClick={() => void regenerateItinerary()}>다시 조정하기</Button>
-        <Button variant="secondary" icon={<Share2 className="h-4 w-4" />}>공유하기</Button>
-        <Link to="/approval"><Button className="w-full">일정 검토·승인</Button></Link>
+      <div className="workflow-cta">
+        <p><b>일정 생성은 실제 API에 연결됩니다.</b>일정 항목의 원천 출처는 현재 응답에 없으며, 공유·버전 관리·양쪽 승인·수정 요청은 성공 상태를 만들지 않습니다.</p>
+        <div className="button-row"><button className="line-btn unsupported-button" disabled>일정 공유 · 연결 대기</button><Link className="solid-btn" to="/approval">승인 범위 확인</Link></div>
       </div>
-    </div>
+    </TripWorkspaceShell>
   );
+}
+
+const REGION_MARKERS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+
+function findForeignRegions(tripRegion: string | null | undefined, values: string[]) {
+  const expectedRegion = REGION_MARKERS.find((marker) => tripRegion?.includes(marker));
+  if (!expectedRegion) return [];
+  return REGION_MARKERS.filter((marker) => marker !== expectedRegion && values.some((value) => value.includes(marker)));
 }

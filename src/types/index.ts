@@ -8,6 +8,7 @@ export interface UserProfile {
   nickname: string;
   avatarUrl?: string | null;
   homeRegion?: string | null;
+  role?: 'user' | 'admin' | string;
   ttiCode?: TtiCode;
 }
 
@@ -63,6 +64,38 @@ export interface MatchCandidate {
   recommendationScore: number;
   differences: string[];
   complements: string[];
+}
+
+export type MatchRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+
+export interface MatchRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+  status: MatchRequestStatus;
+  expiresAt?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  counterpart?: UserProfile | null;
+}
+
+export interface MatchRequestCreate {
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+}
+
+export interface MatchAcceptResult {
+  requestId: string;
+  matchId: string;
+  roomId: string;
+  tripId: string;
 }
 
 export interface JointPreference {

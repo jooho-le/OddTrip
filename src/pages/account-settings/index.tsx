@@ -1,37 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Camera, Save } from 'lucide-react';
+import { type FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Avatar } from '../../shared/ui/Avatar';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { useToast } from '../../shared/ui/Toast';
-import { ProgressBar } from '../../shared/ui/ProgressBar';
 
 export function AccountSettingsPage() {
-  const { user, updateProfile } = useTripStore();
-  const showToast = useToast((state) => state.show);
+  const { user, updateProfile, status, error } = useTripStore();
   const [nickname, setNickname] = useState(user?.nickname ?? '');
   const [homeRegion, setHomeRegion] = useState(user?.homeRegion ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
-  const [saving, setSaving] = useState(false);
-  const completeness = [nickname, homeRegion, avatarUrl].filter(Boolean).length * 25 + (user?.email ? 25 : 0);
   useEffect(() => { setNickname(user?.nickname ?? ''); setHomeRegion(user?.homeRegion ?? ''); setAvatarUrl(user?.avatarUrl ?? ''); }, [user]);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault(); setSaving(true);
-    const success = await updateProfile({ nickname: nickname.trim(), homeRegion: homeRegion.trim(), avatarUrl: avatarUrl.trim() });
-    setSaving(false); if (success) showToast('계정 설정을 저장했습니다.');
-  }
-
-  return <div className="page-canvas"><section className="mb-6"><p className="eyebrow">Account</p><h1>계정 설정</h1><p>프로필과 기본 여행 정보를 관리합니다.</p></section>
-    <Card className="mx-auto max-w-2xl"><form onSubmit={submit} className="space-y-6">
-      <div className="flex items-center gap-4"><Avatar src={avatarUrl} fallback={nickname} className="h-20 w-20 text-2xl"/><div><h2 className="font-extrabold">프로필 이미지</h2><p className="mt-1 text-xs text-muted">이미지 URL을 입력하면 바로 미리 볼 수 있어요.</p></div></div>
-      <ProgressBar value={completeness} label="프로필 완성도" />
-      <label className="field-label"><span><Camera className="h-4 w-4"/>이미지 URL</span><input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." /></label>
-      <label className="field-label"><span>닉네임</span><input required minLength={2} value={nickname} onChange={(e) => setNickname(e.target.value)} /></label>
-      <label className="field-label"><span>이메일</span><input value={user?.email ?? ''} disabled /><small>이메일 변경은 현재 지원하지 않습니다.</small></label>
-      <label className="field-label"><span>기본 출발 지역</span><input value={homeRegion} onChange={(e) => setHomeRegion(e.target.value)} placeholder="예: 서울" /></label>
-      <Button type="submit" disabled={saving || !nickname.trim()} icon={<Save className="h-4 w-4"/>}>{saving ? '저장 중...' : '변경사항 저장'}</Button>
-    </form></Card>
-  </div>;
+  const submit = async (event: FormEvent) => { event.preventDefault(); await updateProfile({ nickname, homeRegion: homeRegion || undefined, avatarUrl: avatarUrl || undefined }); };
+  return <main className="page"><div className="container"><header className="page-heading"><div><Link className="text-btn" to="/my">‹ 내 여행</Link><h1 style={{ marginTop: 9 }}>계정 설정</h1></div><p>현재 사용자 프로필 API에 저장됩니다.</p></header><section className="match-detail"><aside className="match-profile"><div style={{ height: 240, display: 'grid', placeItems: 'center', background: '#242424' }}>{avatarUrl ? <img style={{ width: 150, height: 150, borderRadius: '50%', objectFit: 'cover' }} src={avatarUrl} alt="프로필 미리보기" /> : <span style={{ color: '#fff', fontSize: 64, fontWeight: 900 }}>{nickname.slice(0, 1) || '?'}</span>}</div><div className="match-profile-body"><span className="status">{user?.role ?? 'user'}</span><h2>{user?.nickname ?? '여행자'}</h2><p>{user?.email ?? '이메일 미제공'}<br />TTI {user?.ttiCode ?? '미완료'}</p></div></aside><form className="match-request-form" style={{ marginTop: 0 }} onSubmit={submit}><div className="section-title"><h2>프로필 정보</h2><p>닉네임, 지역, 이미지 URL</p></div><div className="form-grid"><label className="field full"><span>닉네임</span><input required maxLength={50} value={nickname} onChange={(event) => setNickname(event.target.value)} /></label><label className="field full"><span>생활 지역</span><input maxLength={100} value={homeRegion} onChange={(event) => setHomeRegion(event.target.value)} /></label><label className="field full"><span>프로필 이미지 URL</span><input type="url" maxLength={500} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} /></label></div>{error ? <div className="error-strip">{error}</div> : null}<p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '비밀번호·계정 삭제는 현재 프로필 API 범위에 없습니다.'}</p><button className="solid-btn" style={{ marginTop: 14 }} disabled={status.profile === 'loading'}>{status.profile === 'loading' ? '저장 중…' : '프로필 저장'}</button></form></section></div></main>;
 }

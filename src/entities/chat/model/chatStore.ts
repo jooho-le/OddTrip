@@ -18,6 +18,7 @@ interface ChatState {
   error?: string;
   socket: WebSocket | null;
   socketRefCount: number;
+  socketStatus: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline';
 
   loadRooms: (status?: 'active' | 'closed', options?: { more?: boolean }) => Promise<void>;
   loadRoom: (roomId: string) => Promise<ChatRoom | undefined>;
@@ -44,6 +45,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   unreadTotal: 0,
   socket: null,
   socketRefCount: 0,
+  socketStatus: 'idle',
 
   async loadRooms(status, options = {}) {
     const { more = false } = options;
@@ -212,34 +214,79 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const state = get();
     set({ socketRefCount: state.socketRefCount + 1 });
     if (state.socket) return;
-
-    const url = buildChatSocketUrl();
-    if (!url) return;
-
-    const socket = new WebSocket(url);
-    socket.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data) as ChatSocketEvent;
-        handleSocketEvent(parsed, set, get);
-      } catch {
-        // Ignore malformed frames rather than crashing the socket handler.
-      }
-    };
-    socket.onclose = () => {
-      set((current) => (current.socket === socket ? { socket: null } : {}));
-    };
-    set({ socket });
+    openChatSocket(set, get);
   },
 
   disconnectSocket() {
     const nextCount = Math.max(0, get().socketRefCount - 1);
     set({ socketRefCount: nextCount });
     if (nextCount === 0) {
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
+      reconnectAttempt = 0;
       get().socket?.close();
-      set({ socket: null });
+      set({ socket: null, socketStatus: 'idle' });
     }
   },
 }));
+
+let reconnectTimer: number | undefined;
+let reconnectAttempt = 0;
+
+function openChatSocket(
+  set: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void,
+  get: () => ChatState,
+) {
+  if (get().socket || get().socketRefCount <= 0) return;
+  const url = buildChatSocketUrl();
+  if (!url) {
+    set({ socketStatus: 'offline' });
+    return;
+  }
+
+  set({ socketStatus: reconnectAttempt ? 'reconnecting' : 'connecting' });
+  const socket = new WebSocket(url);
+  set({ socket });
+
+  socket.onopen = () => {
+    reconnectAttempt = 0;
+    set((current) => current.socket === socket ? { socketStatus: 'connected' } : {});
+  };
+  socket.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data) as ChatSocketEvent;
+      handleSocketEvent(parsed, set, get);
+    } catch {
+      // Ignore malformed frames rather than crashing the socket handler.
+    }
+  };
+  socket.onerror = () => {
+    set((current) => current.socket === socket ? { socketStatus: 'offline' } : {});
+  };
+  socket.onclose = () => {
+    if (get().socket !== socket) return;
+    set({ socket: null });
+    if (get().socketRefCount <= 0) {
+      set({ socketStatus: 'idle' });
+      return;
+    }
+    scheduleReconnect(set, get);
+  };
+}
+
+function scheduleReconnect(
+  set: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void,
+  get: () => ChatState,
+) {
+  if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+  reconnectAttempt += 1;
+  const delay = Math.min(1_000 * 2 ** (reconnectAttempt - 1), 15_000);
+  set({ socketStatus: 'reconnecting' });
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = undefined;
+    openChatSocket(set, get);
+  }, delay);
+}
 
 function handleSocketEvent(
   event: ChatSocketEvent,

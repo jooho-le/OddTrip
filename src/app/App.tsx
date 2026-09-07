@@ -1,34 +1,17 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AppLayout } from './AppLayout';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useTripStore } from '../entities/trip/model/tripStore';
-import { LandingPage } from '../pages/landing';
+import { PrototypeLayout } from './PrototypeLayout';
+import { IntroCurtain } from '../features/intro-transition/IntroCurtain';
+import { IntroLandingPage } from '../pages/intro/IntroLandingPage';
+import { HomePage } from '../pages/home/HomePage';
+import { MatesPage, MateDetailPage } from '../pages/matches/MatesPage';
+import { MyTripsPage } from '../pages/my-trip/MyTripsPage';
+import { TripWorkspacePage } from '../pages/trip/TripWorkspacePage';
+import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
 import { AuthPage } from '../pages/auth';
-import { TtiStartPage } from '../pages/tti-start';
-import { TtiQuestionsPage } from '../pages/tti-questions';
-import { TtiResultPage } from '../pages/tti-result';
-import { MatchesPage } from '../pages/matches';
-import { MatchDetailPage } from '../pages/match-detail';
-import { ChatListPage } from '../pages/chat';
-import { ChatRoomPage } from '../pages/chat-room';
-import { DecisionHomePage } from '../pages/decision/DecisionHomePage';
-import { Step1SelectPage } from '../pages/decision/Step1SelectPage';
-import { WaitingPage } from '../pages/decision/WaitingPage';
-import { Step2AnalysisPage } from '../pages/decision/Step2AnalysisPage';
-import { Step3ConcessionPage } from '../pages/decision/Step3ConcessionPage';
-import { Step4OddRulePage } from '../pages/decision/Step4OddRulePage';
-import { ProposalListPage } from '../pages/proposal/ProposalListPage';
-import { ProposalComparePage } from '../pages/proposal/ProposalComparePage';
-import { ProposalDetailPage } from '../pages/proposal/ProposalDetailPage';
-import { AttractionListPage } from '../pages/attractions/AttractionListPage';
-import { AttractionDetailPage } from '../pages/attractions/AttractionDetailPage';
-import { ItineraryPage } from '../pages/itinerary';
-import { ItineraryDetailPage } from '../pages/itinerary-detail';
-import { ApprovalPage } from '../pages/approval/ApprovalPage';
-import { SafetyPage } from '../pages/safety';
-import { MyTripPage } from '../pages/my-trip';
-import { TripArchivePage } from '../pages/trip-archive';
+import { AccountSettingsPage } from '../pages/account-settings';
 import { AdminLayout } from '../admin/AdminLayout';
 import { DashboardPage } from '../admin/pages/DashboardPage';
 import { UsersPage } from '../admin/pages/UsersPage';
@@ -37,7 +20,6 @@ import { TripDetailPage } from '../admin/pages/TripDetailPage';
 import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/AttractionsPage';
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
-import { AccountSettingsPage } from '../pages/account-settings';
 import { ToastViewport } from '../shared/ui/Toast';
 
 export function App() {
@@ -47,11 +29,19 @@ export function App() {
     void bootstrap();
   }, [bootstrap]);
 
+  useEffect(() => {
+    const expire = () => useTripStore.getState().logout();
+    window.addEventListener('oddtrip:session-expired', expire);
+    return () => window.removeEventListener('oddtrip:session-expired', expire);
+  }, []);
+
   return (
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <ToastViewport />
+      <IntroCurtain />
+      <ScrollToTop />
       <Routes>
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
           <Route index element={<DashboardPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="trips" element={<TripsPage />} />
@@ -60,40 +50,45 @@ export function App() {
           <Route path="tti" element={<TtiPage />} />
           <Route path="operations" element={<OperationsPage />} />
         </Route>
-        <Route element={<AppLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/tti/start" element={<RequireAuth><TtiStartPage /></RequireAuth>} />
-          <Route path="/tti/questions" element={<RequireAuth><TtiQuestionsPage /></RequireAuth>} />
-          <Route path="/tti/result" element={<RequireAuth><TtiResultPage /></RequireAuth>} />
-          <Route path="/matches" element={<RequireAuth><MatchesPage /></RequireAuth>} />
-          <Route path="/matches/:id" element={<RequireAuth><MatchDetailPage /></RequireAuth>} />
-          <Route path="/chat" element={<RequireAuth><ChatListPage /></RequireAuth>} />
-          <Route path="/chat/:roomId" element={<RequireAuth><ChatRoomPage /></RequireAuth>} />
-          <Route path="/decision" element={<RequireAuth><DecisionHomePage /></RequireAuth>} />
-          <Route path="/decision/select" element={<RequireAuth><Step1SelectPage /></RequireAuth>} />
-          <Route path="/decision/waiting" element={<RequireAuth><WaitingPage /></RequireAuth>} />
-          <Route path="/decision/analysis" element={<RequireAuth><Step2AnalysisPage /></RequireAuth>} />
-          <Route path="/decision/concession" element={<RequireAuth><Step3ConcessionPage /></RequireAuth>} />
-          <Route path="/decision/odd-rule" element={<RequireAuth><Step4OddRulePage /></RequireAuth>} />
-          <Route path="/proposal" element={<RequireAuth><ProposalListPage /></RequireAuth>} />
-          <Route path="/proposal/compare" element={<RequireAuth><ProposalComparePage /></RequireAuth>} />
-          <Route path="/proposal/:variantId" element={<RequireAuth><ProposalDetailPage /></RequireAuth>} />
-          <Route path="/attractions" element={<RequireAuth><AttractionListPage /></RequireAuth>} />
-          <Route path="/attractions/:id" element={<RequireAuth><AttractionDetailPage /></RequireAuth>} />
-          <Route path="/itinerary" element={<RequireAuth><ItineraryPage /></RequireAuth>} />
-          <Route path="/itinerary/:id" element={<RequireAuth><ItineraryDetailPage /></RequireAuth>} />
-          <Route path="/approval" element={<RequireAuth><ApprovalPage /></RequireAuth>} />
-          <Route path="/safety" element={<RequireAuth><SafetyPage /></RequireAuth>} />
-          <Route path="/my" element={<RequireAuth><MyTripPage /></RequireAuth>} />
-          <Route path="/my/trips" element={<RequireAuth><TripArchivePage mode="itinerary" /></RequireAuth>} />
-          <Route path="/my/matches" element={<RequireAuth><TripArchivePage mode="match" /></RequireAuth>} />
+
+        {/* 인트로 랜딩 — 자체 nav/footer, 셸 없음 */}
+        <Route path="/" element={<IntroLandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+
+        {/* 프로토타입 앱 셸 */}
+        <Route element={<PrototypeLayout />}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/matches" element={<MatesPage />} />
+          <Route path="/matches/:index" element={<MateDetailPage />} />
+          <Route path="/my" element={<MyTripsPage />} />
+          <Route path="/trip" element={<Navigate to="/trip/overview" replace />} />
+          <Route path="/trip/:tab" element={<TripWorkspacePage />} />
+          <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<RequireAuth><AccountSettingsPage /></RequireAuth>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+
+        {/* 이전 라우트 호환 */}
+        <Route path="/tti/start" element={<Navigate to="/survey/tti" replace />} />
+        <Route path="/tti/questions" element={<Navigate to="/survey/tti" replace />} />
+        <Route path="/tti/result" element={<Navigate to="/home" replace />} />
+        <Route path="/decision/*" element={<Navigate to="/trip/coordination" replace />} />
+        <Route path="/proposal/*" element={<Navigate to="/trip/coordination" replace />} />
+        <Route path="/attractions/*" element={<Navigate to="/trip/places" replace />} />
+        <Route path="/itinerary/*" element={<Navigate to="/trip/schedule" replace />} />
+        <Route path="/approval" element={<Navigate to="/survey/approval" replace />} />
+        <Route path="/safety" element={<Navigate to="/trip/schedule" replace />} />
+        <Route path="/chat/*" element={<Navigate to="/home" replace />} />
+        <Route path="/my/*" element={<Navigate to="/my" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }, [pathname]);
+  return null;
 }
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -101,11 +96,28 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const status = useTripStore((state) => state.status.user);
   const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
 
-  if (status === 'loading' && hasToken) {
-    return null;
+  if (hasToken && !user && status !== 'error') {
+    return <RouteGateLoading />;
   }
-  if (!user && !hasToken) {
-    return <Navigate to="/auth" replace />;
+  if (!hasToken) {
+    const expired = sessionStorage.getItem('oddtrip.sessionExpired') === '1';
+    return <Navigate to={expired ? '/auth?expired=1' : '/auth'} replace />;
   }
+  if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const user = useTripStore((state) => state.user);
+  const status = useTripStore((state) => state.status.user);
+  const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
+  if (hasToken && !user && status !== 'error') return <RouteGateLoading />;
+  if (!hasToken) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (user?.role !== 'admin') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function RouteGateLoading() {
+  return <div className="app-loading" role="status"><div className="app-loading-card"><strong><span style={{ color: 'var(--orange)', display: 'inline' }}>odd</span>trip</strong><span>세션을 확인하고 있습니다.</span><div className="loading-line" /></div></div>;
 }

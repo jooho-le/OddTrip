@@ -1,80 +1,14 @@
-import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, MessageCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { useDecisionStore } from '../../entities/decision/model/decisionStore';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import type { DecisionSelections } from '../../entities/decision/types';
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
+
+const conflictOptions = ['일정 속도', '유명 관광지와 로컬 장소 비중', '실내와 야외 활동 비중', '식사 예산'];
 
 export function Step2AnalysisPage() {
-  const navigate = useNavigate();
-  const { selectedMatch, matches } = useTripStore();
-  const { selections } = useDecisionStore();
-  const partner = selectedMatch ?? matches[0];
+  const { decisionSuggestion, resolveDecisionConflict, status, error } = useTripStore();
+  const [conflicts, setConflicts] = useState<string[]>(['일정 속도']);
+  const toggle = (value: string) => setConflicts((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
 
-  const common = useMemo(() => [...selections.places, ...selections.activities, ...selections.foods], [selections]);
-  const balanced = selections.pace >= 40 && selections.pace <= 60 && selections.budget >= 40 && selections.budget <= 60;
-  const conflicts = useMemo(() => detectConflicts(selections), [selections]);
-
-  const startConcession = () => navigate('/decision/concession');
-
-  return (
-    <div className="page-canvas space-y-5">
-      <header>
-        <p className="eyebrow">Step 02 · 차이 분석</p>
-        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">내 선택과 상대 성향 차이를 살펴봐요.</h1>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="space-y-3">
-          <h2 className="text-xl font-black text-ink">공통 선호 후보</h2>
-          <p className="text-xs font-bold text-muted">상대방의 실제 선택은 아직 백엔드에서 받아올 수 없어서, 내가 고른 항목을 공통 후보로 보여줘요.</p>
-          <div className="flex flex-wrap gap-2">
-            {common.length ? common.map((item) => <Badge key={item}>{item}</Badge>) : <span className="text-sm font-semibold text-muted">아직 선택한 항목이 없어요.</span>}
-          </div>
-        </Card>
-
-        <Card className="space-y-3">
-          <h2 className="text-xl font-black text-ink">균형 가능 여부</h2>
-          <p className={`text-sm font-black ${balanced ? 'text-accent' : 'text-danger'}`}>{balanced ? '일정 강도·예산이 무난한 범위예요.' : '일정 강도 또는 예산이 한쪽으로 치우쳐 있어요.'}</p>
-          <p className="text-xs font-bold text-muted">일정 강도 {selections.pace}% · 예산 {selections.budget}%</p>
-        </Card>
-      </div>
-
-      <Card className="space-y-3">
-        <h2 className="text-xl font-black text-ink">주요 충돌 요소</h2>
-        <div className="flex flex-wrap gap-2">
-          {conflicts.map((item) => <Badge key={item} className="bg-ink text-white">{item}</Badge>)}
-        </div>
-      </Card>
-
-      <Card className="space-y-3">
-        <h2 className="text-xl font-black text-ink">TTI 기반 예상 차이</h2>
-        {partner?.differences?.length ? (
-          <div className="flex flex-wrap gap-2">{partner.differences.map((item) => <Badge key={item}>{item}</Badge>)}</div>
-        ) : (
-          <p className="text-sm font-semibold text-muted">매칭 상세에서 확인한 성향 차이가 없어요.</p>
-        )}
-      </Card>
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Link to="/chat"><Button variant="secondary" icon={<MessageCircle className="h-4 w-4" />} className="w-full">채팅에서 이야기하기</Button></Link>
-        <Button icon={<ArrowRight className="h-4 w-4" />} className="w-full" onClick={startConcession}>조율 시작하기</Button>
-      </div>
-    </div>
-  );
-}
-
-function detectConflicts(selections: DecisionSelections) {
-  const conflicts: string[] = [];
-  if (selections.pace >= 70) conflicts.push('높은 일정 강도');
-  if (selections.pace <= 35) conflicts.push('느린 일정 선호');
-  if (selections.budget >= 70) conflicts.push('예산 상향 가능');
-  if (selections.budget <= 35) conflicts.push('예산 절약 우선');
-  if (selections.indoorPreferred && selections.activities.some((item) => ['자전거', '사진'].includes(item))) conflicts.push('실내 우선과 야외 활동 충돌');
-  if (selections.hiddenSpots && selections.places.some((item) => ['전망', '시장', '야경'].includes(item))) conflicts.push('숨은 명소와 대표 코스 균형');
-  if (selections.exclude.length) conflicts.push(`제외 항목 ${selections.exclude.length}건 확인 필요`);
-  return conflicts.length ? conflicts : ['현재 조건은 큰 충돌 없이 균형적이에요.'];
+  return <TripWorkspaceShell active="coordination"><div className="coord-layout"><section><div className="section-title"><h2>차이 분석</h2><p>공동 선호와 선택한 충돌 항목으로 현재 API를 실행합니다.</p></div><div className="coord-list">{conflictOptions.map((item, index) => <article className="coord-item" key={item}><span className="coord-no">{index + 1}</span><div className="coord-copy"><h3>{item}</h3><p>실제 충돌로 분석할 항목을 선택합니다.</p></div><div className="coord-action"><button className={conflicts.includes(item) ? 'solid-btn' : 'line-btn'} onClick={() => toggle(item)}>{conflicts.includes(item) ? '선택됨' : '선택'}</button></div></article>)}</div>{error ? <div className="error-strip" role="alert">{error}</div> : null}<div className="workflow-cta"><p><b>AI 조정 제안 생성</b>이 결과는 참고용 텍스트이며 합의나 확정 상태로 저장되지 않습니다.</p><button className="solid-btn" disabled={!conflicts.length || status.conflict === 'loading'} aria-busy={status.conflict === 'loading'} onClick={() => void resolveDecisionConflict(conflicts)}>{status.conflict === 'loading' ? '분석 중…' : '분석 실행'}</button></div>{decisionSuggestion ? <div className="detail-note"><h3>API 조정 제안</h3><p>{decisionSuggestion}</p><div style={{ marginTop: 12 }}><span className="waiting-label">열람 전용 · 확정 API 없음</span></div></div> : null}</section><aside><div className="backend-wait"><h3>개인 답안 비교 아님</h3><p>현재 응답은 한 여행의 공동 JSON입니다. 두 사람의 원본 답안을 비교한 것처럼 표시하지 않습니다.</p></div><Link className="line-btn" style={{ display: 'block', marginTop: 13, textAlign: 'center' }} to="/decision/concession">양보 범위 화면 보기</Link></aside></div></TripWorkspaceShell>;
 }

@@ -1,64 +1,14 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, MessageCircle } from 'lucide-react';
-import { useDecisionStore } from '../../entities/decision/model/decisionStore';
-import { ODD_RULES } from '../../entities/decision/types';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { useToast } from '../../shared/ui/Toast';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const rules = [
+  ['핵심 1개 보장', '각자 가장 중요한 한 가지를 일정에 반드시 남깁니다.'],
+  ['하루씩 선택권', '날짜별 주도권을 번갈아 갖습니다.'],
+  ['새로운 선택 우선', '둘 다 가보지 않은 장소를 우선합니다.'],
+];
 
 export function Step4OddRulePage() {
   const navigate = useNavigate();
-  const showToast = useToast((state) => state.show);
-  const { oddRule, oddRuleConfirmedAt, setOddRule, confirmOddRule } = useDecisionStore();
-
-  const handleConfirm = () => {
-    if (!oddRule) return;
-    confirmOddRule();
-    showToast('Odd Rule을 확정했어요. 이제 AI 조율안을 확인해보세요.');
-    navigate('/proposal');
-  };
-
-  return (
-    <div className="page-canvas space-y-5">
-      <header>
-        <p className="eyebrow">Step 04 · Odd Rule 선택</p>
-        <h1 className="mt-2 max-w-2xl text-2xl font-black leading-snug tracking-[-0.02em] text-ink md:text-3xl">둘의 취향을 어떤 방식으로 섞을지 정해요.</h1>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {ODD_RULES.map((rule) => {
-          const selected = oddRule === rule.id;
-          return (
-            <Card
-              key={rule.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setOddRule(rule.id)}
-              onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setOddRule(rule.id); }}
-              className={`cursor-pointer space-y-2 ${selected ? 'border-accent ring-2 ring-accent/20' : ''}`}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black text-ink">{rule.title}</h2>
-                {selected ? <CheckCircle2 className="h-5 w-5 text-accent" /> : null}
-              </div>
-              <p className="text-sm font-semibold leading-6 text-muted">{rule.description}</p>
-            </Card>
-          );
-        })}
-      </div>
-
-      {oddRuleConfirmedAt ? (
-        <Card className="border-accent/20 bg-accent-soft text-sm font-bold text-accent">
-          {new Date(oddRuleConfirmedAt).toLocaleString('ko-KR')}에 확정했어요.
-        </Card>
-      ) : null}
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Link to="/chat"><Button variant="secondary" icon={<MessageCircle className="h-4 w-4" />} className="w-full">채팅으로 투표하기</Button></Link>
-        <Button disabled={!oddRule} onClick={handleConfirm} className="w-full">
-          Odd Rule 확정하고 조율안 보기
-        </Button>
-      </div>
-    </div>
-  );
+  const [selected, setSelected] = useState('');
+  return <main className="page form-page"><div className="form-toolbar"><button onClick={() => navigate('/proposal')}>‹ 조율로 돌아가기</button><span>{selected ? '1 / 1 임시 선택' : '0 / 1 선택'}</span><div className="form-progress"><i style={{ width: selected ? '100%' : '0%' }} /></div></div><article className="paper"><header className="paper-head"><h1>Odd Rule 선택서</h1><p>ODDTRIP FORM 04 · SHARED RULE</p></header><div className="paper-body"><p className="paper-note">차이가 생겼을 때 두 사람이 적용할 규칙을 비교하는 화면입니다. 합의·확정 API가 없으므로 선택은 미리보기일 뿐 저장되지 않습니다.</p><div className="document-lock"><b>합의 상태를 만들지 않습니다.</b><br />양쪽 선택, 충돌 처리, 최종 규칙 버전을 저장하는 계약이 필요합니다.</div><h2 className="form-section-title">1. 조율 규칙 비교</h2><div className="proposal-grid">{rules.map(([title, copy]) => <article className={selected === title ? 'proposal' : 'proposal'} style={selected === title ? { borderColor: 'var(--pink)', background: '#fff1f6' } : undefined} key={title}><strong>{title}</strong><p>{copy}</p><button className={selected === title ? 'solid-btn' : 'line-btn'} style={{ width: '100%' }} onClick={() => setSelected(title)}>{selected === title ? '미리보기 선택됨' : '미리보기'}</button></article>)}</div><div className="sign"><span>저장되지 않는 미리보기</span><span>합의 서명 __________</span></div></div></article><div className="form-actions"><button onClick={() => navigate('/proposal')}>나가기</button><span className="hint">{selected ? selected + ' · 미저장' : '규칙을 비교해볼 수 있습니다.'}</span><button className="submit unsupported-button" disabled>합의 API 연결 대기</button></div></main>;
 }
