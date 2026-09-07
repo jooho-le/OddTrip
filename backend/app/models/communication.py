@@ -40,6 +40,8 @@ class MatchRequest(Base):
             postgresql_where=text("deleted_at IS NULL AND status = 'pending'"),
             sqlite_where=text("deleted_at IS NULL AND status = 'pending'"),
         ),
+        Index("ix_match_requests_requester_status", "requester_id", "status"),
+        Index("ix_match_requests_receiver_status", "receiver_id", "status"),
     )
 
 
@@ -121,4 +123,5 @@ class Report(Base):
             postgresql_where=text("message_id IS NOT NULL AND deleted_at IS NULL"),
             sqlite_where=text("message_id IS NOT NULL AND deleted_at IS NULL"),
         ),
+        Index("ix_reports_status_created", "status", "created_at"),
     )

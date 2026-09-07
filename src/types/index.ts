@@ -80,7 +80,13 @@ export interface MatchRequest {
   expiresAt?: string | null;
   respondedAt?: string | null;
   createdAt: string;
+  requester: UserProfile;
+  receiver: UserProfile;
   counterpart?: UserProfile | null;
+  matchLevel: '완전 반대' | '부분 반대' | '추천';
+  recommendationScore: number;
+  differences: string[];
+  complements: string[];
 }
 
 export interface MatchRequestCreate {
@@ -96,6 +102,7 @@ export interface MatchAcceptResult {
   matchId: string;
   roomId: string;
   tripId: string;
+  userIds: string[];
 }
 
 export interface JointPreference {

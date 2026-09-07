@@ -97,7 +97,9 @@ Trip
 MatchUserState 2건
 ```
 
-commit 후 양쪽 WebSocket에 `room.created`를 전송한다. 알림 담당은 이 결과의 `roomId`, `matchId`, `tripId`, 양쪽 사용자 ID를 사용해 새 채팅방 알림을 생성할 수 있다.
+commit 후 양쪽 WebSocket에 `chat.room_created`를 전송한다. 응답과 이벤트에는 `roomId`, `matchId`, `tripId`, `userIds`가 포함된다. 알림 담당은 이 데이터를 사용해 새 채팅방 알림을 생성할 수 있다.
+
+요청 목록·상세 응답은 요청자와 수신자 프로필, 상대 프로필, 현재 TTI 기준 반대도·점수·차이·보완점을 포함한다.
 
 ## 채팅 API
 
@@ -176,7 +178,7 @@ await chat_service.create_system_message(
 
 ```http
 POST   /api/matches/{matchId}/end
-DELETE /api/matches/{matchId}
+DELETE /api/me/matches/{matchId}
 ```
 
 종료:
@@ -237,7 +239,7 @@ WS /api/chat/ws?token={accessToken}
 이벤트:
 
 ```text
-room.created
+chat.room_created
 message.created
 message.deleted
 room.read
@@ -253,7 +255,7 @@ user.blocked
 
 ```text
 매칭 수락 commit
-→ room.created 데이터 제공
+→ chat.room_created 데이터 제공
 → 알림 모듈이 양쪽 chat.room_created 알림 생성
 ```
 

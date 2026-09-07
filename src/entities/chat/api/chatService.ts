@@ -77,7 +77,7 @@ export type ChatSocketEvent =
   | { event: 'message.deleted'; data: ChatMessage }
   | { event: 'system.created'; data: ChatMessage }
   | { event: 'room.read'; data: { roomId: string; userId: string; lastReadSequence: number } }
-  | { event: 'room.created'; data: unknown }
+  | { event: 'chat.room_created'; data: { requestId: string; matchId: string; roomId: string; tripId: string; userIds: string[] } }
   | { event: 'room.closed'; data: { roomId: string; closedAt?: string } }
   | { event: 'match.ended'; data: { matchId: string; roomId: string | null; status: string; endedAt: string } }
   | { event: 'user.blocked'; data: { matchId: string } }

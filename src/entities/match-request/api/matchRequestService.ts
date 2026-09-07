@@ -41,4 +41,18 @@ export const matchRequestService = {
   cancel(requestId: string) {
     return apiRequest<MatchRequest>({ url: `/api/match-requests/${requestId}/cancel`, method: 'POST' });
   },
+
+  endMatch(matchId: string) {
+    return apiRequest<{ matchId: string; roomId?: string | null; status: 'ended'; endedAt: string }>({
+      url: `/api/matches/${matchId}/end`,
+      method: 'POST',
+    });
+  },
+
+  hideMatch(matchId: string) {
+    return apiRequest<{ matchId: string; hiddenAt: string }>({
+      url: `/api/me/matches/${matchId}`,
+      method: 'DELETE',
+    });
+  },
 };

@@ -51,7 +51,7 @@ describe('frontend API contracts', () => {
     expect(mocks.apiRequest).toHaveBeenNthCalledWith(2, expect.objectContaining({ url: '/api/tti/calculate', method: 'POST' }));
   });
 
-  it('uses match-request lifecycle endpoints and never exposes direct accept', async () => {
+  it('uses the current match-request lifecycle and per-user history endpoints', async () => {
     mocks.apiRequest.mockResolvedValue({ data: {} });
     await matchRequestService.create({ receiverId: 'u2', region: '부산', startDate: '2026-09-20', endDate: '2026-09-22', greetingMessage: '같이 여행해요.' });
     await matchRequestService.listReceived('pending');
@@ -59,6 +59,8 @@ describe('frontend API contracts', () => {
     await matchRequestService.accept('req-1');
     await matchRequestService.reject('req-2');
     await matchRequestService.cancel('req-3');
+    await matchRequestService.endMatch('match-1');
+    await matchRequestService.hideMatch('match-1');
 
     expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
       ['POST', '/api/match-requests'],
@@ -67,8 +69,20 @@ describe('frontend API contracts', () => {
       ['POST', '/api/match-requests/req-1/accept'],
       ['POST', '/api/match-requests/req-2/reject'],
       ['POST', '/api/match-requests/req-3/cancel'],
+      ['POST', '/api/matches/match-1/end'],
+      ['DELETE', '/api/me/matches/match-1'],
     ]);
     expect('acceptMatch' in oddtripService).toBe(false);
+  });
+
+  it('uses the latest room-created websocket event contract', () => {
+    const event: import('../entities/chat/api/chatService').ChatSocketEvent = {
+      event: 'chat.room_created',
+      data: { requestId: 'req-1', matchId: 'match-1', roomId: 'room-1', tripId: 'trip-1', userIds: ['u1', 'u2'] },
+    };
+
+    expect(event.event).toBe('chat.room_created');
+    expect(event.data.userIds).toEqual(['u1', 'u2']);
   });
 
   it('connects room list, history, send, read, and unread APIs', async () => {

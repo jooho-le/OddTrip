@@ -332,7 +332,7 @@ function handleSocketEvent(
     return;
   }
 
-  if (event.event === 'room.created') {
+  if (event.event === 'chat.room_created') {
     void get().loadRooms();
     return;
   }

@@ -43,3 +43,5 @@ Index(
     func.greatest(Match.user_id, Match.matched_user_id),
     unique=True,
 )
+Index("ix_matches_user_status", Match.user_id, Match.status)
+Index("ix_matches_matched_user_status", Match.matched_user_id, Match.status)
