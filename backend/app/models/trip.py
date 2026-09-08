@@ -42,6 +42,26 @@ class Trip(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class TripUserPreference(Base):
+    """One traveller's private input before the pair agrees on joint preferences."""
+
+    __tablename__ = "trip_user_preferences"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "user_id", name="uq_trip_user_preferences_trip_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    preferences_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Place(Base):
     """A real-world place, stored once and shared across trips.
 

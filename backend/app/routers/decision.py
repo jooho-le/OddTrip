@@ -2,12 +2,38 @@ from fastapi import APIRouter, Depends, HTTPException
 from openai import RateLimitError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_current_user_trip, get_db
+from ..dependencies import get_current_user, get_current_user_trip, get_db
 from ..models.trip import Trip
-from ..schemas.decision import ConflictRequest, JointPreferenceIn
+from ..models.user import User
+from ..schemas.decision import ConflictRequest, JointPreferenceIn, PersonalPreferenceIn
 from ..services import decision_service
 
 router = APIRouter()
+
+
+@router.get("/{trip_id}/preferences/pair", response_model=dict)
+async def get_pair_preferences(
+    trip_id: str,
+    trip: Trip = Depends(get_current_user_trip),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await decision_service.get_pair_preferences(db, trip, user.id)
+    return {"data": data, "error": None}
+
+
+@router.put("/{trip_id}/preferences/me", response_model=dict)
+async def update_my_preferences(
+    trip_id: str,
+    body: PersonalPreferenceIn,
+    trip: Trip = Depends(get_current_user_trip),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await decision_service.update_personal_preferences(
+        db, trip, user.id, body.model_dump(by_alias=True)
+    )
+    return {"data": data, "error": None}
 
 
 @router.get("/{trip_id}/preferences", response_model=dict)
