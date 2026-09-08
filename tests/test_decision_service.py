@@ -73,6 +73,18 @@ def test_pair_preference_routes_are_registered() -> None:
     assert ("/api/trips/{trip_id}/preferences/proposals/{proposal_id}/accept", "POST") in routes
 
 
+def test_personal_preferences_are_merged_for_ai_mediation() -> None:
+    merged = decision_service._merge_personal_preferences([
+        {"places": ["시장", "바다"], "activities": ["산책"], "foods": ["한식"], "pace": 70, "budget": 30, "indoorPreferred": False, "hiddenSpots": True},
+        {"places": ["바다", "미술관"], "activities": ["공연"], "foods": ["양식"], "pace": 40, "budget": 70, "indoorPreferred": True, "hiddenSpots": False},
+    ])
+    assert merged["places"] == ["시장", "바다", "미술관"]
+    assert merged["pace"] == 55
+    assert merged["budget"] == 50
+    assert merged["indoorPreferred"] is True
+    assert merged["hiddenSpots"] is True
+
+
 def test_joint_preferences_change_only_after_counterpart_accepts() -> None:
     asyncio.run(_test_joint_preferences_change_only_after_counterpart_accepts())
 

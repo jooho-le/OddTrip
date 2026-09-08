@@ -259,7 +259,12 @@ async def resolve_conflict(
     user_a = await db.get(User, match.user_id)
     user_b = await db.get(User, match.matched_user_id)
 
-    prefs = trip.preferences_json or {}
+    personal_rows = (await db.execute(
+        select(TripUserPreference).where(TripUserPreference.trip_id == trip.id)
+    )).scalars().all()
+    prefs = _merge_personal_preferences([row.preferences_json for row in personal_rows])
+    if not prefs:
+        prefs = trip.preferences_json or {}
     resolved_conflicts = conflicts or _infer_conflicts(prefs)
 
     return await openai_service.resolve_conflict(
@@ -268,6 +273,21 @@ async def resolve_conflict(
         preferences=prefs,
         conflicts=resolved_conflicts,
     )
+
+
+def _merge_personal_preferences(items: list[dict]) -> dict:
+    if not items:
+        return {}
+    merged = {}
+    for key in ("places", "activities", "foods"):
+        merged[key] = _dedupe_strings([
+            value for preferences in items for value in preferences.get(key, [])
+        ])
+    merged["pace"] = round(sum(item.get("pace", 50) for item in items) / len(items))
+    merged["budget"] = round(sum(item.get("budget", 50) for item in items) / len(items))
+    merged["indoorPreferred"] = any(item.get("indoorPreferred", False) for item in items)
+    merged["hiddenSpots"] = any(item.get("hiddenSpots", False) for item in items)
+    return merged
 
 
 def _normalize_preferences(prefs: dict) -> dict:

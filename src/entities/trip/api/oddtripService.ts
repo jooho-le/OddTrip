@@ -1,4 +1,4 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
 
 function storeSession(data: AuthResponse) {
@@ -33,6 +33,11 @@ export interface OddtripService {
   acceptMatch(matchedUserId: string): Promise<ApiResponse<AcceptMatchResponse>>;
   getTrips(): Promise<ApiResponse<TripSummary[]>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
+  saveMyPreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<{ userId: string; preferences: JointPreference; updatedAt?: string }>>;
+  getPairPreferences(tripId: string): Promise<ApiResponse<PairPreferences>>;
+  getPreferenceProposals(tripId: string): Promise<ApiResponse<PreferenceProposal[]>>;
+  createPreferenceProposal(tripId: string, preferences: JointPreference): Promise<ApiResponse<PreferenceProposal>>;
+  respondPreferenceProposal(tripId: string, proposalId: string, action: 'accept' | 'reject'): Promise<ApiResponse<PreferenceProposal>>;
   resolveConflict(tripId: string, conflicts: string[]): Promise<ApiResponse<ConflictResolution>>;
   getAttractions(tripId: string): Promise<ApiResponse<Attraction[]>>;
   generatePublicAttractions(tripId: string, request?: PublicAttractionRequest): Promise<ApiResponse<Attraction[]>>;
@@ -120,6 +125,32 @@ export const oddtripService: OddtripService = {
       method: 'PUT',
       auth: true,
       body: preferences
+    });
+  },
+
+  saveMyPreferences(tripId, preferences) {
+    return request(`/api/trips/${tripId}/preferences/me`, {
+      method: 'PUT', auth: true, body: preferences
+    });
+  },
+
+  getPairPreferences(tripId) {
+    return request<PairPreferences>(`/api/trips/${tripId}/preferences/pair`, { auth: true });
+  },
+
+  getPreferenceProposals(tripId) {
+    return request<PreferenceProposal[]>(`/api/trips/${tripId}/preferences/proposals`, { auth: true });
+  },
+
+  createPreferenceProposal(tripId, preferences) {
+    return request<PreferenceProposal>(`/api/trips/${tripId}/preferences/proposals`, {
+      method: 'POST', auth: true, body: { preferences }
+    });
+  },
+
+  respondPreferenceProposal(tripId, proposalId, action) {
+    return request<PreferenceProposal>(`/api/trips/${tripId}/preferences/proposals/${proposalId}/${action}`, {
+      method: 'POST', auth: true
     });
   },
 

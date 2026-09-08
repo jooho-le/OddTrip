@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
@@ -22,9 +22,15 @@ type PreferenceKey = typeof preferenceGroups[number]['key'];
 
 export function DecisionPage() {
   const navigate = useNavigate();
-  const { preferences, updatePreferences, savePreferences, resolveDecisionConflict, decisionSuggestion, status } = useTripStore();
+  const { user, activeTripId, preferences, pairPreferences, preferenceProposals, updatePreferences, savePreferences, loadCoordination, proposePreferences, respondPreferenceProposal, resolveDecisionConflict, decisionSuggestion, status, error } = useTripStore();
 
   const conflicts = useMemo(() => detectConflicts(preferences), [preferences]);
+  const incomingProposal = preferenceProposals.find((proposal) => proposal.status === 'pending' && proposal.proposedBy !== user?.id);
+  const myPendingProposal = preferenceProposals.find((proposal) => proposal.status === 'pending' && proposal.proposedBy === user?.id);
+
+  useEffect(() => {
+    if (activeTripId) void loadCoordination();
+  }, [activeTripId, loadCoordination]);
 
   const toggle = (key: PreferenceKey, value: string) => {
     const current = preferences[key];
@@ -98,6 +104,39 @@ export function DecisionPage() {
           <label className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm font-semibold"><span>숨은 명소 포함</span><input type="checkbox" checked={preferences.hiddenSpots} onChange={(event) => updatePreferences({ hiddenSpots: event.target.checked })} /></label>
         </Card>
         <div className="space-y-4">
+          {error ? <Card className="border border-red-200 bg-red-50 text-sm font-bold text-red-700">{error}</Card> : null}
+          <Card className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-2xl font-black">둘의 선호 비교</h2>
+              <Badge className={pairPreferences?.bothSubmitted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}>
+                {pairPreferences?.bothSubmitted ? '두 명 입력 완료' : '상대 입력 대기'}
+              </Badge>
+            </div>
+            {pairPreferences?.comparison ? (
+              <div className="space-y-2 text-sm font-bold text-slate-700">
+                <ComparisonRow label="장소 공통" values={pairPreferences.comparison.places.common} />
+                <ComparisonRow label="활동 공통" values={pairPreferences.comparison.activities.common} />
+                <ComparisonRow label="음식 공통" values={pairPreferences.comparison.foods.common} />
+                <p>일정 강도 차이 {pairPreferences.comparison.paceDifference}% · 예산 차이 {pairPreferences.comparison.budgetDifference}%</p>
+                {(pairPreferences.comparison.indoorPreferredConflict || pairPreferences.comparison.hiddenSpotsConflict) ? <p className="text-[#fd267a]">실내·숨은 명소 선호 중 조율할 항목이 있습니다.</p> : null}
+              </div>
+            ) : <p className="text-sm font-bold text-slate-500">내 선호를 저장하고 상대방의 입력을 기다려주세요.</p>}
+            <Button variant="secondary" className="w-full" disabled={status.preferences === 'loading'} onClick={() => void savePreferences()}>
+              {status.preferences === 'loading' ? '저장 중' : '내 선호 저장'}
+            </Button>
+          </Card>
+          {incomingProposal ? (
+            <Card className="space-y-3 border-2 border-[#fd267a]/30">
+              <h2 className="text-xl font-black">새 합의안이 도착했습니다.</h2>
+              <PreferenceSummary preferences={incomingProposal.preferences} />
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="secondary" disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'reject')}>거절</Button>
+                <Button disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'accept')}>수락</Button>
+              </div>
+            </Card>
+          ) : null}
+          {myPendingProposal ? <Card><p className="text-sm font-bold text-slate-600">보낸 합의안에 대한 상대방의 응답을 기다리고 있습니다.</p></Card> : null}
+          {pairPreferences?.agreed ? <Card className="border-2 border-emerald-200 bg-emerald-50"><h2 className="text-xl font-black text-emerald-900">합의 완료</h2><PreferenceSummary preferences={pairPreferences.agreed} /></Card> : null}
           <Card><h2 className="mb-4 text-2xl font-black">반대 성향 요소</h2><div className="flex flex-wrap gap-2">{conflicts.map((item) => <Badge key={item} className="bg-[#fff0f3] text-[#fd267a]">{item}</Badge>)}</div></Card>
           <div className="rounded-[30px] border border-black/5 gradient-panel-alt p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
             <Sparkles className="mb-5 h-7 w-7 text-[#f5d04c]" />
@@ -115,20 +154,34 @@ export function DecisionPage() {
             </Button>
           </div>
           <Button
-            icon={<ArrowRight className="h-4 w-4" />}
+            icon={<Sparkles className="h-4 w-4" />}
             className="w-full"
-            disabled={status.preferences === 'loading'}
-            onClick={async () => {
-              await savePreferences();
-              navigate('/attractions');
-            }}
+            disabled={status.proposal === 'loading' || Boolean(myPendingProposal)}
+            onClick={() => void proposePreferences()}
           >
-            {status.preferences === 'loading' ? '저장 중' : '이 조건으로 관광지 추천'}
+            {status.proposal === 'loading' ? '제안 중' : myPendingProposal ? '상대방 응답 대기 중' : '현재 조건으로 합의안 제안'}
+          </Button>
+          <Button
+            icon={<ArrowRight className="h-4 w-4" />}
+            variant="secondary"
+            className="w-full"
+            disabled={!pairPreferences?.agreed}
+            onClick={() => navigate('/attractions')}
+          >
+            {pairPreferences?.agreed ? '합의 조건으로 관광지 추천' : '합의 완료 후 다음 단계로 이동'}
           </Button>
         </div>
       </div>
     </div>
   );
+}
+
+function ComparisonRow({ label, values }: { label: string; values: string[] }) {
+  return <p><span className="text-slate-500">{label}</span> · {values.length ? values.join(', ') : '없음'}</p>;
+}
+
+function PreferenceSummary({ preferences }: { preferences: import('../../types').JointPreference }) {
+  return <div className="mt-2 space-y-1 text-sm font-bold text-slate-700"><p>장소 · {preferences.places.join(', ') || '없음'}</p><p>활동 · {preferences.activities.join(', ') || '없음'}</p><p>음식 · {preferences.foods.join(', ') || '없음'}</p><p>일정 {preferences.pace}% · 예산 {preferences.budget}%</p></div>;
 }
 
 function SelectedOrder({ label, items, onRemove }: { label: string; items: string[]; onRemove: (value: string) => void }) {
