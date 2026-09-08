@@ -26,6 +26,7 @@ export interface OddtripService {
   getTtiResult(): Promise<ApiResponse<TtiResult | null>>;
   getMatches(): Promise<ApiResponse<MatchCandidate[]>>;
   getTrips(): Promise<ApiResponse<TripSummary[]>>;
+  getPreferences(tripId: string): Promise<ApiResponse<JointPreference>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
   saveMyPreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<{ userId: string; preferences: JointPreference; updatedAt?: string }>>;
   getPairPreferences(tripId: string): Promise<ApiResponse<PairPreferences>>;
@@ -66,10 +67,12 @@ export const oddtripService: OddtripService = {
     // Tell the server first so the refresh token stops working; clear locally
     // either way, since the user's intent is to be signed out.
     const refreshToken = localStorage.getItem(SESSION_KEYS.refreshToken);
+    // 로컬 세션을 먼저 비웁니다. 서버 호출을 기다리면 응답/타임아웃(최대 20초)까지
+    // localStorage에 토큰이 남아, 그 사이 RequireAuth 가드가 여전히 로그인 상태로 판단합니다.
+    clearSession();
     if (refreshToken) {
       await request('/api/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined);
     }
-    clearSession();
   },
 
   hasAuthToken() {
@@ -105,6 +108,10 @@ export const oddtripService: OddtripService = {
 
   getTrips() {
     return request<TripSummary[]>('/api/trips', { auth: true });
+  },
+
+  getPreferences(tripId) {
+    return request<JointPreference>(`/api/trips/${tripId}/preferences`, { auth: true });
   },
 
   savePreferences(tripId, preferences) {

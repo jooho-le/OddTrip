@@ -1,108 +1,14 @@
-import { ArrowRight, Clock3, Compass, MessageCircleQuestion, Sparkles } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Button } from '../../shared/ui/Button';
 
 export function TtiStartPage() {
-  const existingCode = useTripStore((state) => state.result?.code ?? state.user?.ttiCode);
-  const existingTitle = useTripStore((state) => state.result?.title);
-
+  const code = useTripStore((state) => state.result?.code ?? state.user?.ttiCode);
   return (
-    <div className="page-canvas">
-      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-6 text-white shadow-[0_26px_90px_rgba(16,17,20,0.20)] md:p-10">
-        <img
-          src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=86"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-36"
-        />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(253,38,122,0.54),transparent_30%),linear-gradient(90deg,rgba(16,17,20,0.94),rgba(16,17,20,0.58))]" />
-        <div className="relative grid min-h-[660px] gap-8 md:grid-cols-[1fr_420px] md:items-center">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/78 backdrop-blur">
-              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
-              Travel Type Indicator
-            </p>
-            <h1 className="mt-8 max-w-3xl text-6xl font-black leading-[0.9] tracking-[-0.055em] md:text-8xl">
-              여행 선택 방식을
-              <br />
-              먼저 알려주세요.
-            </h1>
-            <div className="mt-10 space-y-4">
-              {existingCode ? (
-                <ChatBubble
-                  speaker="Odd"
-                  text={`이미 진단하셨네요. 현재 유형은 ${existingCode}${existingTitle ? ` · ${existingTitle}` : ''} 입니다. 다시 진단하면 기존 결과를 덮어씁니다.`}
-                />
-              ) : (
-                <>
-                  <ChatBubble speaker="Odd" text="12문항만 답하면 P/W, N/C, F/A, H/S 네 축 점수를 계산해 성향을 파악합니다." />
-                  <ChatBubble speaker="Odd" text="결과는 반대 성향 매칭과 관광지 추천에 바로 연결되어 AI 일정을 생성합니다." />
-                </>
-              )}
-            </div>
-            <div className="mt-10 flex flex-wrap gap-3">
-              {existingCode ? (
-                <Link to="/tti/result">
-                  <Button variant="secondary" className="px-8 text-accent shadow-card">
-                    내 결과 보기
-                  </Button>
-                </Link>
-              ) : null}
-              <Link to="/tti/questions">
-                <Button variant="secondary" className={existingCode
-                  ? 'border-white/30 bg-white/12 px-8 text-white backdrop-blur hover:border-white'
-                  : 'px-8 text-accent shadow-card'}>
-                  {existingCode ? '다시 진단하기' : '좋아! 시작할게'}
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          <div className="motion-card rounded-[38px] bg-white p-6 text-[#111111] shadow-[0_34px_90px_rgba(0,0,0,0.28)]">
-            <p className="text-sm font-black text-slate-500">Travel Type Indicator</p>
-            <h2 className="mt-3 text-5xl font-black leading-[0.95] tracking-[-0.045em]">
-              12문항으로
-              <br />
-              여행 성향 확인
-            </h2>
-            <div className="mt-8 space-y-3">
-              <InfoRow icon={<MessageCircleQuestion className="h-5 w-5" />} title="12문항" text="한 문항씩 선택" />
-              <InfoRow icon={<Clock3 className="h-5 w-5" />} title="약 2분" text="빠른 진단" />
-              <InfoRow icon={<Compass className="h-5 w-5" />} title="추천 연결" text="매칭과 일정에 사용" />
-            </div>
-            <Link to={existingCode ? '/tti/result' : '/tti/questions'}>
-              <Button className="mt-8 w-full bg-[#f5d04c] text-black hover:bg-[#f5d04c]/90" icon={<ArrowRight className="h-4 w-4" />}>
-                {existingCode ? '내 결과 보기' : '진단 시작'}
-              </Button>
-            </Link>
-          </div>
-        </div>
+    <main className="page"><div className="container">
+      <section className="tti-start">
+        <div className="tti-copy"><span className="eyebrow">TRAVEL TYPE INDICATOR</span><h1>내 여행 방식을<br />4글자로 기록합니다.</h1><p>계획 방식, 탐색 방식, 활동 취향, 여행 속도 네 축을 묻습니다. 결과는 동행 후보 추천과 장소·일정 구성에 사용됩니다.</p><div className="button-row">{code ? <Link className="line-btn" to="/tti/result">현재 결과 {code} 보기</Link> : null}<Link className="solid-btn" to="/tti/questions">{code ? '다시 진단하기' : '조사서 작성하기'} →</Link></div></div>
+        <aside className="tti-document"><span className="eyebrow" style={{ color: '#ffb39f' }}>ODDTRIP FORM 01</span><h2>여행 성향 조사서</h2><div className="tti-facts"><div className="tti-fact"><b>문항</b><span>12개 질문</span></div><div className="tti-fact"><b>예상 시간</b><span>약 2분</span></div><div className="tti-fact"><b>저장 범위</b><span>계정의 TTI 코드와 축별 점수</span></div><div className="tti-fact"><b>현재 상태</b><span>{code ? `${code} 저장됨` : '작성 전'}</span></div></div></aside>
       </section>
-    </div>
-  );
-}
-
-function ChatBubble({ speaker, text }: { speaker: string; text: string }) {
-  return (
-    <div className="motion-card flex items-start gap-3">
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-sm font-black text-[#fd267a]">{speaker[0]}</div>
-      <div>
-        <p className="mb-1 text-xs font-black text-white/52">{speaker}</p>
-        <p className="max-w-lg rounded-[24px] border border-white/18 bg-white/14 px-5 py-4 text-sm font-black leading-6 text-white backdrop-blur">{text}</p>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-[22px] border border-black/5 bg-[#fbf5ee] p-4">
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-black">{icon}</div>
-      <div>
-        <p className="font-black text-black">{title}</p>
-        <p className="text-sm font-bold text-slate-500">{text}</p>
-      </div>
-    </div>
+    </div></main>
   );
 }

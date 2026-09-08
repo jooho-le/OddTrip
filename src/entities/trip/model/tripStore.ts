@@ -181,6 +181,8 @@ export const useTripStore = create<TripState>((set, get) => ({
         matches: [],
         selectedMatch: undefined,
         activeTripId: undefined,
+        pairPreferences: undefined,
+        preferenceProposals: [],
         attractions: [],
         agentRun: undefined,
         itinerary: [],
@@ -217,11 +219,12 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async loadTripHistory() {
+    set((state) => ({ status: { ...state.status, tripHistory: 'loading' } }));
     try {
       const response = await oddtripService.getTrips();
-      set({ tripHistory: response.data });
+      set((state) => ({ tripHistory: response.data, status: { ...state.status, tripHistory: 'success' } }));
     } catch {
-      set({ error: '여행 기록을 불러오지 못했습니다.' });
+      set((state) => ({ error: '여행 기록을 불러오지 못했습니다.', status: { ...state.status, tripHistory: 'error' } }));
     }
   },
   async openTrip(tripId) {
@@ -234,17 +237,25 @@ export const useTripStore = create<TripState>((set, get) => ({
       alerts: [],
       agentRun: undefined,
       decisionSuggestion: undefined,
+      pairPreferences: undefined,
+      preferenceProposals: [],
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary] = await Promise.all([
+      const [attractions, itinerary, preferences, pair, proposals] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
+        oddtripService.getPreferences(tripId),
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
         itinerary: itinerary.data,
-        status: { ...state.status, attractions: 'success', itinerary: 'success' },
+        preferences: pair.data.mine?.preferences ?? preferences.data,
+        pairPreferences: pair.data,
+        preferenceProposals: proposals.data,
+        status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
     } catch {
       set({ error: '여행을 여는 데 실패했습니다.' });
@@ -265,30 +276,63 @@ export const useTripStore = create<TripState>((set, get) => ({
   async ensureTrip() {
     const current = get();
     if (current.activeTripId) return current.activeTripId;
-    set((state) => ({
-      error: '상대방이 동행 요청을 수락한 뒤 공동 여행을 진행할 수 있습니다.',
-      status: { ...state.status, trip: 'error' },
-    }));
-    return undefined;
+
+    set((state) => ({ status: { ...state.status, trip: 'loading' } }));
+    try {
+      // A trip is created only when a match request is accepted. Reopening a
+      // workspace must never invoke the deprecated direct-accept endpoint.
+      const response = await oddtripService.getTrips();
+      const trip = response.data.find((item) => !['completed', 'cancelled'].includes(item.status)) ?? response.data[0];
+      const tripId = trip?.tripId;
+      if (!tripId) {
+        set((state) => ({
+          tripHistory: response.data,
+          error: '진행 중인 여행이 없습니다. 먼저 동행 요청을 주고받아 주세요.',
+          status: { ...state.status, trip: 'error' },
+        }));
+        return undefined;
+      }
+      const [preferences, pair, proposals] = await Promise.all([
+        oddtripService.getPreferences(tripId).catch(() => undefined),
+        oddtripService.getPairPreferences(tripId).catch(() => undefined),
+        oddtripService.getPreferenceProposals(tripId).catch(() => undefined),
+      ]);
+      set((state) => ({
+        activeTripId: tripId,
+        tripHistory: response.data,
+        preferences: pair?.data.mine?.preferences ?? preferences?.data ?? state.preferences,
+        pairPreferences: pair?.data,
+        preferenceProposals: proposals?.data ?? [],
+        status: { ...state.status, trip: 'success', preferences: preferences ? 'success' : state.status.preferences },
+      }));
+      return tripId;
+    } catch {
+      set((state) => ({ error: '여행 공간을 불러오지 못했습니다.', status: { ...state.status, trip: 'error' } }));
+      return undefined;
+    }
   },
   updatePreferences(patch) {
     set((state) => ({ preferences: { ...state.preferences, ...patch } }));
   },
   async savePreferences() {
+    // A deep link can be edited before the trip workspace finishes loading.
+    // Preserve the form draft so ensureTrip() cannot replace it with the
+    // previously saved server value immediately before PUT.
+    const draft = get().preferences;
     const tripId = await get().ensureTrip();
     if (!tripId) return;
 
     set((state) => ({ status: { ...state.status, preferences: 'loading' } }));
     try {
-      await oddtripService.saveMyPreferences(tripId, get().preferences);
+      await oddtripService.saveMyPreferences(tripId, draft);
       const pair = await oddtripService.getPairPreferences(tripId);
-      set((state) => ({ pairPreferences: pair.data, status: { ...state.status, preferences: 'success' } }));
+      set((state) => ({ preferences: draft, pairPreferences: pair.data, status: { ...state.status, preferences: 'success' } }));
     } catch {
-      set((state) => ({ error: '공동 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
+      set((state) => ({ error: '내 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
     }
   },
   async loadCoordination() {
-    const tripId = get().activeTripId;
+    const tripId = get().activeTripId ?? await get().ensureTrip();
     if (!tripId) return;
     set((state) => ({ status: { ...state.status, coordination: 'loading' } }));
     try {
@@ -307,12 +351,13 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async proposePreferences() {
-    const tripId = get().activeTripId;
+    const tripId = get().activeTripId ?? await get().ensureTrip();
     if (!tripId) return false;
     set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
     try {
-      await oddtripService.saveMyPreferences(tripId, get().preferences);
-      await oddtripService.createPreferenceProposal(tripId, get().preferences);
+      const preferences = get().preferences;
+      await oddtripService.saveMyPreferences(tripId, preferences);
+      await oddtripService.createPreferenceProposal(tripId, preferences);
       const [pair, proposals] = await Promise.all([
         oddtripService.getPairPreferences(tripId),
         oddtripService.getPreferenceProposals(tripId),
@@ -325,7 +370,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async respondPreferenceProposal(proposalId, action) {
-    const tripId = get().activeTripId;
+    const tripId = get().activeTripId ?? await get().ensureTrip();
     if (!tripId) return false;
     set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
     try {

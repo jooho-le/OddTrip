@@ -32,7 +32,11 @@ apiClient.interceptors.response.use(
     }
 
     const refreshToken = localStorage.getItem(SESSION_KEYS.refreshToken);
-    if (!refreshToken) return Promise.reject(new Error('로그인이 필요합니다.'));
+    if (!refreshToken) {
+      clearSession();
+      announceSessionExpired();
+      return Promise.reject(new Error('세션이 만료되었습니다. 다시 로그인해주세요.'));
+    }
 
     original._retried = true;
     refreshRequest ??= axios
@@ -43,6 +47,7 @@ apiClient.interceptors.response.use(
       })
       .catch((refreshError) => {
         clearSession();
+        announceSessionExpired();
         throw normalizeApiError(refreshError);
       })
       .finally(() => { refreshRequest = null; });
@@ -61,6 +66,13 @@ export function saveSession(data: AuthResponse) {
 
 export function clearSession() {
   Object.values(SESSION_KEYS).forEach((key) => localStorage.removeItem(key));
+}
+
+function announceSessionExpired() {
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.setItem('oddtrip.sessionExpired', '1');
+    window.dispatchEvent(new CustomEvent('oddtrip:session-expired'));
+  }
 }
 
 export async function apiRequest<T>(config: AxiosRequestConfig): Promise<ApiResponse<T>> {
