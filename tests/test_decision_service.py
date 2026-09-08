@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+from datetime import date
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -68,3 +69,47 @@ def test_pair_preference_routes_are_registered() -> None:
     routes = {(route.path, method) for route in app.routes for method in getattr(route, "methods", set())}
     assert ("/api/trips/{trip_id}/preferences/me", "PUT") in routes
     assert ("/api/trips/{trip_id}/preferences/pair", "GET") in routes
+    assert ("/api/trips/{trip_id}/preferences/proposals", "POST") in routes
+    assert ("/api/trips/{trip_id}/preferences/proposals/{proposal_id}/accept", "POST") in routes
+
+
+def test_joint_preferences_change_only_after_counterpart_accepts() -> None:
+    asyncio.run(_test_joint_preferences_change_only_after_counterpart_accepts())
+
+
+async def _test_joint_preferences_change_only_after_counterpart_accepts() -> None:
+    engine = _sqlite_test_engine()
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    user_a = User(id=str(uuid.uuid4()), nickname="A")
+    user_b = User(id=str(uuid.uuid4()), nickname="B")
+    match = Match(
+        id=str(uuid.uuid4()), user_id=user_a.id, matched_user_id=user_b.id,
+        status="active", match_level="추천", recommendation_score=70,
+    )
+    trip = Trip(id=str(uuid.uuid4()), match_id=match.id, status="planning")
+    proposed = {
+        "places": ["시장"], "activities": ["산책"], "foods": ["한식"],
+        "pace": 60, "budget": 45, "indoorPreferred": False, "hiddenSpots": True,
+        "title": "부산 합의 여행", "region": "부산", "dateFrom": "2026-10-01", "dateTo": "2026-10-03",
+    }
+
+    async with sessions() as db:
+        db.add_all([user_a, user_b, match, trip])
+        await db.commit()
+        proposal = await decision_service.create_preference_proposal(db, trip, user_a.id, proposed)
+        assert trip.preferences_json is None
+
+        accepted = await decision_service.respond_to_preference_proposal(
+            db, trip, proposal["id"], user_b.id, accept=True
+        )
+        assert accepted["status"] == "accepted"
+        assert trip.preferences_json["places"] == ["시장"]
+        assert trip.title == "부산 합의 여행"
+        assert trip.region == "부산"
+        assert trip.start_date == date(2026, 10, 1)
+        assert trip.end_date == date(2026, 10, 3)
+
+    await engine.dispose()

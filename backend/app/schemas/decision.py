@@ -58,3 +58,7 @@ class ConflictRequest(BaseModel):
 
 class ConflictResponse(BaseModel):
     suggestion: str
+
+
+class PreferenceProposalIn(BaseModel):
+    preferences: JointPreferenceIn

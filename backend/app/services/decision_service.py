@@ -1,9 +1,12 @@
-from sqlalchemy import select
+from datetime import datetime, timezone
+
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from ..models.match import Match
-from ..models.trip import Trip, TripUserPreference
+from ..models.trip import Trip, TripPreferenceProposal, TripUserPreference
+from ..schemas.decision import JointPreferenceIn
 from ..models.user import User
 from ..schemas.decision import JointPreferenceOut
 from . import openai_service
@@ -33,21 +36,79 @@ async def update_preferences(
     if not trip:
         raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
 
-    trip.preferences_json = _normalize_preferences(prefs)
-
-    # Schedule and location are columns, not preference keys: the planner and
-    # the safety lookups need to query and validate them.
-    for field, column in (("title", "title"), ("region", "region")):
-        value = prefs.get(field)
-        if value is not None:
-            setattr(trip, column, str(value).strip() or None)
-    for field, column in (("dateFrom", "start_date"), ("dateTo", "end_date")):
-        value = prefs.get(field)
-        if value is not None:
-            setattr(trip, column, value)
+    _apply_joint_preferences(trip, prefs)
 
     await db.commit()
     return _to_out(trip)
+
+
+async def create_preference_proposal(
+    db: AsyncSession, trip: Trip, user_id: str, prefs: dict
+) -> dict:
+    _member_ids(await _get_match(db, trip), user_id)
+    # A new proposal replaces the same user's older pending proposal. This
+    # keeps one actionable choice per proposer without deleting audit history.
+    await db.execute(
+        update(TripPreferenceProposal)
+        .where(
+            TripPreferenceProposal.trip_id == trip.id,
+            TripPreferenceProposal.proposed_by == user_id,
+            TripPreferenceProposal.status == "pending",
+        )
+        .values(status="withdrawn", responded_at=datetime.now(timezone.utc).replace(tzinfo=None))
+    )
+    proposal = TripPreferenceProposal(
+        trip_id=trip.id,
+        proposed_by=user_id,
+        preferences_json=prefs,
+    )
+    db.add(proposal)
+    await db.commit()
+    await db.refresh(proposal)
+    return _proposal_out(proposal)
+
+
+async def list_preference_proposals(db: AsyncSession, trip: Trip, user_id: str) -> list[dict]:
+    _member_ids(await _get_match(db, trip), user_id)
+    rows = (await db.execute(
+        select(TripPreferenceProposal)
+        .where(TripPreferenceProposal.trip_id == trip.id)
+        .order_by(TripPreferenceProposal.created_at.desc())
+    )).scalars().all()
+    return [_proposal_out(row) for row in rows]
+
+
+async def respond_to_preference_proposal(
+    db: AsyncSession, trip: Trip, proposal_id: str, user_id: str, *, accept: bool
+) -> dict:
+    member_ids = _member_ids(await _get_match(db, trip), user_id)
+    proposal = await db.get(TripPreferenceProposal, proposal_id)
+    if not proposal or proposal.trip_id != trip.id:
+        raise HTTPException(status_code=404, detail="합의안을 찾을 수 없습니다.")
+    if proposal.status != "pending":
+        raise HTTPException(status_code=409, detail="이미 처리된 합의안입니다.")
+    if proposal.proposed_by == user_id:
+        raise HTTPException(status_code=403, detail="자신이 제안한 합의안에는 응답할 수 없습니다.")
+    if proposal.proposed_by not in member_ids:
+        raise HTTPException(status_code=403, detail="이 여행의 합의안이 아닙니다.")
+
+    proposal.status = "accepted" if accept else "rejected"
+    proposal.responded_by = user_id
+    proposal.responded_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    if accept:
+        validated = JointPreferenceIn.model_validate(proposal.preferences_json)
+        _apply_joint_preferences(trip, validated.model_dump(by_alias=True))
+        await db.execute(
+            update(TripPreferenceProposal)
+            .where(
+                TripPreferenceProposal.trip_id == trip.id,
+                TripPreferenceProposal.status == "pending",
+                TripPreferenceProposal.id != proposal.id,
+            )
+            .values(status="withdrawn", responded_at=proposal.responded_at)
+        )
+    await db.commit()
+    return _proposal_out(proposal)
 
 
 async def update_personal_preferences(
@@ -119,6 +180,31 @@ def _personal_out(row: TripUserPreference) -> dict:
         "preferences": row.preferences_json,
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
     }
+
+
+def _proposal_out(row: TripPreferenceProposal) -> dict:
+    return {
+        "id": row.id,
+        "tripId": row.trip_id,
+        "proposedBy": row.proposed_by,
+        "respondedBy": row.responded_by,
+        "preferences": row.preferences_json,
+        "status": row.status,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+        "respondedAt": row.responded_at.isoformat() if row.responded_at else None,
+    }
+
+
+def _apply_joint_preferences(trip: Trip, prefs: dict) -> None:
+    trip.preferences_json = _normalize_preferences(prefs)
+    for field, column in (("title", "title"), ("region", "region")):
+        value = prefs.get(field)
+        if value is not None:
+            setattr(trip, column, str(value).strip() or None)
+    for field, column in (("dateFrom", "start_date"), ("dateTo", "end_date")):
+        value = prefs.get(field)
+        if value is not None:
+            setattr(trip, column, value)
 
 
 def _compare_preferences(mine: dict | None, counterpart: dict | None) -> dict | None:

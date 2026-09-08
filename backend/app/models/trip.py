@@ -62,6 +62,27 @@ class TripUserPreference(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class TripPreferenceProposal(Base):
+    """A joint-preference proposal that must be accepted by the other traveller."""
+
+    __tablename__ = "trip_preference_proposals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    proposed_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    responded_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    preferences_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class Place(Base):
     """A real-world place, stored once and shared across trips.
 
