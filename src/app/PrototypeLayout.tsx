@@ -17,7 +17,6 @@ export function PrototypeLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const user = useTripStore((state) => state.user);
   const logout = useTripStore((state) => state.logout);
-  const rooms = useChatStore((state) => state.rooms);
   const roomsStatus = useChatStore((state) => state.roomsStatus);
   const unreadTotal = useChatStore((state) => state.unreadTotal);
   const loadRooms = useChatStore((state) => state.loadRooms);
@@ -49,16 +48,11 @@ export function PrototypeLayout() {
   };
 
   const openChat = () => {
-    const room = rooms.find((item) => item.status === 'active') ?? rooms[0];
-    if (room) {
-      navigate(`/chat/${encodeURIComponent(room.id)}`, { state: { backgroundLocation: location } });
-      return;
-    }
     if (roomsStatus === 'loading' || roomsStatus === 'idle') {
       showInfo('채팅방을 확인하고 있습니다.', '활성 채팅방 목록을 불러온 뒤 다시 눌러 주세요.');
       return;
     }
-    showInfo('활성 채팅방이 없습니다.', '동행 요청이 수락되면 채팅방과 여행 공간이 함께 생성됩니다.');
+    navigate('/chat');
   };
 
   const nickname = user?.nickname ?? '여행자';

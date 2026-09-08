@@ -20,6 +20,8 @@ import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
 import { AuthPage } from '../pages/auth';
 import { LegalPage, MatchingProfileConsentGate } from '../pages/legal';
 import { AccountSettingsPage } from '../pages/account-settings';
+import { ChatListPage } from '../pages/chat';
+import { ChatRoomPage } from '../pages/chat-room';
 import { AdminLayout } from '../admin/AdminLayout';
 import { DashboardPage } from '../admin/pages/DashboardPage';
 import { UsersPage } from '../admin/pages/UsersPage';
@@ -97,9 +99,8 @@ function AppRoutes() {
           <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
 
-          {/* A direct chat deep link uses the HTML home as its background. */}
-          <Route path="/chat" element={<HomePage />} />
-          <Route path="/chat/:roomId" element={<HomePage />} />
+          <Route path="/chat" element={<ChatListPage />} />
+          <Route path="/chat/:roomId" element={<ChatRoomPage />} />
         </Route>
 
         {/* 기존 URL은 0562bbe의 문서형 화면으로 모읍니다. */}
@@ -118,7 +119,7 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {chatRoomId && user && localStorage.getItem('oddtrip.authToken')
+      {backgroundLocation && chatRoomId && user && localStorage.getItem('oddtrip.authToken')
         ? <PrototypeChatDrawer roomId={chatRoomId} closeTo={closeChatTo} />
         : null}
     </>
