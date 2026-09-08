@@ -209,11 +209,12 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async loadTripHistory() {
+    set((state) => ({ status: { ...state.status, tripHistory: 'loading' } }));
     try {
       const response = await oddtripService.getTrips();
-      set({ tripHistory: response.data });
+      set((state) => ({ tripHistory: response.data, status: { ...state.status, tripHistory: 'success' } }));
     } catch {
-      set({ error: '여행 기록을 불러오지 못했습니다.' });
+      set((state) => ({ error: '여행 기록을 불러오지 못했습니다.', status: { ...state.status, tripHistory: 'error' } }));
     }
   },
   async openTrip(tripId) {
@@ -229,14 +230,16 @@ export const useTripStore = create<TripState>((set, get) => ({
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary] = await Promise.all([
+      const [attractions, itinerary, preferences] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
+        oddtripService.getPreferences(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
         itinerary: itinerary.data,
-        status: { ...state.status, attractions: 'success', itinerary: 'success' },
+        preferences: preferences.data,
+        status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
     } catch {
       set({ error: '여행을 여는 데 실패했습니다.' });
@@ -258,20 +261,31 @@ export const useTripStore = create<TripState>((set, get) => ({
     const current = get();
     if (current.activeTripId) return current.activeTripId;
 
-    const match = current.selectedMatch ?? current.matches[0];
-    if (!match) {
-      set((state) => ({ error: '먼저 매칭 상대를 선택해주세요.', status: { ...state.status, trip: 'error' } }));
-      return undefined;
-    }
-
     set((state) => ({ status: { ...state.status, trip: 'loading' } }));
     try {
-      const response = await oddtripService.acceptMatch(match.id);
-      const tripId = response.data.tripId ?? undefined;
-      set((state) => ({ activeTripId: tripId, selectedMatch: match, status: { ...state.status, trip: 'success' } }));
+      // A trip is created only when a match request is accepted. Reopening a
+      // workspace must never invoke the deprecated direct-accept endpoint.
+      const response = await oddtripService.getTrips();
+      const trip = response.data.find((item) => !['completed', 'cancelled'].includes(item.status)) ?? response.data[0];
+      const tripId = trip?.tripId;
+      if (!tripId) {
+        set((state) => ({
+          tripHistory: response.data,
+          error: '진행 중인 여행이 없습니다. 먼저 동행 요청을 주고받아 주세요.',
+          status: { ...state.status, trip: 'error' },
+        }));
+        return undefined;
+      }
+      const preferences = await oddtripService.getPreferences(tripId).catch(() => undefined);
+      set((state) => ({
+        activeTripId: tripId,
+        tripHistory: response.data,
+        preferences: preferences?.data ?? state.preferences,
+        status: { ...state.status, trip: 'success', preferences: preferences ? 'success' : state.status.preferences },
+      }));
       return tripId;
     } catch {
-      set((state) => ({ error: '공동 여행을 만들지 못했습니다.', status: { ...state.status, trip: 'error' } }));
+      set((state) => ({ error: '여행 공간을 불러오지 못했습니다.', status: { ...state.status, trip: 'error' } }));
       return undefined;
     }
   },
@@ -279,13 +293,17 @@ export const useTripStore = create<TripState>((set, get) => ({
     set((state) => ({ preferences: { ...state.preferences, ...patch } }));
   },
   async savePreferences() {
+    // A deep link can be edited before the trip workspace finishes loading.
+    // Preserve the form draft so ensureTrip() cannot replace it with the
+    // previously saved server value immediately before PUT.
+    const draft = get().preferences;
     const tripId = await get().ensureTrip();
     if (!tripId) return;
 
     set((state) => ({ status: { ...state.status, preferences: 'loading' } }));
     try {
-      await oddtripService.savePreferences(tripId, get().preferences);
-      set((state) => ({ status: { ...state.status, preferences: 'success' } }));
+      const response = await oddtripService.savePreferences(tripId, draft);
+      set((state) => ({ preferences: response.data, status: { ...state.status, preferences: 'success' } }));
     } catch {
       set((state) => ({ error: '공동 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
     }

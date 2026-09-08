@@ -1,144 +1,73 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Heart, RefreshCw, Sparkles, UsersRound } from 'lucide-react';
+import { useEffect, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
+import { useMatchRequestStore } from '../../entities/match-request/model/matchRequestStore';
+import type { MatchRequest, MatchRequestStatus } from '../../types';
+
+type Tab = 'candidates' | 'received' | 'sent';
 
 export function MatchesPage() {
-  const { matches, loadMatches, selectMatch, status } = useTripStore();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get('tab') as Tab | null) ?? 'candidates';
+  const { user, matches, status, error, loadMatches, openTrip } = useTripStore();
+  const requests = useMatchRequestStore();
 
   useEffect(() => {
-    if (!matches.length) void loadMatches();
-  }, [loadMatches, matches.length]);
+    if (user?.ttiCode) void loadMatches();
+    void requests.load();
+  }, [user?.ttiCode, loadMatches, requests.load]);
 
-  if (status.matches === 'loading') return <LoadingView label="반대 성향 후보를 찾는 중입니다" />;
-  if (status.matches === 'error') return <ErrorView label="매칭 후보를 불러오지 못했습니다" />;
-
-  const featured = matches[0];
-
-  return (
-    <div className="page-canvas space-y-6">
-      <section className="gradient-panel-alt relative overflow-hidden rounded-[34px] p-6 text-white shadow-[0_26px_80px_rgba(253,38,122,0.22)]">
-        <div className="absolute -right-10 -top-12 h-48 w-72 rotate-12 rounded-[48px] bg-white/16" />
-        <div className="absolute bottom-0 right-28 h-20 w-48 -rotate-6 rounded-t-[28px] bg-white/14" />
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72">
-          <UsersRound className="h-4 w-4 text-[#f5d04c]" />
-          여행 메이트 추천
-        </p>
-        <h1 className="relative mt-5 max-w-3xl text-5xl font-black leading-[0.95] md:text-7xl">
-          나와 다른 여행자를 만나
-          <br />
-          새로운 여행 경험을 
-          <br />
-          만들어보세요
-        </h1>
-        <p className="relative mt-5 max-w-xl text-m font-semibold leading-6 text-white/74">비슷한 취향이 아니라, 반대의 취향의 사람을 추천합니다. 후보를 보고 내 여행을 보완해 보세요.</p>
-      </section>
-
-      {featured ? (
-        <section className="grid gap-5 lg:grid-cols-[410px_1fr]">
-          <div className="relative mx-auto h-[560px] w-full max-w-[410px]">
-            {matches.slice(0, 3).map((match, index) => (
-              <div
-                key={match.id}
-                className={`motion-card absolute inset-x-6 top-4 rounded-[36px] bg-white p-5 shadow-[0_30px_80px_rgba(15,23,42,0.18)] ${index === 0 ? 'rotate-[-3deg]' : index === 1 ? 'translate-y-8 rotate-[5deg] opacity-80' : 'translate-y-16 rotate-[-7deg] opacity-60'}`}
-                style={{ animationDelay: `${index * 120}ms`, zIndex: 10 - index }}
-              >
-                <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=700&q=80'} alt="" className="h-72 w-full rounded-[28px] object-cover" />
-                <div className="mt-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-3xl font-black text-[#191322]">{match.nickname}</h2>
-                    <Badge className="gradient-panel text-white">{getTypeLabel(match.ttiCode)}</Badge>
-                  </div>
-                  <p className="mt-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">{match.ageRange} · {match.region} · {match.matchLevel}</p>
-                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{match.summary}</p>
-                  <div className="mt-5">
-                    <Link to={`/matches/${match.id}`} onClick={() => selectMatch(match.id)} className="gradient-panel inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-sm font-black text-white shadow-[0_18px_38px_rgba(253,38,122,0.28)]">
-                      상세 보고 선택
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <Card className="rounded-[32px] p-6">
-              <p className="inline-flex items-center gap-2 rounded-full bg-[#fff0f3] px-3 py-2 text-xs font-black text-[#fd267a]">
-                <Sparkles className="h-4 w-4" />
-              메이트 추천
-              </p>
-              <h2 className="mt-5 text-3xl font-black leading-9 tracking-[-0.035em] text-[#191322]">메이트의 여행 방식을 확인해보세요</h2>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <GuideStep title="1. 후보 확인" description="나와 다른 여행 습관을 가진 사람" />
-                <GuideStep title="2. 상세 비교" description="서로 다른 점과 보완되는 점" />
-                <GuideStep title="3. 공동 여행 생성" description="동행의 시작" />
-              </div>
-            </Card>
-            <Card className="rounded-[28px] p-5">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#fd267a]">가장 먼저 볼 후보</p>
-              <p className="mt-3 text-5xl font-black text-[#191322]">{featured.recommendationScore}%</p>
-              <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{featured.compatibility}</p>
-              <div className="mt-4 rounded-[22px] bg-[#fbf5ee] p-4">
-                <p className="text-sm font-black text-[#191322]">추천 이유</p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">내가 놓치기 쉬운 여행 선택을 상대가 보완해 줄 가능성이 높습니다.</p>
-              </div>
-              <Link to={`/matches/${featured.id}`} onClick={() => selectMatch(featured.id)}>
-                <Button icon={<Heart className="h-4 w-4" />} className="mt-5 w-full">이 사람과 공동 여행 만들기</Button>
-              </Link>
-            </Card>
-          </div>
-        </section>
-      ) : <EmptyView label="추천 후보가 없습니다" />}
-
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {matches.slice(3).map((match, index) => (
-          <Card key={match.id} className="motion-card hover-lift rounded-[28px] p-4" style={{ animationDelay: `${index * 80}ms` }}>
-            <div className="flex gap-3">
-              <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80'} alt="" className="h-20 w-20 rounded-[22px] object-cover" />
-              <div className="min-w-0">
-                <h2 className="text-xl font-black text-[#191322]">{match.nickname}</h2>
-                <p className="text-xs font-black text-slate-400">{match.region} · {getTypeLabel(match.ttiCode)}</p>
-                <p className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-slate-600">{match.summary}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadMatches()}>다시 추천</Button>
-    </div>
-  );
-}
-
-function GuideStep({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="rounded-[22px] bg-[#fbf5ee] p-4">
-      <CheckCircle2 className="h-5 w-5 text-[#fd267a]" />
-      <p className="mt-4 text-base font-black text-[#191322]">{title}</p>
-      <p className="mt-2 text-xs font-bold leading-5 text-slate-600">{description}</p>
-    </div>
-  );
-}
-
-function getTypeLabel(code: string) {
-  const labels: Record<string, string> = {
-    P: '즉흥',
-    W: '계획',
-    N: '새로움',
-    C: '검증',
-    F: '휴식',
-    A: '활동',
-    H: '여유',
-    S: '촘촘',
+  const accept = async (requestId: string) => {
+    const accepted = await requests.accept(requestId);
+    if (!accepted) return;
+    await openTrip(accepted.tripId);
+    navigate(`/chat/${accepted.roomId}`);
   };
 
-  return code
-    .split('')
-    .map((letter) => labels[letter] ?? letter)
-    .join(' · ');
+  const counts = { candidates: matches.length, received: requests.received.filter((item) => item.status === 'pending').length, sent: requests.sent.filter((item) => item.status === 'pending').length };
+
+  return (
+    <main className="page"><div className="container">
+      <header className="page-heading"><div><h1>동행 찾기</h1><p>내 여행 성향을 새로운 방향으로 넓혀줄 사람을 추천합니다.</p></div></header>
+      <div className="filter-row" role="tablist">{([['candidates', '추천 후보'], ['received', '받은 요청'], ['sent', '보낸 요청']] as const).map(([key, label]) => <button key={key} className={tab === key ? 'on' : ''} onClick={() => setParams(key === 'candidates' ? {} : { tab: key })} role="tab" aria-selected={tab === key}>{label}<span className="tab-count">{counts[key]}</span></button>)}</div>
+      {error || requests.error ? <div className="error-strip" role="alert"><span>{requests.error ?? error}</span><button onClick={() => { void requests.load(); if (user?.ttiCode) void loadMatches(); }}>다시 시도</button></div> : null}
+
+      {tab === 'candidates' ? (
+        !user?.ttiCode ? <Empty title="TTI 진단이 먼저 필요합니다." copy="저장된 여행 성향이 있어야 추천 후보를 계산할 수 있습니다." action={<Link className="solid-btn" to="/tti/start">TTI 시작</Link>} />
+          : status.matches === 'loading' ? <LoadingRows />
+          : matches.length ? <section className="mate-grid">{[...matches].sort((a, b) => b.recommendationScore - a.recommendationScore).map((candidate) => <article className="mate-card" key={candidate.id}>{candidate.avatarUrl ? <img src={candidate.avatarUrl} alt="" /> : <CandidateInitial name={candidate.nickname} />}<div className="mate-card-body"><small>{candidate.ttiCode} · {candidate.matchLevel} · 추천 {candidate.recommendationScore}%</small><h2>{candidate.nickname}의 여행 방식</h2><p>{candidate.summary}</p><Link className="line-btn accent" to={`/matches/${candidate.id}`}>상세 비교</Link></div></article>)}</section>
+          : <Empty title="현재 추천 후보가 없습니다." copy="조건에 맞는 새로운 여행자가 생기면 이곳에 표시됩니다." />
+      ) : null}
+
+      {tab === 'received' ? requests.status === 'loading' ? <LoadingRows /> : requests.received.length ? <RequestList items={requests.received} direction="received" busyId={requests.actionId} onAccept={(id) => void accept(id)} onReject={(id) => void requests.reject(id)} /> : <Empty title="받은 동행 요청이 없습니다." copy="새 요청이 도착하면 수락하거나 거절할 수 있습니다." /> : null}
+      {tab === 'sent' ? requests.status === 'loading' ? <LoadingRows /> : requests.sent.length ? <RequestList items={requests.sent} direction="sent" busyId={requests.actionId} onCancel={(id) => void requests.cancel(id)} /> : <Empty title="보낸 동행 요청이 없습니다." copy="추천 후보의 상세 화면에서 여행 조건과 인사를 작성해 요청할 수 있습니다." /> : null}
+    </div></main>
+  );
+}
+
+function RequestList({ items, direction, busyId, onAccept, onReject, onCancel }: { items: MatchRequest[]; direction: 'received' | 'sent'; busyId?: string; onAccept?: (id: string) => void; onReject?: (id: string) => void; onCancel?: (id: string) => void }) {
+  return <section className="request-list">{items.map((request) => <article className="request-row" key={request.id}><div className="request-person">{request.counterpart?.avatarUrl ? <img className="avatar" src={request.counterpart.avatarUrl} alt="" /> : <CandidateInitial name={request.counterpart?.nickname ?? '동행'} />}<div><h3>{request.counterpart?.nickname ?? '알 수 없는 사용자'} · {request.counterpart?.ttiCode ?? 'TTI 미제공'}</h3><p>{request.region} · {request.startDate} — {request.endDate}</p><p>“{request.greetingMessage}”</p><small>요청 {formatDate(request.createdAt)} · 만료 {request.expiresAt ? formatDate(request.expiresAt) : '정보 없음'}</small></div></div><div className="request-actions"><span className="request-status">{requestStatusLabel(request.status)}</span>{request.status === 'pending' ? <div className="button-row">{direction === 'received' ? <><button className="line-btn" disabled={busyId === request.id} onClick={() => onReject?.(request.id)}>거절</button><button className="solid-btn" disabled={busyId === request.id} aria-busy={busyId === request.id} onClick={() => onAccept?.(request.id)}>수락</button></> : <button className="line-btn" disabled={busyId === request.id} aria-busy={busyId === request.id} onClick={() => onCancel?.(request.id)}>요청 취소</button>}</div> : null}</div></article>)}</section>;
+}
+
+function CandidateInitial({ name }: { name: string }) {
+  return <span className="avatar" style={{ width: 52, height: 52, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff', fontSize: 13, fontWeight: 800 }}>{name.slice(0, 1)}</span>;
+}
+
+function LoadingRows() {
+  return <div className="skeleton-stack" role="status" aria-label="불러오는 중">{[0, 1, 2].map((item) => <div className="skeleton-row" key={item} />)}</div>;
+}
+
+function Empty({ title, copy, action }: { title: string; copy: string; action?: ReactNode }) {
+  return <div className="empty-state"><strong>{title}</strong><p>{copy}</p>{action}</div>;
+}
+
+function requestStatusLabel(status: MatchRequestStatus) {
+  const labels: Record<MatchRequestStatus, string> = { pending: '응답 대기', accepted: '수락됨', rejected: '거절됨', cancelled: '취소됨', expired: '만료됨' };
+  return labels[status];
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
 }

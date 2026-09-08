@@ -1,34 +1,68 @@
-import { useState } from 'react';
-import { ChevronDown, Compass, LogOut, Settings, UserRound } from 'lucide-react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { cn } from '../../shared/lib/classNames';
+import { useEffect, useRef, useState } from 'react';
+import { Bell, MessageCircle, X } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Avatar } from '../../shared/ui/Avatar';
-import { NotificationBell, NotificationCenter } from '../../features/notifications/NotificationCenter';
+import { useChatStore } from '../../entities/chat/model/chatStore';
 
-const links = [{ to: '/tti/start', label: '여행 성향' }, { to: '/matches', label: '매칭' }, { to: '/attractions', label: '여행지' }, { to: '/itinerary', label: '일정' }];
+const links = [
+  { to: '/', label: '홈', end: true },
+  { to: '/matches', label: '동행 찾기' },
+  { to: '/my', label: '내 여행' },
+];
 
 export function AppHeader() {
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const location = useLocation();
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { logout, user } = useTripStore();
-  const isHome = location.pathname === '/';
+  const { user, logout } = useTripStore();
+  const unreadTotal = useChatStore((state) => state.unreadTotal);
+  const loadUnreadCount = useChatStore((state) => state.loadUnreadCount);
 
-  return <>
-    <header className={cn('safe-top z-40 border-b px-4 backdrop-blur-xl md:px-8', isHome ? 'absolute inset-x-0 top-0 border-black/5 bg-[#f8f5f0]/90 text-ink' : 'sticky top-0 border-black/5 bg-[#f8f5f0]/94 text-ink')}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-5">
-        <Link to="/" className="flex items-center gap-2 text-lg font-black tracking-[-0.04em]"><span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-white"><Compass className="h-4 w-4" strokeWidth={3}/></span>oddtrip</Link>
-        <nav className="hidden items-center gap-7 md:flex">{links.map((link) => <NavLink key={link.to} to={link.to} className={({ isActive }) => cn('text-sm font-bold text-muted transition hover:text-ink', isActive && 'text-ink')}>{link.label}</NavLink>)}</nav>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setNotificationsOpen(true)} className="icon-button" aria-label="알림"><NotificationBell /></button>
-          {user ? <div className="relative"><button onClick={() => setAccountOpen((value) => !value)} className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-black/5"><Avatar src={user.avatarUrl} fallback={user.nickname} className="h-8 w-8"/><span className="hidden text-xs font-extrabold sm:inline">{user.nickname}</span><ChevronDown className="h-3.5 w-3.5"/></button>
-            {accountOpen ? <div className="absolute right-0 top-12 w-48 rounded-2xl border border-line bg-white p-2 shadow-modal"><Link onClick={() => setAccountOpen(false)} to="/my" className="menu-item"><UserRound className="h-4 w-4"/>내 여행</Link><Link onClick={() => setAccountOpen(false)} to="/settings" className="menu-item"><Settings className="h-4 w-4"/>계정 설정</Link><button onClick={() => { logout(); navigate('/auth'); }} className="menu-item w-full text-danger"><LogOut className="h-4 w-4"/>로그아웃</button></div> : null}
-          </div> : <Link to="/auth" className="ml-1 rounded-full bg-accent px-4 py-2 text-xs font-extrabold text-white">로그인</Link>}
+  useEffect(() => {
+    if (!user) return;
+    void loadUnreadCount();
+    const timer = window.setInterval(() => void loadUnreadCount(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [user, loadUnreadCount]);
+
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, []);
+
+  const signOut = () => {
+    logout();
+    setProfileOpen(false);
+    navigate('/');
+  };
+
+  return (
+    <>
+      <div className="utility-bar"><div className="utility-inner"><Link to="/">OddTrip 소개</Link><span>도움말 · 준비 중</span>{user ? <button className="text-btn" onClick={signOut}>로그아웃</button> : null}</div></div>
+      <header className="header">
+        <div className="header-main">
+          <Link className="brand" to="/"><i>odd</i>trip<small>DIFFERENT TASTES, ONE TRIP</small></Link>
+          {user ? <nav className="global-nav" aria-label="전역 메뉴">{links.map((link) => <NavLink key={link.to} to={link.to} end={link.end}>{link.label}</NavLink>)}</nav> : null}
+          <div className="header-tools">
+            {user ? <Link className="round-btn" to="/chat" aria-label={`채팅${unreadTotal ? `, 읽지 않음 ${unreadTotal}개` : ''}`}><MessageCircle />{unreadTotal > 0 ? <span className="tool-dot" /> : null}</Link> : null}
+            {user ? <button className="round-btn" onClick={() => setNoticeOpen((open) => !open)} aria-label="알림 안내" aria-expanded={noticeOpen}><Bell />{unreadTotal > 0 ? <span className="tool-dot" /> : null}</button> : null}
+            {user ? (
+              <div ref={menuRef} style={{ position: 'relative' }}>
+                <button className="profile-btn" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen}>
+                  {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span className="avatar" style={{ width: 30, height: 30, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>{user.nickname.slice(0, 1)}</span>}
+                  <span>{user.nickname}</span><span aria-hidden="true">⌄</span>
+                </button>
+                {profileOpen ? <div className="profile-menu" style={{ position: 'absolute', top: 47, right: 0 }}><Link to="/my" onClick={() => setProfileOpen(false)}>내 여행</Link><Link to="/tti/start" onClick={() => setProfileOpen(false)}>여행 성향 다시 진단</Link><Link to="/settings" onClick={() => setProfileOpen(false)}>계정 설정</Link>{user.role === 'admin' ? <Link to="/admin" onClick={() => setProfileOpen(false)}>관리자 콘솔</Link> : null}<button onClick={signOut}>로그아웃</button></div> : null}
+              </div>
+            ) : <Link className="header-login" to="/auth">로그인</Link>}
+          </div>
         </div>
-      </div>
-    </header>
-    <NotificationCenter open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
-  </>;
+      </header>
+      {noticeOpen ? <div className="notice-popover"><div className="side-head">알림 <button className="round-btn" style={{ width: 28, height: 28, marginLeft: 'auto' }} onClick={() => setNoticeOpen(false)} aria-label="닫기"><X style={{ width: 14, height: 14 }} /></button></div><div className="notice-empty"><b>{unreadTotal ? `읽지 않은 채팅 ${unreadTotal}개` : '새 채팅이 없습니다.'}</b>채팅 수는 실시간 API 값입니다. 여행 단계·날씨 알림은 서버 알림 계약이 없어 표시하지 않습니다.<div style={{ marginTop: 9 }}><span className="waiting-label">서버 알림 연결 대기</span></div></div></div> : null}
+    </>
+  );
 }

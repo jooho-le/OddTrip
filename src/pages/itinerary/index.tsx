@@ -1,79 +1,93 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CloudSun, Grid3X3, Route, Share2, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
-import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
-import type { ItineraryItemType } from '../../types';
-
-const typeLabel: Record<ItineraryItemType, string> = { place: '장소', move: '이동', meal: '식사', rest: '휴식' };
+import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function ItineraryPage() {
-  const { itinerary, loadItinerary, regenerateItinerary, status } = useTripStore();
+  const { itinerary, loadItinerary, regenerateItinerary, status, error, activeTripId, tripHistory } = useTripStore();
+  const [day, setDay] = useState(1);
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
+  useEffect(() => { void loadItinerary(); }, [loadItinerary]);
   useEffect(() => {
-    if (!itinerary.length) void loadItinerary();
-  }, [itinerary.length, loadItinerary]);
+    if (itinerary.length && !itinerary.some((item) => item.day === day)) setDay(itinerary[0].day);
+  }, [itinerary, day]);
 
-  if (status.itinerary === 'loading') return <LoadingView label="AI가 일정을 생성하는 중입니다" />;
-  if (status.itinerary === 'error') return <ErrorView label="일정 생성 결과를 불러오지 못했습니다" />;
+  const selected = itinerary.find((item) => item.day === day);
+  const activeTrip = tripHistory.find((item) => item.tripId === activeTripId)
+    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const foreignRegions = findForeignRegions(
+    activeTrip?.region,
+    itinerary.flatMap((itineraryDay) => itineraryDay.items.flatMap((item) => [item.title, item.location, item.address ?? ''])),
+  );
+  const hasRegionMismatch = foreignRegions.length > 0;
 
   return (
-    <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-7 text-white shadow-[0_26px_90px_rgba(16,17,20,0.18)] md:p-10">
-        <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=86" alt="" className="absolute inset-0 h-full w-full object-cover opacity-34" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(253,38,122,0.52),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.50))]" />
-        <div className="relative grid gap-8 md:grid-cols-[1fr_300px] md:items-end">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/74">
-              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
-              AI Itinerary
-            </p>
-            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
-              3일간의 낯선 동행 여행을
-              <br />
-              OddTrip의 추천으로.
-            </h1>
-            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">장소, 이동, 식사, 휴식을 시간대별로 분리해서 보여줍니다.</p>
+    <TripWorkspaceShell active="schedule">
+      <div className="schedule-grid">
+        <section>
+          <div className="section-title">
+            <h2>공동 일정</h2>
+            <p>저장한 장소와 공동 선호로 구성한 일정입니다.</p>
+            <button className="line-btn right" disabled={status.itinerary === 'loading'} onClick={() => void regenerateItinerary()}>{status.itinerary === 'loading' ? '일정 처리 중…' : '일정 다시 생성'}</button>
           </div>
-          <div className="motion-card rounded-[34px] bg-white p-6 text-[#111111]">
-            <Route className="h-7 w-7 text-[#fd267a]" />
-            <p className="mt-12 text-5xl font-black tracking-[-0.05em]">{itinerary.length || 3} days</p>
-            <p className="mt-2 text-sm font-bold text-slate-500">weather + route + safety</p>
-          </div>
-        </div>
-      </section>
-      {!itinerary.length ? (
-        <Card className="border-[#fd267a]/15 bg-[#fff8fb]">
-          <EmptyView label="생성된 일정이 없습니다" />
-          <Link to="/attractions"><Button icon={<Grid3X3 className="h-4 w-4" />} className="mt-4">관광지 저장하러 가기</Button></Link>
-        </Card>
-      ) : null}
-      <Card className="border-0 bg-[#f5d04c] text-[#111111]"><div className="flex gap-3"><CloudSun className="h-6 w-6 shrink-0" /><p className="text-sm font-black leading-6">각 카드를 누르면 상세 지도와 변경 옵션을 확인할 수 있습니다.</p></div></Card>
-      <div className="space-y-5">
-        {itinerary.map((day) => (
-          <section key={day.day} className="rounded-[38px] bg-white p-5 shadow-[0_20px_60px_rgba(16,17,20,0.08)] md:p-7">
-            <div className="mb-5"><h2 className="text-3xl font-black tracking-[-0.035em]">{day.day}일차 · {day.title}</h2><p className="mt-2 text-sm font-bold text-slate-600">{day.weather} · {day.caution}</p></div>
-            <div className="space-y-3 border-l-4 border-[#fd267a]/18 pl-5">
-              {day.items.map((item, index) => (
-                <Link to={`/itinerary/${item.id}`} key={item.id} className="block">
-                  <Card className="reveal-card relative p-4 hover:border-[#fd267a]/40" style={{ animationDelay: `${index * 70}ms` }}>
-                    <span className="absolute -left-[31px] top-6 h-5 w-5 rounded-full border-4 border-white bg-[#fd267a]" />
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div><p className="text-sm font-black text-[#fd267a]">{item.time}</p><h3 className="text-xl font-black">{item.title}</h3><p className="text-sm font-bold text-slate-500">{item.location} · {item.duration}</p></div>
-                      <Badge className="bg-[#101114] text-white">{typeLabel[item.type]}</Badge>
+          {error && status.itinerary === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadItinerary()}>다시 시도</button></div> : null}
+          {hasRegionMismatch ? <div className="backend-wait itinerary-region-warning" role="alert"><h3>지역이 다른 항목을 확인해 주세요.</h3><p>{activeTrip?.region ?? '현재 여행'} 일정에 {foreignRegions.join('·')} 지역으로 표시된 항목이 포함되어 있어 승인과 공유를 잠시 중지했습니다.</p></div> : null}
+          {status.itinerary === 'loading' && !itinerary.length ? <div className="skeleton-stack" role="status" aria-label="일정을 불러오는 중"><div className="skeleton-row" /><div className="skeleton-row" /></div> : null}
+          {itinerary.length ? (
+            <>
+              <div className="day-tabs">
+                {itinerary.map((item) => <button className={day === item.day ? 'on' : ''} key={item.day} onClick={() => setDay(item.day)}>{item.day}일차</button>)}
+                <button type="button" onClick={() => showComingSoon('지도와 이동 동선')}>지도·동선</button>
+              </div>
+              <div className="day-list">
+                {selected?.items.map((item) => (
+                  <div className="schedule-row" key={item.id}>
+                    <time>{item.time}</time>
+                    <span className="route-dot" />
+                    <div className="schedule-copy">
+                      <h3><Link to={'/itinerary/' + item.id}>{item.title}</Link></h3>
+                      <p>{item.description || item.location || '설명 미제공'}</p>
+                      <small>{item.duration}{item.moveTime ? ' · 이동 ' + item.moveTime : ''} · {item.location || '위치 미제공'}</small>
+                      <span className="source-label">{findForeignRegions(activeTrip?.region, [item.title, item.location, item.address ?? '']).length ? '지역 불일치 · 출처 미제공' : '출처 미제공'}</span>
                     </div>
-                    <p className="mt-3 text-sm font-bold leading-6 text-slate-600">{item.description}</p>
-                  </Card>
-                </Link>
-              ))}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : status.itinerary !== 'loading' ? (
+            <div className="empty-state itinerary-empty">
+              <strong>생성된 일정이 없습니다.</strong>
+              <p>저장한 관광지와 공동 선호를 바탕으로 새 일정을 만들 수 있습니다.</p>
+              <button className="solid-btn" onClick={() => void regenerateItinerary()}>일정 생성</button>
             </div>
-          </section>
-        ))}
+          ) : null}
+        </section>
+        <aside>
+          <div className="approval-box">
+            <div className="side-head">일정 확인 <span>{hasRegionMismatch ? '확인 필요' : '함께 검토'}</span></div>
+            <div className="approval-body">
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>나</span><b>내 확인</b><span style={{ color: '#999' }}>검토 전</span></div>
+              <div className="approval-person"><span className="avatar" style={{ width: 34, height: 34, display: 'grid', placeItems: 'center', background: '#eee' }}>?</span><b>동행 확인</b><span style={{ color: '#999' }}>검토 전</span></div>
+              <Link className="line-btn" style={{ display: 'block', width: '100%', marginTop: 13, textAlign: 'center' }} to="/approval">승인 안내 보기</Link>
+            </div>
+          </div>
+          <div className="weather-card"><h3>안전 정보</h3><p>여행 지역과 일정에 관련된 주의사항을 별도 화면에서 확인합니다.</p><Link className="text-link" style={{ display: 'inline-block', marginTop: 10 }} to="/safety">안전 정보 열기 →</Link></div>
+        </aside>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2"><Button variant="secondary" onClick={() => void regenerateItinerary()}>다시 조정하기</Button><Button icon={<Share2 className="h-4 w-4" />}>공유하기</Button></div>
-    </div>
+      <div className="workflow-cta">
+        <p><b>일정을 다시 만들기 전에 저장 장소를 확인해 주세요.</b>현재 일정 항목에는 원천 출처가 제공되지 않았습니다.</p>
+        <div className="button-row"><button className="line-btn" type="button" onClick={() => showComingSoon('일정 공유')}>일정 공유</button><Link className="solid-btn" to="/approval">일정 승인</Link></div>
+      </div>
+    </TripWorkspaceShell>
   );
+}
+
+const REGION_MARKERS = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'];
+
+function findForeignRegions(tripRegion: string | null | undefined, values: string[]) {
+  const expectedRegion = REGION_MARKERS.find((marker) => tripRegion?.includes(marker));
+  if (!expectedRegion) return [];
+  return REGION_MARKERS.filter((marker) => marker !== expectedRegion && values.some((value) => value.includes(marker)));
 }

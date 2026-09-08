@@ -1,102 +1,52 @@
-import { useEffect } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { CalendarCheck, Heart, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { AxisBar } from '../../shared/ui/AxisBar';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
+import { useMatchRequestStore } from '../../entities/match-request/model/matchRequestStore';
 
 export function MatchDetailPage() {
-  const { id } = useParams();
-  const { matches, selectedMatch, selectMatch, loadMatches, result, ensureTrip, status, user } = useTripStore();
+  const { id = '' } = useParams();
+  const { matches, selectedMatch, selectMatch, loadMatches, status } = useTripStore();
+  const requests = useMatchRequestStore();
+  const [region, setRegion] = useState('');
+  const [startDate, setStartDate] = useState(defaultDate(14));
+  const [endDate, setEndDate] = useState(defaultDate(16));
+  const [greeting, setGreeting] = useState('서로 다른 취향을 존중하며 같이 여행하고 싶어요.');
+  const [sentMessage, setSentMessage] = useState('');
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
-  }, [loadMatches, matches.length]);
+    void requests.load();
+  }, [matches.length, loadMatches, requests.load]);
+  useEffect(() => { selectMatch(id); }, [id, matches, selectMatch]);
 
-  useEffect(() => {
-    if (id) selectMatch(id);
-  }, [id, matches.length, selectMatch]);
+  const candidate = matches.find((item) => item.id === id) ?? selectedMatch;
+  const pending = useMemo(() => requests.sent.find((request) => request.receiverId === id && request.status === 'pending'), [requests.sent, id]);
+  useEffect(() => { if (candidate && !region) setRegion(candidate.region || ''); }, [candidate, region]);
 
-  const match = selectedMatch ?? matches.find((item) => item.id === id);
-  if (!match) return <Card>매칭 정보를 찾을 수 없습니다.</Card>;
+  if (!candidate) return <main className="page"><div className="container"><div className="empty-state"><strong>{status.matches === 'loading' ? '후보 정보를 불러오고 있습니다.' : '후보를 찾을 수 없습니다.'}</strong><p>추천 목록으로 돌아가 다시 선택해주세요.</p><Link className="solid-btn" to="/matches">동행 찾기로</Link></div></div></main>;
 
-  const myCode = result?.code ?? user?.ttiCode ?? 'TTI';
-  const travelFit = buildTravelFitText(match.differences, match.complements, match.matchLevel);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const created = await requests.create({ receiverId: candidate.id, region, startDate, endDate, greetingMessage: greeting });
+    if (created) setSentMessage('동행 요청을 보냈습니다. 보낸 요청 탭에서 상태를 확인할 수 있습니다.');
+  };
 
   return (
-    <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] bg-[#101114] p-6 text-white shadow-[0_26px_90px_rgba(16,17,20,0.20)] md:p-9">
-        <img src={match.avatarUrl ?? 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=900&q=86'} alt="" className="absolute inset-0 h-full w-full object-cover opacity-34" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_24%,rgba(253,38,122,0.58),transparent_28%),linear-gradient(90deg,rgba(16,17,20,0.96),rgba(16,17,20,0.52))]" />
-        <div className="relative grid gap-8 md:grid-cols-[1fr_330px] md:items-end">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72">
-              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
-              Match Detail
-            </p>
-            <h1 className="mt-7 max-w-3xl text-5xl font-black leading-[0.9] tracking-[-0.055em] md:text-8xl">
-              {match.nickname}님과
-              <br />
-              만드는 균형.
-            </h1>
-            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">{match.compatibility}</p>
-          </div>
-          <div className="motion-card rounded-[34px] bg-white p-5 text-[#111111]">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#fd267a]">type compare</p>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <TypeTile label="나" code={myCode} />
-              <TypeTile label="상대" code={match.ttiCode} dark />
-            </div>
-          </div>
+    <main className="page"><div className="container">
+      <header className="page-heading"><div><Link className="text-btn" to="/matches">‹ 동행 찾기로</Link><h1 style={{ marginTop: 9 }}>{candidate.nickname}의 여행 기록</h1></div><p>후보의 여행 방식과 실제 추천 정보를 비교합니다.</p></header>
+      {requests.error ? <div className="error-strip" role="alert">{requests.error}</div> : null}
+      <section className="match-detail">
+        <article className="match-profile">{candidate.avatarUrl ? <img src={candidate.avatarUrl} alt={`${candidate.nickname} 프로필`} /> : <div style={{ height: 300, display: 'grid', placeItems: 'center', background: '#242424', color: '#fff', fontSize: 64, fontWeight: 900 }}>{candidate.nickname.slice(0, 1)}</div>}<div className="match-profile-body"><span className="status pink">추천 {candidate.recommendationScore}%</span><h2>{candidate.nickname} · {candidate.ttiCode}</h2><p>{candidate.ageRange} · {candidate.region}<br />{candidate.summary}</p>{pending ? <button className="line-btn" style={{ width: '100%', marginTop: 16 }} disabled={requests.actionId === pending.id} onClick={() => void requests.cancel(pending.id)}>요청 보냄 · 취소하기</button> : null}</div></article>
+        <div><div className="section-title"><h2>여행 성향 비교</h2><p>서로 다른 점과 함께 보완할 수 있는 부분입니다.</p></div><div className="axis-list">{candidate.differences.map((difference) => <div className="axis-row" key={difference}><b>{difference}</b><div className="axis-bar"><span style={{ width: `${candidate.recommendationScore}%` }} /></div><em>차이</em></div>)}</div><div className="detail-note"><h3>함께 여행하면</h3><p>{candidate.compatibility}</p>{candidate.complements.length ? <div className="feed-tags" style={{ marginTop: 12 }}>{candidate.complements.map((item) => <span className="tag" key={item}>{item}</span>)}</div> : null}</div>
+          <form className="match-request-form" onSubmit={submit}><div className="section-title" style={{ marginTop: 18 }}><h2>동행 요청서</h2><p>함께하고 싶은 여행의 조건과 첫 인사를 적어주세요.</p></div><div className="form-grid"><label className="field full"><span>여행 지역</span><input required maxLength={100} value={region} onChange={(event) => setRegion(event.target.value)} /></label><label className="field"><span>시작일</span><input required type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label><label className="field"><span>종료일</span><input required type="date" min={startDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label><label className="field full"><span>인사 메시지 · 300자 이내</span><textarea required maxLength={300} value={greeting} onChange={(event) => setGreeting(event.target.value)} /></label></div>{sentMessage ? <p className="form-message success" role="status">{sentMessage}</p> : <p className="form-message">상대가 수락하면 채팅방과 여행 공간이 함께 열립니다.</p>}<button className="solid-btn" style={{ marginTop: 14, width: '100%' }} disabled={Boolean(pending) || requests.actionId === candidate.id} aria-busy={requests.actionId === candidate.id}>{pending ? '응답 대기 중' : requests.actionId === candidate.id ? '요청 전송 중…' : '동행 요청 보내기'}</button></form>
         </div>
       </section>
-
-      <Card className="border-[#fd267a]/20 bg-[#fff8fb]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-xl font-black">다음 단계</h2>
-            <p className="mt-1 text-sm font-bold text-slate-600">공동 여행을 만들면 장소 취향 조율 화면으로 이동합니다.</p>
-          </div>
-          <Link to="/decision" onClick={() => void ensureTrip()}>
-            <Button icon={<Heart className="h-4 w-4" />} disabled={status.trip === 'loading'}>{status.trip === 'loading' ? '생성 중' : '공동 여행 만들기'}</Button>
-          </Link>
-        </div>
-      </Card>
-      {result ? <Card className="space-y-4"><h2 className="font-bold">내 성향 축</h2>{result.axisScores.map((score) => <AxisBar key={score.axis} score={score} />)}</Card> : null}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card><h2 className="mb-4 text-2xl font-black">서로 다른 점</h2>{match.differences.map((item) => <p key={item} className="mb-2 rounded-[22px] bg-[#fbf5ee] p-4 text-sm font-bold leading-6">{item}</p>)}</Card>
-        <div className="rounded-[30px] border border-black/5 gradient-panel p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
-          <h2 className="mb-4 text-2xl font-black">보완되는 점</h2>
-          {match.complements.map((item) => <p key={item} className="mb-2 rounded-[22px] bg-white/16 p-4 text-sm font-bold leading-6 text-white">{item}</p>)}
-        </div>
-      </div>
-      <div className="rounded-[30px] border border-black/5 bg-[#101114] p-5 text-white shadow-[0_20px_60px_rgba(16,17,20,0.10)]">
-        <CalendarCheck className="h-7 w-7 text-[#f5d04c]" />
-        <h2 className="mt-8 text-3xl font-black tracking-[-0.03em]">함께 어울릴 여행 방식</h2>
-        <p className="mt-3 text-sm font-bold leading-6 text-white/68">{travelFit}</p>
-      </div>
-    </div>
+    </div></main>
   );
 }
 
-function buildTravelFitText(differences: string[], complements: string[], matchLevel: string) {
-  if (!differences.length && !complements.length) {
-    return '두 사람의 TTI 결과를 기준으로 장소 선택과 일정 속도를 함께 조율하는 방식이 적합합니다.';
-  }
-
-  const diffText = differences.length ? differences.slice(0, 2).join(', ') : '여행 선택 방식';
-  const complementText = complements.length ? complements[0] : '서로의 선택을 보완';
-  const levelText = matchLevel === '완전 반대' ? '차이가 큰 만큼 역할을 나누기 좋습니다.' : '겹치는 부분을 유지하면서 다른 취향을 조금씩 섞기 좋습니다.';
-
-  return `${diffText}에서 차이가 있어 ${complementText}하는 흐름이 잘 맞습니다. ${levelText}`;
-}
-
-function TypeTile({ label, code, dark = false }: { label: string; code: string; dark?: boolean }) {
-  return (
-    <div className={`rounded-[24px] p-4 ${dark ? 'bg-[#101114] text-white' : 'bg-[#fbf5ee] text-[#111111]'}`}>
-      <p className="text-xs font-black opacity-60">{label}</p>
-      <p className="mt-4 text-3xl font-black tracking-[-0.04em]">{code}</p>
-    </div>
-  );
+function defaultDate(offset: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return date.toISOString().slice(0, 10);
 }

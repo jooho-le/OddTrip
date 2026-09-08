@@ -1,66 +1,30 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Bookmark, CalendarDays, HeartHandshake, Settings, Sparkles } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { Badge } from '../../shared/ui/Badge';
-import { Button } from '../../shared/ui/Button';
-import { Card } from '../../shared/ui/Card';
+import { useChatStore } from '../../entities/chat/model/chatStore';
+import type { TripSummary } from '../../types';
 
 export function MyTripPage() {
-  const { user, result, attractions, tripHistory, loadTripHistory } = useTripStore();
-  const saved = attractions.filter((item) => item.saved);
+  const navigate = useNavigate();
+  const { user, tripHistory, loadTripHistory, openTrip, status, error } = useTripStore();
+  const { unreadTotal, loadUnreadCount } = useChatStore();
+  useEffect(() => { void loadTripHistory(); void loadUnreadCount(); }, [loadTripHistory, loadUnreadCount]);
+  const active = tripHistory.filter((trip) => !['completed', 'cancelled'].includes(trip.status));
+  const completed = tripHistory.filter((trip) => trip.status === 'completed');
+  const open = async (trip: TripSummary) => { await openTrip(trip.tripId); navigate('/trip/overview'); };
 
-  // The working state resets every session, so the counts have to come from
-  // the server rather than from whatever this session happens to have loaded.
-  useEffect(() => {
-    void loadTripHistory();
-  }, [loadTripHistory]);
-
-  const withItinerary = tripHistory.filter((trip) => trip.itineraryDayCount > 0);
-
-  return (
-    <div className="page-canvas space-y-5">
-      <section className="relative overflow-hidden rounded-[38px] gradient-panel-alt p-7 text-white shadow-[0_26px_90px_rgba(253,38,122,0.22)] md:p-10">
-        <div className="absolute -right-16 -top-16 h-80 w-80 rounded-full bg-white/14 drift-a" />
-        <div className="relative grid gap-8 md:grid-cols-[1fr_320px] md:items-end">
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-white/72">
-              <Sparkles className="h-4 w-4 text-[#f5d04c]" />
-              My oddtrip
-            </p>
-            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.92] tracking-[-0.055em] md:text-8xl">
-              내 여행
-              <br />
-              아카이브.
-            </h1>
-            <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/72">TTI 검사 기록, 저장한 여행지, 생성된 일정, 최근 매칭 기록을 모아봅니다.</p>
-          </div>
-          <Card className="motion-card flex items-center gap-4 bg-white text-[#111111]">
-            <img src={user?.avatarUrl ?? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=86'} alt="" className="h-20 w-20 rounded-[28px] object-cover" />
-            <div><h2 className="text-2xl font-black">{user?.nickname ?? '여행자'}</h2><p className="text-sm font-bold text-slate-500">{user?.homeRegion ?? 'Seoul'} · {result?.code ?? user?.ttiCode ?? 'TTI 미완료'}</p></div>
-          </Card>
-        </div>
-      </section>
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard icon={<Bookmark className="h-6 w-6" />} label="저장한 여행지" value={tripHistory.reduce((sum, trip) => sum + trip.savedCount, 0)} />
-        <StatCard icon={<CalendarDays className="h-6 w-6" />} label="생성 일정" value={withItinerary.length} to="/my/trips" pink />
-        <StatCard icon={<HeartHandshake className="h-6 w-6" />} label="최근 매칭" value={tripHistory.length} to="/my/matches" />
-      </div>
-
-      <Card><h2 className="mb-4 text-2xl font-black">저장한 여행지</h2>{saved.length ? <div className="flex flex-wrap gap-2">{saved.map((item) => <Badge key={item.id} className="bg-[#fff0f3] text-[#fd267a]">{item.name}</Badge>)}</div> : <p className="text-sm font-bold text-slate-500">아직 저장한 여행지가 없습니다.</p>}<Link to="/attractions"><Button className="mt-4">추천지 보러가기</Button></Link></Card>
-      <Card><Settings className="h-6 w-6 text-[#fd267a]" /><h2 className="mt-5 mb-4 text-2xl font-black">OddTrip 시작하기</h2><div className="grid gap-2 sm:grid-cols-3"><Link to="/tti/start"><Button variant="secondary" className="w-full">TTI 다시 진단</Button></Link><Link to="/decision"><Button variant="secondary" className="w-full">동행 선호 수정</Button></Link><Link to="/safety"><Button variant="secondary" className="w-full">날씨 주의 확인</Button></Link></div></Card>
-    </div>
-  );
+  return <main className="page"><div className="container"><header className="page-heading"><div><h1>내 여행</h1><p>진행 중인 여행과 지난 여행을 한곳에서 확인합니다.</p></div><Link className="line-btn" to="/settings">계정 설정</Link></header>
+    <section style={{ marginTop: 20 }}><div className="my-summary" style={{ border: '1px solid #e1e1e1' }}><div className="my-summary-row">{user?.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : <span className="avatar" style={{ width: 46, height: 46, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff', fontWeight: 800 }}>{user?.nickname?.slice(0, 1) ?? '?'}</span>}<div><b>{user?.nickname ?? '여행자'}님의 OddTrip</b><p>{user?.ttiCode ?? 'TTI 미완료'} · {user?.homeRegion ?? '지역 미설정'}</p></div></div><div className="summary-stats"><div><b>{active.length}</b><span>진행 중</span></div><div><b>{completed.length}</b><span>완료 여행</span></div><div><b>{unreadTotal}</b><span>안읽은 채팅</span></div></div></div></section>
+    {error && status.tripHistory === 'error' ? <div className="error-strip"><span>{error}</span><button onClick={() => void loadTripHistory()}>다시 시도</button></div> : null}
+    {status.tripHistory === 'loading' && !tripHistory.length ? <div className="skeleton-stack"><div className="skeleton-row" /><div className="skeleton-row" /></div> : null}
+    <section className="trip-list">{tripHistory.map((trip) => <article className="trip-list-item" key={trip.tripId}><TripImage region={trip.region} /><div><span className={'status ' + (trip.status === 'completed' ? 'gray' : '')}>{statusLabel(trip.status)}</span><h2>{trip.title || (trip.partner?.nickname ? trip.partner.nickname + '님과의 ' : '') + (trip.region ?? 'OddTrip') + ' 여행'}</h2><p>{dateRange(trip.startDate, trip.endDate)} · 저장 장소 {trip.savedCount}곳 · 일정 {trip.itineraryDayCount}일</p></div><div className="trip-list-action"><small>{trip.createdAt ? new Date(trip.createdAt).toLocaleDateString('ko-KR') + ' 생성' : '생성일 미제공'}</small><button className={trip.status === 'completed' ? 'line-btn' : 'solid-btn'} onClick={() => void open(trip)}>{trip.status === 'completed' ? '기록 열기' : '계속하기'}</button></div></article>)}</section>
+    {status.tripHistory === 'success' && !tripHistory.length ? <div className="empty-state"><strong>아직 여행 기록이 없습니다.</strong><p>동행 요청이 수락되면 첫 여행 공간이 여기에 표시됩니다.</p><Link className="solid-btn" to="/matches">동행 찾기</Link></div> : null}
+    <div className="workflow-cta"><p><b>다음 여행을 준비해 보세요.</b>성향을 다시 확인하거나 동행과 대화를 이어갈 수 있습니다.</p><div className="button-row"><Link className="line-btn" to="/tti/start">여행 성향</Link><Link className="line-btn" to="/chat">채팅</Link><Link className="solid-btn" to="/matches">동행 찾기</Link></div></div>
+  </div></main>;
 }
 
-function StatCard({ icon, label, value, to, dark = false, pink = false }: { icon: ReactNode; label: string; value: number; to?: string; dark?: boolean; pink?: boolean }) {
-  const card = (
-    <Card className={`${dark ? 'bg-[#101114] text-white' : pink ? 'gradient-panel text-white' : 'bg-white text-[#111111]'} ${to ? 'transition hover:brightness-105' : ''}`}>
-      {icon}
-      <p className="mt-14 text-sm font-black opacity-62">{label}</p>
-      <p className="mt-2 text-5xl font-black tracking-[-0.05em]">{value}</p>
-    </Card>
-  );
-  return to ? <Link to={to} className="block">{card}</Link> : card;
+function TripImage({ region }: { region?: string | null }) {
+  return <div className="trip-thumb-placeholder"><span>{region ?? 'ODDTRIP'}<small>IMAGE 미제공</small></span></div>;
 }
+function statusLabel(status: string) { return ({ planning: '조율 중', confirmed: '여행 준비', completed: '여행 완료', cancelled: '취소됨' } as Record<string, string>)[status] ?? status; }
+function dateRange(start?: string | null, end?: string | null) { return start || end ? [start, end].filter(Boolean).join(' — ') : '날짜 미정'; }
