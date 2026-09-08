@@ -14,6 +14,15 @@ user_router = APIRouter()
 me_router = APIRouter()
 
 
+@me_router.get("/blocks", response_model=dict)
+async def list_my_blocks(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await communication_service.list_blocks(db, user.id)
+    return {"data": [item.model_dump(by_alias=True) for item in data], "error": None}
+
+
 @request_router.post("", response_model=dict)
 async def create_match_request(
     body: MatchRequestCreate,

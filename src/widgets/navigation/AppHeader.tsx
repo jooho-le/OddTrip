@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Compass, LogOut, Settings, UserRound } from 'lucide-react';
+import { ChevronDown, Compass, LogOut, MessageCircle, Settings, UserRound } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../shared/lib/classNames';
 import { useTripStore } from '../../entities/trip/model/tripStore';
@@ -22,6 +22,7 @@ export function AppHeader() {
         <Link to="/" className="flex items-center gap-2 text-lg font-black tracking-[-0.04em]"><span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-white"><Compass className="h-4 w-4" strokeWidth={3}/></span>oddtrip</Link>
         <nav className="hidden items-center gap-7 md:flex">{links.map((link) => <NavLink key={link.to} to={link.to} className={({ isActive }) => cn('text-sm font-bold text-muted transition hover:text-ink', isActive && 'text-ink')}>{link.label}</NavLink>)}</nav>
         <div className="flex items-center gap-1">
+          {user ? <Link to="/chat" className="icon-button" aria-label="채팅"><MessageCircle className="h-5 w-5" /></Link> : null}
           <button onClick={() => setNotificationsOpen(true)} className="icon-button" aria-label="알림"><NotificationBell /></button>
           {user ? <div className="relative"><button onClick={() => setAccountOpen((value) => !value)} className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-black/5"><Avatar src={user.avatarUrl} fallback={user.nickname} className="h-8 w-8"/><span className="hidden text-xs font-extrabold sm:inline">{user.nickname}</span><ChevronDown className="h-3.5 w-3.5"/></button>
             {accountOpen ? <div className="absolute right-0 top-12 w-48 rounded-2xl border border-line bg-white p-2 shadow-modal"><Link onClick={() => setAccountOpen(false)} to="/my" className="menu-item"><UserRound className="h-4 w-4"/>내 여행</Link><Link onClick={() => setAccountOpen(false)} to="/settings" className="menu-item"><Settings className="h-4 w-4"/>계정 설정</Link><button onClick={() => { logout(); navigate('/auth'); }} className="menu-item w-full text-danger"><LogOut className="h-4 w-4"/>로그아웃</button></div> : null}

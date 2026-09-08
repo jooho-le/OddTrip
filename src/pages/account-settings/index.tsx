@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Camera, Save } from 'lucide-react';
+import { Ban, Camera, Save } from 'lucide-react';
+import { safetyService } from '../../entities/chat/api/safetyService';
+import type { BlockedUser } from '../../types';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Avatar } from '../../shared/ui/Avatar';
 import { Button } from '../../shared/ui/Button';
@@ -14,8 +16,13 @@ export function AccountSettingsPage() {
   const [homeRegion, setHomeRegion] = useState(user?.homeRegion ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
   const [saving, setSaving] = useState(false);
+  const [blocks, setBlocks] = useState<BlockedUser[]>([]);
+  const [blockError, setBlockError] = useState('');
   const completeness = [nickname, homeRegion, avatarUrl].filter(Boolean).length * 25 + (user?.email ? 25 : 0);
   useEffect(() => { setNickname(user?.nickname ?? ''); setHomeRegion(user?.homeRegion ?? ''); setAvatarUrl(user?.avatarUrl ?? ''); }, [user]);
+  useEffect(() => {
+    void safetyService.getBlocks().then((response) => setBlocks(response.data)).catch((reason) => setBlockError(reason instanceof Error ? reason.message : '차단 목록을 불러오지 못했습니다.'));
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true);
@@ -33,5 +40,10 @@ export function AccountSettingsPage() {
       <label className="field-label"><span>기본 출발 지역</span><input value={homeRegion} onChange={(e) => setHomeRegion(e.target.value)} placeholder="예: 서울" /></label>
       <Button type="submit" disabled={saving || !nickname.trim()} icon={<Save className="h-4 w-4"/>}>{saving ? '저장 중...' : '변경사항 저장'}</Button>
     </form></Card>
+    <Card className="mx-auto mt-5 max-w-2xl">
+      <div className="flex items-center gap-2"><Ban className="h-5 w-5 text-[#fd267a]" /><h2 className="text-xl font-black">차단한 사용자</h2></div>
+      {blockError ? <p className="mt-3 text-sm font-bold text-red-600">{blockError}</p> : null}
+      <div className="mt-4 space-y-2">{blocks.map((block) => <div key={block.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3"><div className="flex items-center gap-3"><Avatar src={block.user.avatarUrl} fallback={block.user.nickname} /><div><b>{block.user.nickname}</b><p className="text-xs text-slate-500">{new Date(block.createdAt).toLocaleDateString('ko-KR')} 차단</p></div></div><Button variant="secondary" onClick={() => void safetyService.unblock(block.blockedUserId).then(() => { setBlocks((items) => items.filter((item) => item.id !== block.id)); showToast('차단을 해제했습니다.'); }).catch((reason) => setBlockError(reason instanceof Error ? reason.message : '차단 해제에 실패했습니다.'))}>차단 해제</Button></div>)}{!blocks.length && !blockError ? <p className="text-sm font-bold text-slate-500">차단한 사용자가 없습니다.</p> : null}</div>
+    </Card>
   </div>;
 }

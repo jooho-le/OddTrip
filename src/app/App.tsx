@@ -26,6 +26,7 @@ import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/Attracti
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
 import { AccountSettingsPage } from '../pages/account-settings';
+import { ChatPage } from '../pages/chat';
 import { ToastViewport } from '../shared/ui/Toast';
 
 export function App() {
@@ -65,6 +66,8 @@ export function App() {
           <Route path="/my/trips" element={<RequireAuth><TripArchivePage mode="itinerary" /></RequireAuth>} />
           <Route path="/my/matches" element={<RequireAuth><TripArchivePage mode="match" /></RequireAuth>} />
           <Route path="/settings" element={<RequireAuth><AccountSettingsPage /></RequireAuth>} />
+          <Route path="/chat" element={<RequireAuth><ChatPage /></RequireAuth>} />
+          <Route path="/chat/:roomId" element={<RequireAuth><ChatPage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

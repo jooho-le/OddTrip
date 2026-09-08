@@ -175,7 +175,12 @@ async def _test_message_delete_report_hide_and_block() -> None:
         block, ended = await communication_service.block_user(db, user_b, user_a.id)
         assert block.blocked_user_id == user_a.id
         assert len(ended) == 1
+        listed_blocks = await communication_service.list_blocks(db, user_b.id)
+        assert len(listed_blocks) == 1
+        assert listed_blocks[0].user.id == user_a.id
         assert (await db.get(Match, match.id)).status == "ended"
+        blocker_rooms, _ = await chat_service.list_rooms(db, user_b.id, status=None, before=None, limit=20)
+        assert blocker_rooms == []
         with pytest.raises(HTTPException) as send_error:
             await chat_service.create_message(
                 db,
@@ -211,5 +216,6 @@ def test_communication_routes_are_registered() -> None:
     assert ("/api/matches/{match_id}/end", "POST") in routes
     assert ("/api/me/matches/{match_id}", "DELETE") in routes
     assert ("/api/users/{user_id}/block", "POST") in routes
+    assert ("/api/me/blocks", "GET") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}", "DELETE") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}/reports", "POST") in routes

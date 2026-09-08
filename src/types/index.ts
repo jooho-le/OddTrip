@@ -65,6 +65,46 @@ export interface MatchCandidate {
   complements: string[];
 }
 
+export interface ChatCounterpart {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId?: string | null;
+  sequence: number;
+  clientMessageId: string;
+  type: string;
+  content?: string | null;
+  createdAt: string;
+  deleted: boolean;
+  displayText?: string | null;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId: string;
+  status: 'active' | 'closed';
+  counterpart: ChatCounterpart;
+  trip?: { id: string; title?: string | null; region?: string | null; status: string } | null;
+  lastMessage?: ChatMessage | null;
+  unreadCount: number;
+  currentStep?: string | null;
+  updatedAt: string;
+}
+
+export interface BlockedUser {
+  id: string;
+  blockerId: string;
+  blockedUserId: string;
+  createdAt: string;
+  user: UserProfile;
+}
+
 export interface JointPreference {
   places: string[];
   activities: string[];

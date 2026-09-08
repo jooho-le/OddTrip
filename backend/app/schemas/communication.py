@@ -76,3 +76,7 @@ class BlockOut(CommunicationModel):
     blocked_user_id: str
     created_at: datetime
     released_at: datetime | None = None
+
+
+class BlockedUserOut(BlockOut):
+    user: UserOut
