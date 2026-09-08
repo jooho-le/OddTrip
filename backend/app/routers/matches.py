@@ -37,7 +37,12 @@ async def get_match_detail(
     return {"data": {"id": match.id, "matchLevel": match.match_level, "recommendationScore": match.recommendation_score}, "error": None}
 
 
-@router.post("/{matched_user_id}/accept", response_model=dict)
+@router.post(
+    "/{matched_user_id}/accept",
+    response_model=dict,
+    deprecated=True,
+    description="이전 프론트 호환용입니다. 신규 흐름은 POST /api/match-requests 후 요청 수락 API를 사용합니다.",
+)
 async def accept_match(
     matched_user_id: str,
     user: User = Depends(get_current_user),
