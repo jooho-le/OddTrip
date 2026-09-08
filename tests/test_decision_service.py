@@ -2,6 +2,8 @@ import asyncio
 import uuid
 from datetime import date
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from backend.app.database import Base
@@ -22,6 +24,7 @@ async def _test_pair_preferences_are_stored_separately_and_compared() -> None:
 
     user_a = User(id=str(uuid.uuid4()), nickname="A")
     user_b = User(id=str(uuid.uuid4()), nickname="B")
+    outsider = User(id=str(uuid.uuid4()), nickname="외부인")
     match = Match(
         id=str(uuid.uuid4()), user_id=user_a.id, matched_user_id=user_b.id,
         status="active", match_level="추천", recommendation_score=70,
@@ -29,8 +32,12 @@ async def _test_pair_preferences_are_stored_separately_and_compared() -> None:
     trip = Trip(id=str(uuid.uuid4()), match_id=match.id, status="planning")
 
     async with sessions() as db:
-        db.add_all([user_a, user_b, match, trip])
+        db.add_all([user_a, user_b, outsider, match, trip])
         await db.commit()
+
+        with pytest.raises(HTTPException) as forbidden:
+            await decision_service.get_pair_preferences(db, trip, outsider.id)
+        assert forbidden.value.status_code == 403
 
         await decision_service.update_personal_preferences(db, trip, user_a.id, {
             "places": ["시장", "미술관"], "activities": ["산책"], "foods": ["한식"],

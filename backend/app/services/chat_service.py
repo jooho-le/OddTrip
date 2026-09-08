@@ -71,6 +71,7 @@ async def get_room_for_user(
             ChatRoom.deleted_at.is_(None),
             Match.deleted_at.is_(None),
             ChatRoomMember.deleted_at.is_(None),
+            ChatRoomMember.hidden_at.is_(None),
         )
     )
     if lock:

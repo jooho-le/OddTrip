@@ -5,7 +5,8 @@ import { cn } from '../../shared/lib/classNames';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Avatar } from '../../shared/ui/Avatar';
 import { NotificationBell, NotificationCenter } from '../../features/notifications/NotificationCenter';
-import { chatService, chatSocketUrl } from '../../entities/chat/api/chatService';
+import { chatService } from '../../entities/chat/api/chatService';
+import { subscribeRealtime } from '../../shared/realtime/socketBus';
 
 const links = [{ to: '/tti/start', label: '여행 성향' }, { to: '/matches', label: '매칭' }, { to: '/attractions', label: '여행지' }, { to: '/itinerary', label: '일정' }];
 
@@ -21,11 +22,7 @@ export function AppHeader() {
     if (!user) { setChatUnread(0); return; }
     const refresh = () => void chatService.getUnreadCount().then((response) => setChatUnread(response.data.count)).catch(() => undefined);
     refresh();
-    const url = chatSocketUrl();
-    if (!url) return;
-    const socket = new WebSocket(url);
-    socket.onmessage = refresh;
-    return () => socket.close();
+    return subscribeRealtime(refresh);
   }, [user?.id]);
 
   return <>

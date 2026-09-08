@@ -1,5 +1,5 @@
-import type { ApiResponse, ChatMessage, ChatRoom } from '../../../types';
-import { API_BASE_URL, apiRequest, SESSION_KEYS } from '../../../shared/api/client';
+import type { ChatMessage, ChatReportReason, ChatRoom } from '../../../types';
+import { apiRequest } from '../../../shared/api/client';
 
 export const chatService = {
   listRooms(status?: 'active' | 'closed') {
@@ -17,7 +17,7 @@ export const chatService = {
   deleteMessage(roomId: string, messageId: string) {
     return apiRequest<ChatMessage>({ url: `/api/chat/rooms/${roomId}/messages/${messageId}`, method: 'DELETE' });
   },
-  reportMessage(roomId: string, messageId: string, reason: string, details?: string) {
+  reportMessage(roomId: string, messageId: string, reason: ChatReportReason, details?: string) {
     return apiRequest<{ id: string }>({ url: `/api/chat/rooms/${roomId}/messages/${messageId}/reports`, method: 'POST', data: { reason, details } });
   },
   markRead(roomId: string, lastReadSequence: number) {
@@ -36,11 +36,6 @@ export const chatService = {
     return apiRequest({ url: `/api/users/${userId}/block`, method: 'POST' });
   },
 };
-
-export function chatSocketUrl() {
-  const token = localStorage.getItem(SESSION_KEYS.accessToken);
-  return token ? `${API_BASE_URL.replace(/^http/, 'ws')}/api/chat/ws?token=${encodeURIComponent(token)}` : null;
-}
 
 export type ChatSocketEnvelope = {
   event: string;

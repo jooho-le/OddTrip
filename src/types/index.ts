@@ -111,6 +111,8 @@ export interface ChatMessage {
   displayText?: string | null;
 }
 
+export type ChatReportReason = 'spam' | 'harassment' | 'sexual_content' | 'hate' | 'fraud' | 'personal_information' | 'other';
+
 export interface ChatRoom {
   id: string;
   matchId: string;

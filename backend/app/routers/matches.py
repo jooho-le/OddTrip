@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_db
 from ..models.match import Match
+from ..models.communication import MatchUserState
 from ..models.user import User
 from ..services import match_service
 
@@ -28,6 +29,9 @@ async def get_match_detail(
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
     if user.id not in {match.user_id, match.matched_user_id}:
+        raise HTTPException(status_code=404, detail="Match not found")
+    state = await db.get(MatchUserState, (match.id, user.id))
+    if state and state.hidden_at is not None:
         raise HTTPException(status_code=404, detail="Match not found")
     return {"data": {"id": match.id, "matchLevel": match.match_level, "recommendationScore": match.recommendation_score}, "error": None}
 

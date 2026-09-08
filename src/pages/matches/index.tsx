@@ -6,7 +6,8 @@ import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
-import { matchRequestService, matchRequestSocketUrl } from '../../entities/match-request/api/matchRequestService';
+import { matchRequestService } from '../../entities/match-request/api/matchRequestService';
+import { subscribeRealtime } from '../../shared/realtime/socketBus';
 import type { MatchRequest } from '../../types';
 
 export function MatchesPage() {
@@ -30,16 +31,9 @@ export function MatchesPage() {
     void loadRequests();
   }, [loadMatches, loadRequests, matches.length]);
   useEffect(() => {
-    const url = matchRequestSocketUrl();
-    if (!url) return;
-    const socket = new WebSocket(url);
-    socket.onmessage = (message) => {
-      try {
-        const event = JSON.parse(message.data) as { event?: string };
-        if (event.event?.startsWith('match_request.') || event.event === 'chat.room_created') void loadRequests();
-      } catch { /* Ignore malformed frames. */ }
-    };
-    return () => socket.close();
+    return subscribeRealtime((event) => {
+      if (event.event.startsWith('match_request.') || event.event === 'chat.room_created') void loadRequests();
+    });
   }, [loadRequests]);
 
   if (tab === 'candidates' && status.matches === 'loading') return <LoadingView label="반대 성향 후보를 찾는 중입니다" />;

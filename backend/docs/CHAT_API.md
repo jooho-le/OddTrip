@@ -99,6 +99,8 @@ MatchUserState 2건
 
 commit 후 양쪽 WebSocket에 `chat.room_created`를 전송한다. 응답과 이벤트에는 `roomId`, `matchId`, `tripId`, `userIds`가 포함된다. 알림 담당은 이 데이터를 사용해 새 채팅방 알림을 생성할 수 있다.
 
+요청 생성 시 `match_request.created`, 거절·취소 시 `match_request.updated` 이벤트를 양쪽에 전송한다. 기존 즉시 매칭 API `POST /api/matches/{userId}/accept`는 `410 Gone`을 반환한다.
+
 요청 목록·상세 응답은 요청자와 수신자 프로필, 상대 프로필, 현재 TTI 기준 반대도·점수·차이·보완점을 포함한다.
 
 ## 채팅 API
@@ -115,7 +117,7 @@ PUT    /api/chat/rooms/{roomId}/read
 GET    /api/chat/unread-count
 ```
 
-`DELETE /api/chat/rooms/{roomId}`는 방을 삭제하지 않는다. 현재 사용자의 `chat_room_members.hidden_at`만 기록한다.
+`DELETE /api/chat/rooms/{roomId}`는 방을 삭제하지 않는다. 현재 사용자의 `chat_room_members.hidden_at`만 기록한다. 숨긴 뒤에는 목록뿐 아니라 상세·메시지 직접 접근도 `404`를 반환한다.
 
 ### 메시지 전송
 
@@ -198,6 +200,7 @@ match.ended 시스템 메시지
 ```http
 POST   /api/users/{userId}/block
 DELETE /api/users/{userId}/block
+GET    /api/me/blocks
 ```
 
 어느 한쪽이 차단하면:
@@ -245,6 +248,11 @@ message.deleted
 room.read
 match.ended
 user.blocked
+match_request.created
+match_request.updated
+preference.updated
+preference.proposal_created
+preference.proposal_responded
 ```
 
 메시지는 REST에서 commit한 후 WebSocket으로 전달한다. 단일 프로세스는 메모리 연결 관리자를 사용하며 다중 worker는 Redis Pub/Sub이 필요하다.
@@ -258,6 +266,21 @@ user.blocked
 → chat.room_created 데이터 제공
 → 알림 모듈이 양쪽 chat.room_created 알림 생성
 ```
+
+## 사용자 간 여행 선호 조율
+
+개인 입력과 최종 공동 선호를 분리한다. 개인 입력은 일정 생성에 바로 반영되지 않으며 상대방이 합의안을 수락했을 때만 `trips.preferences_json`이 변경된다.
+
+```http
+PUT  /api/trips/{tripId}/preferences/me
+GET  /api/trips/{tripId}/preferences/pair
+GET  /api/trips/{tripId}/preferences/proposals
+POST /api/trips/{tripId}/preferences/proposals
+POST /api/trips/{tripId}/preferences/proposals/{proposalId}/accept
+POST /api/trips/{tripId}/preferences/proposals/{proposalId}/reject
+```
+
+`preferences/pair`은 양쪽 제출 여부, 공통·개별 장소/활동/음식, 속도·예산 차이, boolean 선호 충돌과 최종 합의 결과를 반환한다. 제안자는 자신의 합의안을 수락할 수 없고 처리된 합의안에 중복 응답할 수 없다.
 
 여행 D-1 알림은 Trip과 Match를 조회하는 알림 스케줄러가 담당한다.
 

@@ -1,5 +1,5 @@
 import type { MatchAcceptResult, MatchRequest } from '../../../types';
-import { API_BASE_URL, apiRequest, SESSION_KEYS } from '../../../shared/api/client';
+import { apiRequest } from '../../../shared/api/client';
 
 export const matchRequestService = {
   create(input: { receiverId: string; region: string; startDate: string; endDate: string; greetingMessage: string }) {
@@ -21,8 +21,3 @@ export const matchRequestService = {
     return apiRequest<MatchRequest>({ url: `/api/match-requests/${requestId}/cancel`, method: 'POST' });
   },
 };
-
-export function matchRequestSocketUrl() {
-  const token = localStorage.getItem(SESSION_KEYS.accessToken);
-  return token ? `${API_BASE_URL.replace(/^http/, 'ws')}/api/chat/ws?token=${encodeURIComponent(token)}` : null;
-}

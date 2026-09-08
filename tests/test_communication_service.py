@@ -169,6 +169,9 @@ async def _test_message_delete_report_hide_and_block() -> None:
         await chat_service.hide_room(db, room.id, user_a.id)
         rooms, _ = await chat_service.list_rooms(db, user_a.id, status=None, before=None, limit=20)
         assert rooms == []
+        with pytest.raises(HTTPException) as hidden_room:
+            await chat_service.get_room_detail(db, room.id, user_a.id)
+        assert hidden_room.value.status_code == 404
         other_rooms, _ = await chat_service.list_rooms(db, user_b.id, status=None, before=None, limit=20)
         assert len(other_rooms) == 1
 
@@ -188,7 +191,7 @@ async def _test_message_delete_report_hide_and_block() -> None:
                 user_a.id,
                 ChatMessageCreate(client_message_id=str(uuid.uuid4()), content="전송 불가"),
             )
-        assert send_error.value.status_code == 409
+        assert send_error.value.status_code == 404
 
         assert (await db.execute(select(func.count(ChatMessage.id)))).scalar_one() >= 1
     await engine.dispose()
