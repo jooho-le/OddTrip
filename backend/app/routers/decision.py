@@ -4,11 +4,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_user, get_current_user_trip, get_db
 from ..models.trip import Trip
+from ..models.match import Match
 from ..models.user import User
+from ..realtime import chat_connection_manager
 from ..schemas.decision import ConflictRequest, JointPreferenceIn, PersonalPreferenceIn, PreferenceProposalIn
 from ..services import decision_service
 
 router = APIRouter()
+
+
+async def _publish_coordination_event(
+    db: AsyncSession, trip: Trip, event: str, data: dict
+) -> None:
+    match = await db.get(Match, trip.match_id)
+    if not match:
+        return
+    await chat_connection_manager.send_to_users(
+        {match.user_id, match.matched_user_id},
+        {"event": event, "data": {"tripId": trip.id, **data}},
+    )
 
 
 @router.get("/{trip_id}/preferences/proposals", response_model=dict)
@@ -33,6 +47,9 @@ async def create_preference_proposal(
     data = await decision_service.create_preference_proposal(
         db, trip, user.id, body.preferences.model_dump(by_alias=True, mode="json")
     )
+    await _publish_coordination_event(
+        db, trip, "preference.proposal_created", {"proposalId": data["id"], "proposedBy": user.id}
+    )
     return {"data": data, "error": None}
 
 
@@ -47,6 +64,9 @@ async def accept_preference_proposal(
     data = await decision_service.respond_to_preference_proposal(
         db, trip, proposal_id, user.id, accept=True
     )
+    await _publish_coordination_event(
+        db, trip, "preference.proposal_responded", {"proposalId": proposal_id, "status": "accepted", "respondedBy": user.id}
+    )
     return {"data": data, "error": None}
 
 
@@ -60,6 +80,9 @@ async def reject_preference_proposal(
 ):
     data = await decision_service.respond_to_preference_proposal(
         db, trip, proposal_id, user.id, accept=False
+    )
+    await _publish_coordination_event(
+        db, trip, "preference.proposal_responded", {"proposalId": proposal_id, "status": "rejected", "respondedBy": user.id}
     )
     return {"data": data, "error": None}
 
@@ -85,6 +108,9 @@ async def update_my_preferences(
 ):
     data = await decision_service.update_personal_preferences(
         db, trip, user.id, body.model_dump(by_alias=True)
+    )
+    await _publish_coordination_event(
+        db, trip, "preference.updated", {"userId": user.id}
     )
     return {"data": data, "error": None}
 

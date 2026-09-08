@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { useCoordinationRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
@@ -31,6 +32,7 @@ export function DecisionPage() {
   useEffect(() => {
     if (activeTripId) void loadCoordination();
   }, [activeTripId, loadCoordination]);
+  useCoordinationRealtime(activeTripId, loadCoordination);
 
   const toggle = (key: PreferenceKey, value: string) => {
     const current = preferences[key];
