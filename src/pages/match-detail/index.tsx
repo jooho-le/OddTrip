@@ -1,14 +1,23 @@
-import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { type FormEvent, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { CalendarCheck, Heart, Sparkles } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { AxisBar } from '../../shared/ui/AxisBar';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
+import { matchRequestService } from '../../entities/match-request/api/matchRequestService';
+import type { MatchRequest } from '../../types';
 
 export function MatchDetailPage() {
   const { id } = useParams();
-  const { matches, selectedMatch, selectMatch, loadMatches, result, ensureTrip, status, user } = useTripStore();
+  const { matches, selectedMatch, selectMatch, loadMatches, result, user } = useTripStore();
+  const [region, setRegion] = useState('');
+  const [startDate, setStartDate] = useState(defaultDate(14));
+  const [endDate, setEndDate] = useState(defaultDate(16));
+  const [greeting, setGreeting] = useState('서로 다른 취향을 존중하며 같이 여행하고 싶어요.');
+  const [pending, setPending] = useState<MatchRequest>();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
@@ -17,12 +26,27 @@ export function MatchDetailPage() {
   useEffect(() => {
     if (id) selectMatch(id);
   }, [id, matches.length, selectMatch]);
+  useEffect(() => {
+    if (!id) return;
+    void matchRequestService.sent().then((response) => setPending(response.data.find((item) => item.receiverId === id && item.status === 'pending')));
+  }, [id]);
 
   const match = selectedMatch ?? matches.find((item) => item.id === id);
+  useEffect(() => {
+    if (match?.region) setRegion((current) => current || match.region);
+  }, [match?.region]);
   if (!match) return <Card>매칭 정보를 찾을 수 없습니다.</Card>;
 
   const myCode = result?.code ?? user?.ttiCode ?? 'TTI';
   const travelFit = buildTravelFitText(match.differences, match.complements, match.matchLevel);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setBusy(true); setMessage('');
+    try {
+      const response = await matchRequestService.create({ receiverId: match.id, region, startDate, endDate, greetingMessage: greeting });
+      setPending(response.data); setMessage('동행 요청을 보냈습니다. 상대방이 수락하면 채팅방이 열립니다.');
+    } catch (reason) { setMessage(reason instanceof Error ? reason.message : '동행 요청을 보내지 못했습니다.'); }
+    finally { setBusy(false); }
+  };
 
   return (
     <div className="page-canvas space-y-5">
@@ -53,15 +77,15 @@ export function MatchDetailPage() {
       </section>
 
       <Card className="border-[#fd267a]/20 bg-[#fff8fb]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <form onSubmit={submit} className="space-y-4">
           <div>
-            <h2 className="text-xl font-black">다음 단계</h2>
-            <p className="mt-1 text-sm font-bold text-slate-600">공동 여행을 만들면 장소 취향 조율 화면으로 이동합니다.</p>
+            <h2 className="text-xl font-black">동행 요청</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">여행 조건과 첫 인사를 보내면 상대방이 수락하거나 거절합니다.</p>
           </div>
-          <Link to="/decision" onClick={() => void ensureTrip()}>
-            <Button icon={<Heart className="h-4 w-4" />} disabled={status.trip === 'loading'}>{status.trip === 'loading' ? '생성 중' : '공동 여행 만들기'}</Button>
-          </Link>
-        </div>
+          <div className="grid gap-3 md:grid-cols-2"><label className="field-label md:col-span-2"><span>여행 지역</span><input required maxLength={100} value={region} onChange={(event) => setRegion(event.target.value)} /></label><label className="field-label"><span>시작일</span><input required type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label><label className="field-label"><span>종료일</span><input required type="date" min={startDate} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label><label className="field-label md:col-span-2"><span>인사 메시지</span><textarea required maxLength={300} value={greeting} onChange={(event) => setGreeting(event.target.value)} className="min-h-24" /></label></div>
+          {message ? <p className="text-sm font-bold text-slate-600">{message}</p> : null}
+          {pending ? <Button type="button" variant="secondary" disabled={busy} onClick={() => void matchRequestService.cancel(pending.id).then(() => { setPending(undefined); setMessage('동행 요청을 취소했습니다.'); })}>요청 취소</Button> : <Button icon={<Heart className="h-4 w-4" />} disabled={busy}>{busy ? '요청 전송 중' : '동행 요청 보내기'}</Button>}
+        </form>
       </Card>
       {result ? <Card className="space-y-4"><h2 className="font-bold">내 성향 축</h2>{result.axisScores.map((score) => <AxisBar key={score.axis} score={score} />)}</Card> : null}
       <div className="grid gap-4 md:grid-cols-2">
@@ -78,6 +102,10 @@ export function MatchDetailPage() {
       </div>
     </div>
   );
+}
+
+function defaultDate(offset: number) {
+  const value = new Date(); value.setDate(value.getDate() + offset); return value.toISOString().slice(0, 10);
 }
 
 function buildTravelFitText(differences: string[], complements: string[], matchLevel: string) {

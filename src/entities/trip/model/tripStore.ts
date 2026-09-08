@@ -265,23 +265,11 @@ export const useTripStore = create<TripState>((set, get) => ({
   async ensureTrip() {
     const current = get();
     if (current.activeTripId) return current.activeTripId;
-
-    const match = current.selectedMatch ?? current.matches[0];
-    if (!match) {
-      set((state) => ({ error: '먼저 매칭 상대를 선택해주세요.', status: { ...state.status, trip: 'error' } }));
-      return undefined;
-    }
-
-    set((state) => ({ status: { ...state.status, trip: 'loading' } }));
-    try {
-      const response = await oddtripService.acceptMatch(match.id);
-      const tripId = response.data.tripId ?? undefined;
-      set((state) => ({ activeTripId: tripId, selectedMatch: match, status: { ...state.status, trip: 'success' } }));
-      return tripId;
-    } catch {
-      set((state) => ({ error: '공동 여행을 만들지 못했습니다.', status: { ...state.status, trip: 'error' } }));
-      return undefined;
-    }
+    set((state) => ({
+      error: '상대방이 동행 요청을 수락한 뒤 공동 여행을 진행할 수 있습니다.',
+      status: { ...state.status, trip: 'error' },
+    }));
+    return undefined;
   },
   updatePreferences(patch) {
     set((state) => ({ preferences: { ...state.preferences, ...patch } }));

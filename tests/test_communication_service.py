@@ -219,3 +219,14 @@ def test_communication_routes_are_registered() -> None:
     assert ("/api/me/blocks", "GET") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}", "DELETE") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}/reports", "POST") in routes
+
+
+def test_legacy_immediate_match_endpoint_is_disabled() -> None:
+    from backend.app.routers.matches import accept_match
+
+    async def scenario() -> None:
+        with pytest.raises(HTTPException) as error:
+            await accept_match("target", User(id="viewer", nickname="viewer"), None)
+        assert error.value.status_code == 410
+
+    asyncio.run(scenario())

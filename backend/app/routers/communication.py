@@ -30,6 +30,10 @@ async def create_match_request(
     db: AsyncSession = Depends(get_db),
 ):
     data = await communication_service.create_match_request(db, user, body)
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.created", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 
@@ -90,6 +94,10 @@ async def reject_match_request(
     db: AsyncSession = Depends(get_db),
 ):
     data = await communication_service.respond_to_request(db, request_id, user, "reject")
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.updated", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 
@@ -100,6 +108,10 @@ async def cancel_match_request(
     db: AsyncSession = Depends(get_db),
 ):
     data = await communication_service.respond_to_request(db, request_id, user, "cancel")
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.updated", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 

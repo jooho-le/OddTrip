@@ -78,6 +78,7 @@ class ChatRoomOut(ChatModel):
     current_step: str | None = None
     last_message: ChatMessageOut | None = None
     unread_count: int = 0
+    counterpart_last_read_sequence: int = 0
     created_at: datetime
     updated_at: datetime
 

@@ -23,6 +23,9 @@ export const chatService = {
   markRead(roomId: string, lastReadSequence: number) {
     return apiRequest({ url: `/api/chat/rooms/${roomId}/read`, method: 'PUT', data: { lastReadSequence } });
   },
+  getUnreadCount() {
+    return apiRequest<{ count: number }>({ url: '/api/chat/unread-count' });
+  },
   hideRoom(roomId: string) {
     return apiRequest({ url: `/api/chat/rooms/${roomId}`, method: 'DELETE' });
   },
@@ -41,5 +44,5 @@ export function chatSocketUrl() {
 
 export type ChatSocketEnvelope = {
   event: string;
-  data?: { roomId?: string; matchId?: string } & Partial<ChatMessage>;
+  data?: { roomId?: string; matchId?: string; userId?: string; lastReadSequence?: number } & Partial<ChatMessage>;
 };

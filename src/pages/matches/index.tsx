@@ -1,21 +1,49 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Heart, RefreshCw, Sparkles, UsersRound } from 'lucide-react';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { Badge } from '../../shared/ui/Badge';
 import { Button } from '../../shared/ui/Button';
 import { Card } from '../../shared/ui/Card';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/ui/StateView';
+import { matchRequestService, matchRequestSocketUrl } from '../../entities/match-request/api/matchRequestService';
+import type { MatchRequest } from '../../types';
 
 export function MatchesPage() {
-  const { matches, loadMatches, selectMatch, status } = useTripStore();
+  const navigate = useNavigate();
+  const { matches, loadMatches, selectMatch, openTrip, status } = useTripStore();
+  const [tab, setTab] = useState<'candidates' | 'received' | 'sent'>('candidates');
+  const [received, setReceived] = useState<MatchRequest[]>([]);
+  const [sent, setSent] = useState<MatchRequest[]>([]);
+  const [requestError, setRequestError] = useState('');
+  const [busyId, setBusyId] = useState('');
+
+  const loadRequests = useCallback(async () => {
+    try {
+      const [receivedResponse, sentResponse] = await Promise.all([matchRequestService.received(), matchRequestService.sent()]);
+      setReceived(receivedResponse.data); setSent(sentResponse.data); setRequestError('');
+    } catch (reason) { setRequestError(reason instanceof Error ? reason.message : '매칭 요청을 불러오지 못했습니다.'); }
+  }, []);
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
-  }, [loadMatches, matches.length]);
+    void loadRequests();
+  }, [loadMatches, loadRequests, matches.length]);
+  useEffect(() => {
+    const url = matchRequestSocketUrl();
+    if (!url) return;
+    const socket = new WebSocket(url);
+    socket.onmessage = (message) => {
+      try {
+        const event = JSON.parse(message.data) as { event?: string };
+        if (event.event?.startsWith('match_request.') || event.event === 'chat.room_created') void loadRequests();
+      } catch { /* Ignore malformed frames. */ }
+    };
+    return () => socket.close();
+  }, [loadRequests]);
 
-  if (status.matches === 'loading') return <LoadingView label="반대 성향 후보를 찾는 중입니다" />;
-  if (status.matches === 'error') return <ErrorView label="매칭 후보를 불러오지 못했습니다" />;
+  if (tab === 'candidates' && status.matches === 'loading') return <LoadingView label="반대 성향 후보를 찾는 중입니다" />;
+  if (tab === 'candidates' && status.matches === 'error') return <ErrorView label="매칭 후보를 불러오지 못했습니다" />;
 
   const featured = matches[0];
 
@@ -38,7 +66,15 @@ export function MatchesPage() {
         <p className="relative mt-5 max-w-xl text-m font-semibold leading-6 text-white/74">비슷한 취향이 아니라, 반대의 취향의 사람을 추천합니다. 후보를 보고 내 여행을 보완해 보세요.</p>
       </section>
 
-      {featured ? (
+      <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card">
+        {([['candidates', '추천 후보'], ['received', `받은 요청 ${received.filter((item) => item.status === 'pending').length}`], ['sent', `보낸 요청 ${sent.filter((item) => item.status === 'pending').length}`]] as const).map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`rounded-xl px-4 py-2 text-sm font-black ${tab === key ? 'bg-[#101114] text-white' : 'text-slate-500'}`}>{label}</button>)}
+      </div>
+      {requestError ? <Card className="border-red-200 bg-red-50 text-sm font-bold text-red-700">{requestError}</Card> : null}
+
+      {tab === 'received' ? <RequestList items={received} direction="received" busyId={busyId} onAction={async (item, action) => { setBusyId(item.id); try { if (action === 'accept') { const accepted = await matchRequestService.accept(item.id); await openTrip(accepted.data.tripId); navigate(`/chat/${accepted.data.roomId}`); } else { await matchRequestService.reject(item.id); await loadRequests(); } } catch (reason) { setRequestError(reason instanceof Error ? reason.message : '요청 처리에 실패했습니다.'); } finally { setBusyId(''); } }} /> : null}
+      {tab === 'sent' ? <RequestList items={sent} direction="sent" busyId={busyId} onAction={async (item) => { setBusyId(item.id); try { await matchRequestService.cancel(item.id); await loadRequests(); } catch (reason) { setRequestError(reason instanceof Error ? reason.message : '요청 취소에 실패했습니다.'); } finally { setBusyId(''); } }} /> : null}
+
+      {tab === 'candidates' && featured ? (
         <section className="grid gap-5 lg:grid-cols-[410px_1fr]">
           <div className="relative mx-auto h-[560px] w-full max-w-[410px]">
             {matches.slice(0, 3).map((match, index) => (
@@ -93,9 +129,9 @@ export function MatchesPage() {
             </Card>
           </div>
         </section>
-      ) : <EmptyView label="추천 후보가 없습니다" />}
+      ) : tab === 'candidates' ? <EmptyView label="추천 후보가 없습니다" /> : null}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {tab === 'candidates' ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {matches.slice(3).map((match, index) => (
           <Card key={match.id} className="motion-card hover-lift rounded-[28px] p-4" style={{ animationDelay: `${index * 80}ms` }}>
             <div className="flex gap-3">
@@ -108,11 +144,17 @@ export function MatchesPage() {
             </div>
           </Card>
         ))}
-      </div>
+      </div> : null}
 
-      <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadMatches()}>다시 추천</Button>
+      {tab === 'candidates' ? <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadMatches()}>다시 추천</Button> : null}
     </div>
   );
+}
+
+function RequestList({ items, direction, busyId, onAction }: { items: MatchRequest[]; direction: 'received' | 'sent'; busyId: string; onAction: (item: MatchRequest, action: 'accept' | 'reject' | 'cancel') => Promise<void> }) {
+  if (!items.length) return <EmptyView label={direction === 'received' ? '받은 요청이 없습니다' : '보낸 요청이 없습니다'} />;
+  const labels = { pending: '응답 대기', accepted: '수락됨', rejected: '거절됨', cancelled: '취소됨', expired: '만료됨' } as const;
+  return <div className="space-y-3">{items.map((item) => <Card key={item.id} className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><div className="flex items-center gap-2"><h2 className="text-xl font-black">{item.counterpart?.nickname ?? '동행 사용자'}</h2><Badge>{labels[item.status]}</Badge></div><p className="mt-2 text-sm font-bold text-slate-600">{item.region} · {item.startDate} ~ {item.endDate}</p><p className="mt-2 text-sm text-slate-500">“{item.greetingMessage}”</p></div>{item.status === 'pending' ? <div className="flex gap-2">{direction === 'received' ? <><Button variant="secondary" disabled={busyId === item.id} onClick={() => void onAction(item, 'reject')}>거절</Button><Button disabled={busyId === item.id} onClick={() => void onAction(item, 'accept')}>수락</Button></> : <Button variant="secondary" disabled={busyId === item.id} onClick={() => void onAction(item, 'cancel')}>요청 취소</Button>}</div> : null}</Card>)}</div>;
 }
 
 function GuideStep({ title, description }: { title: string; description: string }) {

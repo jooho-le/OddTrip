@@ -65,6 +65,32 @@ export interface MatchCandidate {
   complements: string[];
 }
 
+export type MatchRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+
+export interface MatchRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+  status: MatchRequestStatus;
+  createdAt: string;
+  expiresAt?: string | null;
+  counterpart?: UserProfile | null;
+  matchLevel: string;
+  recommendationScore: number;
+}
+
+export interface MatchAcceptResult {
+  requestId: string;
+  matchId: string;
+  roomId: string;
+  tripId: string;
+  userIds: string[];
+}
+
 export interface ChatCounterpart {
   id: string;
   nickname: string;
@@ -93,6 +119,7 @@ export interface ChatRoom {
   trip?: { id: string; title?: string | null; region?: string | null; status: string } | null;
   lastMessage?: ChatMessage | null;
   unreadCount: number;
+  counterpartLastReadSequence: number;
   currentStep?: string | null;
   updatedAt: string;
 }

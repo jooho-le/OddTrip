@@ -435,6 +435,7 @@ async def build_room_out(db: AsyncSession, room: ChatRoom, match: Match, user_id
     trip = (await db.execute(select(Trip).where(Trip.match_id == match.id).order_by(Trip.created_at.desc()))).scalars().first()
     last_message = await db.get(ChatMessage, room.last_message_id) if room.last_message_id else None
     member = await db.get(ChatRoomMember, (room.id, user_id))
+    counterpart_member = await db.get(ChatRoomMember, (room.id, counterpart_id))
     last_read = member.last_read_sequence if member else 0
     unread = await db.execute(
         select(func.count(ChatMessage.id)).where(
@@ -467,6 +468,7 @@ async def build_room_out(db: AsyncSession, room: ChatRoom, match: Match, user_id
         current_step=trip.status if trip else None,
         last_message=message_to_out(last_message) if last_message else None,
         unread_count=int(unread.scalar_one()),
+        counterpart_last_read_sequence=counterpart_member.last_read_sequence if counterpart_member else 0,
         created_at=room.created_at,
         updated_at=room.updated_at,
     )

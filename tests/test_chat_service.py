@@ -81,6 +81,8 @@ async def _test_chat_flow_and_access_control() -> None:
         assert changed is True
         assert read.last_read_sequence == 1
         assert await chat_service.get_total_unread_count(db, user_b.id) == 0
+        room_for_a = await chat_service.get_room_detail(db, room.id, user_a.id)
+        assert room_for_a.counterpart_last_read_sequence == 1
 
         # Read cursors never move backwards.
         read_again, _, changed_again = await chat_service.mark_read(db, room.id, user_b.id, 0)

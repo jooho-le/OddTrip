@@ -5,11 +5,6 @@ function storeSession(data: AuthResponse) {
   saveSession(data);
 }
 
-interface AcceptMatchResponse {
-  matchId: string;
-  tripId: string | null;
-}
-
 interface PublicAttractionRequest {
   areaCode?: string;
   sigunguCode?: string;
@@ -30,7 +25,6 @@ export interface OddtripService {
   calculateTtiResult(answers: TtiAnswer[]): Promise<ApiResponse<TtiResult>>;
   getTtiResult(): Promise<ApiResponse<TtiResult | null>>;
   getMatches(): Promise<ApiResponse<MatchCandidate[]>>;
-  acceptMatch(matchedUserId: string): Promise<ApiResponse<AcceptMatchResponse>>;
   getTrips(): Promise<ApiResponse<TripSummary[]>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
   saveMyPreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<{ userId: string; preferences: JointPreference; updatedAt?: string }>>;
@@ -107,13 +101,6 @@ export const oddtripService: OddtripService = {
 
   getMatches() {
     return request<MatchCandidate[]>('/api/matches', { auth: true });
-  },
-
-  acceptMatch(matchedUserId) {
-    return request<AcceptMatchResponse>(`/api/matches/${matchedUserId}/accept`, {
-      method: 'POST',
-      auth: true
-    });
   },
 
   getTrips() {
