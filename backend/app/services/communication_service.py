@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.chat import ChatRoom, ChatRoomMember
 from ..models.communication import Block, MatchRequest, MatchUserState, Report
 from ..models.match import Match
+from ..models.notification import Notification
 from ..models.trip import Trip
 from ..models.user import User
 from ..schemas.chat import ChatReportIn, ChatReportOut
@@ -19,7 +20,7 @@ from ..schemas.communication import (
     MatchRequestOut,
 )
 from ..schemas.user import UserOut
-from . import chat_service, match_service
+from . import chat_service, match_service, notification_service
 from .match_service import _calc_score, _count_opposite_axes
 
 
@@ -101,7 +102,19 @@ async def create_match_request(
         updated_at=now,
     )
     db.add(request)
+    # The receiver has no other way to learn about this: the request expires in
+    # seven days and nothing else surfaces it outside /matches?tab=received.
+    notification = notification_service.build(
+        user_id=receiver.id,
+        type=notification_service.MATCH_REQUEST_RECEIVED,
+        title=f"{requester.nickname}님이 동행을 요청했어요",
+        body=request.greeting_message,
+        link="/matches?tab=received",
+        payload={"requestId": request.id, "requesterId": requester.id},
+    )
+    db.add(notification)
     await db.commit()
+    await notification_service.push([notification])
     return _request_out(request, requester, receiver, requester.id)
 
 
@@ -236,7 +249,24 @@ async def accept_match_request(db: AsyncSession, request_id: str, user: User) ->
     request.status = "accepted"
     request.responded_at = now
     request.updated_at = now
+    # Only the requester needs telling. The receiver just pressed accept and is
+    # redirected into the room by the client.
+    notification = notification_service.build(
+        user_id=requester.id,
+        type=notification_service.MATCH_REQUEST_ACCEPTED,
+        title=f"{receiver.nickname}님이 동행 요청을 수락했어요",
+        body="채팅방과 여행 공간이 함께 열렸어요.",
+        link=f"/chat/{room.id}",
+        payload={
+            "requestId": request.id,
+            "matchId": match.id,
+            "roomId": room.id,
+            "tripId": trip.id,
+        },
+    )
+    db.add(notification)
     await db.commit()
+    await notification_service.push([notification])
     return MatchAcceptOut(
         request_id=request.id,
         match_id=match.id,
@@ -256,11 +286,30 @@ async def respond_to_request(db: AsyncSession, request_id: str, user: User, acti
         raise HTTPException(status_code=404, detail="매칭 요청을 찾을 수 없습니다.")
     request.status = "rejected" if action == "reject" else "cancelled"
     request.responded_at = _now()
-    await db.commit()
+
     requester = await db.get(User, request.requester_id)
     receiver = await db.get(User, request.receiver_id)
     if not requester or not receiver:
         raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
+
+    # Cancelling is the requester withdrawing their own request, so there is
+    # nothing to tell them. Rejection is the one the requester is waiting on.
+    notifications: list[Notification] = []
+    if action == "reject":
+        notifications.append(
+            notification_service.build(
+                user_id=requester.id,
+                type=notification_service.MATCH_REQUEST_REJECTED,
+                title=f"{receiver.nickname}님이 동행 요청을 거절했어요",
+                body="다른 동행 후보를 찾아보세요.",
+                link="/matches?tab=sent",
+                payload={"requestId": request.id, "receiverId": receiver.id},
+            )
+        )
+        db.add_all(notifications)
+
+    await db.commit()
+    await notification_service.push(notifications)
     return _request_out(request, requester, receiver, user.id)
 
 
@@ -286,7 +335,23 @@ async def end_match(db: AsyncSession, match_id: str, user_id: str) -> tuple[Matc
     state = await db.get(MatchUserState, (match.id, user_id))
     if state:
         state.left_at = now
+
+    # The system message that goes into the room carries sender_id=NULL, so it
+    # never lands on the unread badge. Without this the other side only finds
+    # out by opening the chat list.
+    counterpart_id = match.matched_user_id if match.user_id == user_id else match.user_id
+    actor = await db.get(User, user_id)
+    notification = notification_service.build(
+        user_id=counterpart_id,
+        type=notification_service.MATCH_ENDED,
+        title="매칭이 종료되었어요",
+        body=f"{actor.nickname}님과의 매칭이 종료되었습니다." if actor else None,
+        link="/matches",
+        payload={"matchId": match.id, "roomId": room.id if room else None},
+    )
+    db.add(notification)
     await db.commit()
+    await notification_service.push([notification])
     return MatchEndOut(match_id=match.id, room_id=room.id if room else None, status="ended", ended_at=now), match
 
 
