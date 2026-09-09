@@ -103,6 +103,14 @@ async def provision_room(
         updated_at=now,
     )
     db.add(room)
+    # These models declare no relationship(), so the unit of work has no mapper
+    # dependency graph and will not order the room's insert before the rows that
+    # point at it. Flush the room on its own first: Postgres enforces the
+    # room_id foreign key and rejects the members and the greeting otherwise.
+    # (SQLite does not enforce foreign keys by default, which is why this only
+    # ever surfaced against Postgres.)
+    await db.flush()
+
     db.add_all([
         ChatRoomMember(room_id=room.id, user_id=match.user_id, last_read_sequence=0, joined_at=now, updated_at=now),
         ChatRoomMember(room_id=room.id, user_id=match.matched_user_id, last_read_sequence=0, joined_at=now, updated_at=now),
