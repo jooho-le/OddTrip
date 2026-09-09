@@ -13,6 +13,7 @@ from ..models.user import User
 from ..schemas.chat import ChatReportIn, ChatReportOut
 from ..schemas.communication import (
     BlockOut,
+    BlockedUserOut,
     MatchAcceptOut,
     MatchEndOut,
     MatchRequestCreate,
@@ -340,10 +341,43 @@ async def block_user(db: AsyncSession, blocker: User, blocked_user_id: str) -> t
         match.ended_at = now
         room = (await db.execute(select(ChatRoom).where(ChatRoom.match_id == match.id))).scalar_one_or_none()
         if room:
+            await chat_service.create_system_message(
+                db=db,
+                match_id=match.id,
+                event="match.ended",
+                content="매칭이 종료되었습니다.",
+            )
             room.status = "closed"
             room.closed_at = now
+            member = await db.get(ChatRoomMember, (room.id, blocker.id))
+            if member:
+                member.hidden_at = now
+        state = await db.get(MatchUserState, (match.id, blocker.id))
+        if not state:
+            state = MatchUserState(match_id=match.id, user_id=blocker.id, created_at=now, updated_at=now)
+            db.add(state)
+        state.hidden_at = now
+        state.left_at = now
     await db.commit()
     return BlockOut.model_validate(block), matches
+
+
+async def list_blocks(db: AsyncSession, blocker_id: str) -> list[BlockedUserOut]:
+    blocks = list((await db.execute(
+        select(Block)
+        .where(
+            Block.blocker_id == blocker_id,
+            Block.released_at.is_(None),
+            Block.deleted_at.is_(None),
+        )
+        .order_by(Block.created_at.desc())
+    )).scalars().all())
+    result = []
+    for block in blocks:
+        user = await db.get(User, block.blocked_user_id)
+        if user:
+            result.append(BlockedUserOut(**BlockOut.model_validate(block).model_dump(), user=UserOut.model_validate(user)))
+    return result
 
 
 async def unblock_user(db: AsyncSession, blocker_id: str, blocked_user_id: str) -> BlockOut:

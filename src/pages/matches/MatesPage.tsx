@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMatchRequestStore } from '../../entities/match-request/model/matchRequestStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../../features/prototype/designContent';
+import { subscribeRealtime } from '../../shared/realtime/socketBus';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { MatchCandidate, MatchRequest, MatchRequestStatus } from '../../types';
 
@@ -19,6 +20,12 @@ export function MatesPage() {
     if (user?.ttiCode) void loadMatches();
     void requests.load();
   }, [user?.ttiCode, loadMatches, requests.load]);
+
+  useEffect(() => subscribeRealtime((event) => {
+    if (event.event === 'match_request.created' || event.event === 'match_request.updated' || event.event === 'chat.room_created') {
+      void requests.load();
+    }
+  }), [requests.load]);
 
   const accept = async (requestId: string) => {
     const accepted = await requests.accept(requestId);

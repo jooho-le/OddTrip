@@ -68,6 +68,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const response = await chatService.getRoom(roomId);
       set((state) => ({
         rooms: upsertRoom(state.rooms, response.data),
+        counterpartRead: {
+          ...state.counterpartRead,
+          [roomId]: response.data.counterpartLastReadSequence,
+        },
       }));
       return response.data;
     } catch (error) {
@@ -85,7 +89,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const beforeSequence = more ? current.messagesNextBefore[roomId] ?? undefined : undefined;
       const response = await chatService.getMessages(roomId, { beforeSequence: beforeSequence ?? undefined, limit: 30 });
-      const incoming = [...response.data.items].reverse();
+      // The API contract already returns messages in ascending sequence order.
+      const incoming = response.data.items;
       set((state) => ({
         messagesByRoom: {
           ...state.messagesByRoom,

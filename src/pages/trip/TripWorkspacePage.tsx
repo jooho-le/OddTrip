@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { useCoordinationRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import {
   imageUrl,
   PLACE_IMAGE_FALLBACKS,
   PROFILE_FALLBACKS,
-  PROPOSAL_DEMOS,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { Attraction, TripSummary, UserProfile } from '../../types';
@@ -148,15 +148,36 @@ function ActivityRow({ time, title, copy }: { time: string; title: string; copy:
 
 function CoordinationTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) {
   const navigate = useNavigate();
-  const preferences = useTripStore((state) => state.preferences);
-  const decisionSuggestion = useTripStore((state) => state.decisionSuggestion);
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
-  const preferenceDone = hasPreferenceInput(preferences);
+  const {
+    activeTripId,
+    preferences,
+    pairPreferences,
+    preferenceProposals,
+    decisionSuggestion,
+    status,
+    error,
+    loadCoordination,
+    proposePreferences,
+    respondPreferenceProposal,
+    resolveDecisionConflict,
+  } = useTripStore();
+  const mineDone = Boolean(pairPreferences?.mine);
+  const counterpartDone = Boolean(pairPreferences?.counterpart);
+  const incomingProposal = preferenceProposals.find((proposal) => proposal.status === 'pending' && proposal.proposedBy !== user?.id);
+  const myPendingProposal = preferenceProposals.find((proposal) => proposal.status === 'pending' && proposal.proposedBy === user?.id);
 
   useEffect(() => {
-    showDemoOnce('coordination-proposals', 'AI 조율안 카드는 HTML 디자인 원본을 보존한 비교 예시입니다. 개인별 제출과 합의 API가 준비되기 전에는 선택 결과를 저장하지 않습니다.');
-  }, [showDemoOnce]);
+    void loadCoordination();
+  }, [loadCoordination]);
+  useCoordinationRealtime(activeTripId, loadCoordination);
+
+  const comparison = pairPreferences?.comparison;
+  const conflictLabels = comparison ? [
+    comparison.paceDifference > 0 ? `일정 속도 차이 ${comparison.paceDifference}` : '',
+    comparison.budgetDifference > 0 ? `예산 차이 ${comparison.budgetDifference}` : '',
+    comparison.indoorPreferredConflict ? '실내·야외 선호' : '',
+    comparison.hiddenSpotsConflict ? '유명·숨은 장소 선호' : '',
+  ].filter(Boolean) : [];
 
   return (
     <>
@@ -164,15 +185,15 @@ function CoordinationTab({ trip, user }: { trip: TripSummary; user?: UserProfile
         <section>
           <div className="section-title"><h2>조율 진행</h2><p>결정이 필요한 항목만 문서로 작성합니다.</p></div>
           <div className="coord-list">
-            <article className={preferenceDone ? 'coord-item done' : 'coord-item'}>
-              <span className="coord-no">{preferenceDone ? '✓' : '1'}</span>
-              <div className="coord-copy"><h3>각자 독립 선택</h3><p>현재 백엔드가 지원하는 공동 선호 범위에 저장합니다.</p></div>
-              <div className="coord-action"><small>{preferenceDone ? '저장된 선택 있음' : `${user?.nickname ?? '나'} 작성 필요`}</small><button type="button" className={preferenceDone ? 'line-btn' : 'solid-btn'} onClick={() => navigate('/survey/preference')}>{preferenceDone ? '작성 내용 보기' : '조사서 작성'}</button></div>
+            <article className={mineDone ? 'coord-item done' : 'coord-item'}>
+              <span className="coord-no">{mineDone ? '✓' : '1'}</span>
+              <div className="coord-copy"><h3>각자 독립 선택</h3><p>두 사용자의 답안을 따로 저장하고 제출 상태를 확인합니다.</p></div>
+              <div className="coord-action"><small>{mineDone ? '내 선택 제출 완료' : `${user?.nickname ?? '나'} 작성 필요`}</small><button type="button" className={mineDone ? 'line-btn' : 'solid-btn'} onClick={() => navigate('/survey/preference')}>{mineDone ? '작성 내용 보기' : '조사서 작성'}</button></div>
             </article>
-            <article className="coord-item">
-              <span className="coord-no">2</span>
-              <div className="coord-copy"><h3>차이 분석</h3><p>개인별 응답 계약이 준비되면 실제 차이를 계산합니다.</p></div>
-              <div className="coord-action"><small>{decisionSuggestion ? '제안 열람 가능' : '백엔드 연결 대기'}</small><button type="button" className="line-btn" onClick={() => showComingSoon('개인별 차이 분석', '현재 공동 선호만 저장할 수 있어 두 사람의 개인 응답 차이를 확정할 수 없습니다.')}>{decisionSuggestion ? '제안 보기' : '분석 안내'}</button></div>
+            <article className={pairPreferences?.bothSubmitted ? 'coord-item done' : 'coord-item'}>
+              <span className="coord-no">{pairPreferences?.bothSubmitted ? '✓' : '2'}</span>
+              <div className="coord-copy"><h3>차이 분석</h3><p>{comparison ? `공통 장소 ${comparison.places.common.length}개 · 공통 활동 ${comparison.activities.common.length}개` : '상대방의 독립 선택을 기다리고 있습니다.'}</p></div>
+              <div className="coord-action"><small>{pairPreferences?.bothSubmitted ? '비교 완료' : '상대 제출 대기'}</small><button type="button" className="line-btn" disabled={!comparison || status.conflict === 'loading'} onClick={() => void resolveDecisionConflict(conflictLabels.length ? conflictLabels : ['두 사용자 선호 비교'])}>{status.conflict === 'loading' ? '분석 중…' : 'AI 조정안 만들기'}</button></div>
             </article>
             <article className="coord-item">
               <span className="coord-no">3</span>
@@ -189,27 +210,33 @@ function CoordinationTab({ trip, user }: { trip: TripSummary; user?: UserProfile
         <aside>
           <div className="section-title"><h2>제출 상태</h2></div>
           <div className="coord-side">
-            <div className="person-state"><Avatar src={user?.avatarUrl} name={user?.nickname ?? '나'} fallback={0} /><div><b>{user?.nickname ?? '나'}</b><p>{preferenceDone ? '공동 선호 저장됨' : '독립 선택 작성 필요'}</p></div><em>{preferenceDone ? '완료' : '작성'}</em></div>
-            <div className="person-state"><Avatar src={trip.partner?.avatarUrl} name={trip.partner?.nickname ?? '동행'} fallback={1} /><div><b>{trip.partner?.nickname ?? '동행'}</b><p>개인 제출 상태 미지원</p></div><em>대기</em></div>
+            <div className="person-state"><Avatar src={user?.avatarUrl} name={user?.nickname ?? '나'} fallback={0} /><div><b>{user?.nickname ?? '나'}</b><p>{mineDone ? '독립 선택 제출됨' : '독립 선택 작성 필요'}</p></div><em>{mineDone ? '완료' : '작성'}</em></div>
+            <div className="person-state"><Avatar src={trip.partner?.avatarUrl} name={trip.partner?.nickname ?? '동행'} fallback={1} /><div><b>{trip.partner?.nickname ?? '동행'}</b><p>{counterpartDone ? '독립 선택 제출됨' : '상대 제출 대기'}</p></div><em>{counterpartDone ? '완료' : '대기'}</em></div>
           </div>
         </aside>
       </div>
 
       <section className="proposal-area">
-        <div className="section-title"><h2>AI 조율안</h2><p>디자인 원본의 세 가지 안을 열람하고 비교할 수 있습니다.</p></div>
+        <div className="section-title"><h2>합의안</h2><p>현재 내 조건을 보내고 상대방의 제안에 응답합니다.</p></div>
+        {error && (status.coordination === 'error' || status.proposal === 'error') ? <div className="error-strip" role="alert">{error}</div> : null}
         <div className="proposal-grid">
-          {PROPOSAL_DEMOS.map(([name, desc, common, mine, partner]) => (
-            <article className="proposal" key={name}>
-              <strong>{name}</strong>
-              <p>{desc}</p>
-              <dl><dt>공통 반영</dt><dd>{common}%</dd><dt>{user?.nickname ?? '나'} 반영</dt><dd>{mine}%</dd><dt>{trip.partner?.nickname ?? '동행'} 반영</dt><dd>{partner}%</dd></dl>
-              <button type="button" className="line-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => showComingSoon('AI 조율안 확정', '개인별 입력과 양쪽 합의가 저장되지 않아 조율안을 실제 여행 상태로 확정할 수 없습니다.')}>이 안으로 선택</button>
-            </article>
-          ))}
+          <article className="proposal">
+            <strong>내 합의안</strong>
+            <p>{preferenceSummary(preferences)}</p>
+            <dl><dt>일정 강도</dt><dd>{preferences.pace}</dd><dt>예산 기준</dt><dd>{preferences.budget}</dd><dt>상태</dt><dd>{myPendingProposal ? '응답 대기' : '작성 가능'}</dd></dl>
+            <button type="button" className="solid-btn" style={{ width: '100%', marginTop: 14 }} disabled={!mineDone || Boolean(myPendingProposal) || status.proposal === 'loading'} onClick={() => void proposePreferences()}>{myPendingProposal ? '상대 응답 대기 중' : status.proposal === 'loading' ? '전송 중…' : '이 조건으로 제안'}</button>
+          </article>
+          {incomingProposal ? <article className="proposal"><strong>도착한 합의안</strong><p>{preferenceSummary(incomingProposal.preferences)}</p><dl><dt>일정 강도</dt><dd>{incomingProposal.preferences.pace}</dd><dt>예산 기준</dt><dd>{incomingProposal.preferences.budget}</dd><dt>상태</dt><dd>응답 필요</dd></dl><div className="button-row" style={{ marginTop: 14 }}><button type="button" className="line-btn" disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'reject')}>거절</button><button type="button" className="solid-btn" disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'accept')}>수락</button></div></article> : null}
+          {pairPreferences?.agreed ? <article className="proposal"><strong>합의 완료</strong><p>{preferenceSummary(pairPreferences.agreed)}</p><dl><dt>일정 강도</dt><dd>{pairPreferences.agreed.pace}</dd><dt>예산 기준</dt><dd>{pairPreferences.agreed.budget}</dd><dt>상태</dt><dd>확정</dd></dl><button type="button" className="solid-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => navigate('/trip/places')}>여행지 추천 보기</button></article> : null}
         </div>
+        {decisionSuggestion ? <div className="detail-note"><h3>AI 조정 제안</h3><p>{decisionSuggestion}</p></div> : null}
       </section>
     </>
   );
+}
+
+function preferenceSummary(preferences: ReturnType<typeof useTripStore.getState>['preferences']) {
+  return [preferences.places.join(', '), preferences.activities.join(', '), preferences.foods.join(', ')].filter(Boolean).join(' · ') || '선택한 항목 없음';
 }
 
 function PlacesTab() {
