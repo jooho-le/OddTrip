@@ -4,6 +4,7 @@ import { useChatStore } from '../entities/chat/model/chatStore';
 import { useTripStore } from '../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../features/prototype/designContent';
 import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
+import { NotificationTray } from '../widgets/notification/NotificationTray';
 
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
@@ -90,14 +91,7 @@ export function PrototypeLayout() {
               >
                 💬︎{unreadTotal > 0 ? <span className="tool-dot" /> : null}
               </button>
-              <button
-                type="button"
-                className="round-btn"
-                aria-label="알림 기능 안내"
-                onClick={() => showComingSoon('여행 알림', '여행 단계와 날씨를 알려주는 서버 알림은 현재 준비 중인 기능입니다. 채팅 안 읽음 수는 채팅 버튼에서 별도로 확인할 수 있습니다.')}
-              >
-                🔔︎
-              </button>
+              <NotificationTray />
               <button type="button" className="profile-btn" aria-expanded={profileOpen} onClick={(event) => { event.stopPropagation(); setProfileOpen((open) => !open); }}>
                 {user?.avatarUrl
                   ? <img src={user.avatarUrl} alt="" />

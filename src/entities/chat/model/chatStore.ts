@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ChatMessage, ChatReportReason, ChatRoom } from '../../../types';
 import { buildChatSocketUrl, chatService, type ChatSocketEvent } from '../api/chatService';
+import { useNotificationStore } from '../../notification/model/notificationStore';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 export type LocalChatMessage = ChatMessage & { pending?: boolean };
@@ -355,6 +356,13 @@ function handleSocketEvent(
   if (event.event === 'user.blocked') {
     const { matchId } = event.data;
     set((current) => ({ rooms: current.rooms.map((room) => (room.matchId === matchId ? { ...room, status: 'closed' } : room)) }));
+  }
+
+  // Notifications ride the chat socket rather than opening a second one. The
+  // row is already durable server-side, so a dropped frame only costs
+  // immediacy: the tray still shows it on the next poll.
+  if (event.event === 'notification.created') {
+    useNotificationStore.getState().receive(event.data);
   }
 }
 

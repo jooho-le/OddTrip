@@ -21,6 +21,7 @@ vi.mock('../shared/api/client', () => ({
 import { oddtripService } from '../entities/trip/api/oddtripService';
 import { matchRequestService } from '../entities/match-request/api/matchRequestService';
 import { chatService } from '../entities/chat/api/chatService';
+import { notificationService } from '../entities/notification/api/notificationService';
 import { sourceLabel } from '../shared/lib/sourceLabel';
 
 describe('frontend API contracts', () => {
@@ -73,6 +74,42 @@ describe('frontend API contracts', () => {
       ['DELETE', '/api/me/matches/match-1'],
     ]);
     expect('acceptMatch' in oddtripService).toBe(false);
+  });
+
+  it('connects the notification list, badge and read endpoints', async () => {
+    mocks.apiRequest.mockResolvedValue({ data: {} });
+    await notificationService.list({ limit: 20 });
+    await notificationService.unreadCount();
+    await notificationService.markRead();
+    await notificationService.markRead(['n-1']);
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
+      ['GET', '/api/notifications'],
+      ['GET', '/api/notifications/unread-count'],
+      ['PUT', '/api/notifications/read'],
+      ['PUT', '/api/notifications/read'],
+    ]);
+    // Omitting the ids marks everything read; passing them scopes the update.
+    expect(mocks.apiRequest.mock.calls[2][0].data).toEqual({});
+    expect(mocks.apiRequest.mock.calls[3][0].data).toEqual({ notificationIds: ['n-1'] });
+  });
+
+  it('carries notifications over the existing chat socket', () => {
+    const event: import('../entities/chat/api/chatService').ChatSocketEvent = {
+      event: 'notification.created',
+      data: {
+        id: 'n-1',
+        type: 'match_request.received',
+        title: '가나님이 동행을 요청했어요',
+        body: '같이 가요!',
+        link: '/matches?tab=received',
+        payload: { requestId: 'req-1' },
+        read: false,
+        createdAt: '2026-09-09T00:00:00',
+      },
+    };
+
+    expect(event.data.link).toBe('/matches?tab=received');
   });
 
   it('uses the latest room-created websocket event contract', () => {

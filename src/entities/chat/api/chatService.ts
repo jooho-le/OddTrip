@@ -6,6 +6,7 @@ import type {
   ChatRoomPage,
 } from '../../../types';
 import { apiRequest, SESSION_KEYS, API_BASE_URL } from '../../../shared/api/client';
+import type { AppNotification } from '../../notification/api/notificationService';
 
 export const chatService = {
   getRooms(params: { status?: 'active' | 'closed'; before?: string; limit?: number } = {}) {
@@ -81,4 +82,5 @@ export type ChatSocketEvent =
   | { event: 'room.closed'; data: { roomId: string; closedAt?: string } }
   | { event: 'match.ended'; data: { matchId: string; roomId: string | null; status: string; endedAt: string } }
   | { event: 'user.blocked'; data: { matchId: string } }
+  | { event: 'notification.created'; data: AppNotification }
   | { event: 'pong'; data?: undefined };
