@@ -1,6 +1,7 @@
 """Seed TTI questions and travel types into the database."""
 import asyncio
 import logging
+from datetime import datetime
 
 from sqlalchemy import inspect as sa_inspect, select
 from sqlalchemy.engine import Connection
@@ -8,7 +9,9 @@ from sqlalchemy.schema import CreateIndex
 
 logger = logging.getLogger(__name__)
 
+from . import legal
 from .database import async_session, engine, Base
+from .models.consent import UserConsent
 from .models.tti import TtiQuestion, TravelType
 from .models.user import User
 
@@ -132,8 +135,41 @@ async def seed():
             else:
                 session.add(User(**user_data))
 
+            await _seed_sample_consents(session, user_data["id"])
+
         await session.commit()
         print("Seed completed successfully!")
+
+
+async def _seed_sample_consents(session, user_id: str) -> None:
+    """Give the demo users the consents a real signup would have produced.
+
+    Candidate listing filters on matching-profile consent, so without this the
+    seeded pool is invisible and matching looks broken on a fresh database.
+    These rows stand in for a signup that never happened; real users get theirs
+    from the registration and matching-gate flows.
+    """
+    now = datetime.utcnow()
+    for consent_type in legal.REGISTRATION_REQUIRED + legal.MATCHING_GATES:
+        existing = await session.execute(
+            select(UserConsent).where(
+                UserConsent.user_id == user_id,
+                UserConsent.consent_type == consent_type,
+                UserConsent.version == legal.CURRENT_VERSIONS[consent_type],
+            )
+        )
+        if existing.scalar_one_or_none():
+            continue
+        session.add(
+            UserConsent(
+                user_id=user_id,
+                consent_type=consent_type,
+                version=legal.CURRENT_VERSIONS[consent_type],
+                accepted=True,
+                source=legal.SOURCE_SIGNUP,
+                accepted_at=now,
+            )
+        )
 
 
 def _sync_schema(conn: Connection) -> None:
