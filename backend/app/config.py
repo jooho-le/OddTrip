@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     auth_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 14
     allow_demo_user_header_auth: bool = False
+    # 서버 기동 시 만들어 둘 관리자 계정. 둘 다 채워져 있을 때만 동작하고,
+    # 비워두면 아무 계정도 만들지 않습니다. 관리자를 만드는 HTTP 경로가
+    # 없으므로 팀이 관리자 화면을 쓰려면 이 값이 시작점이 됩니다.
+    admin_email: str = ""
+    admin_password: str = ""
     cors_origins: str = "http://localhost:5173"
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):\d+$"
     tour_api_service_key: str = ""
