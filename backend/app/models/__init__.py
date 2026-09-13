@@ -1,5 +1,6 @@
 from .chat import ChatMessage, ChatRoom, ChatRoomMember
 from .communication import Block, MatchRequest, MatchUserState, Report
+from .consent import UserConsent
 from .match import Match
 from .notification import Notification
 from .token import RefreshToken
@@ -16,6 +17,7 @@ __all__ = [
     "MatchUserState",
     "Block",
     "Report",
+    "UserConsent",
     "Notification",
     "RefreshToken",
     "TtiQuestion",
