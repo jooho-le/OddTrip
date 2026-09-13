@@ -54,7 +54,11 @@ async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
         required=legal.REGISTRATION_REQUIRED,
     )
 
-    existing = await db.execute(select(User).where(User.email == body.email, User.deleted_at.is_(None)))
+    # deleted_at을 걸러내지 않습니다. users.email은 unique라, 이 조회가
+    # 놓친 행이 있으면 409 대신 INSERT 단계의 제약 위반으로 500이 됩니다.
+    # 탈퇴는 이메일을 NULL로 비우므로 탈퇴한 사람의 재가입은 여기서 막히지
+    # 않고, 손으로 soft delete한 행만 정확히 409로 걸립니다.
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
 

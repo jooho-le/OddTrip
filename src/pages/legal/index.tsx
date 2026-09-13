@@ -11,7 +11,7 @@ import {
 import { useConsentStore } from '../../entities/consent/model/consentStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 
-type LegalDocumentKey = 'terms' | 'community' | 'privacy' | 'safety' | 'matching-profile' | 'marketing';
+type LegalDocumentKey = 'terms' | 'community' | 'privacy' | 'safety' | 'matching-profile' | 'marketing' | 'account-deletion';
 
 const LEGAL_DOCUMENTS: Record<LegalDocumentKey, { title: string; file: string; kicker: string }> = {
   terms: {
@@ -43,6 +43,13 @@ const LEGAL_DOCUMENTS: Record<LegalDocumentKey, { title: string; file: string; k
     title: '이벤트 및 혜택 정보 수신 동의',
     file: '/legal/marketing-consent.md',
     kicker: 'MARKETING CONSENT',
+  },
+  // 로그인 없이 열리는 경로여야 합니다. 앱을 설치하지 않았거나 로그인할 수
+  // 없는 사람도 삭제를 요청할 수 있어야 한다는 스토어 정책 요건입니다.
+  'account-deletion': {
+    title: '계정 삭제 안내',
+    file: '/legal/account-deletion.md',
+    kicker: 'ACCOUNT DELETION',
   },
 };
 
@@ -89,6 +96,7 @@ export function LegalPage() {
           <Link className={documentKey === 'community' ? 'active' : ''} to="/legal/community">운영정책</Link>
           <Link className={documentKey === 'privacy' ? 'active' : ''} to="/legal/privacy">개인정보 처리 안내</Link>
           <Link className={documentKey === 'safety' ? 'active' : ''} to="/legal/safety">안전 이용수칙</Link>
+          <Link className={documentKey === 'account-deletion' ? 'active' : ''} to="/legal/account-deletion">계정 삭제</Link>
         </nav>
         <Link className="line-btn" to="/auth">가입 화면으로</Link>
       </header>

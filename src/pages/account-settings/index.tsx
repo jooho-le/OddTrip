@@ -1,9 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { safetyService } from '../../entities/chat/api/safetyService';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useConsentStore } from '../../entities/consent/model/consentStore';
 import { decision, type ConsentType } from '../../entities/consent/api/consentService';
+import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { BlockedUser } from '../../types';
 
 const CONSENT_LABELS: Record<ConsentType, string> = {
@@ -91,7 +92,7 @@ export function AccountSettingsPage() {
               <label className="field full"><span>프로필 이미지 URL</span><input type="url" maxLength={500} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} /></label>
             </div>
             {error ? <div className="error-strip">{error}</div> : null}
-            <p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '비밀번호·계정 삭제는 현재 프로필 API 범위에 없습니다.'}</p>
+            <p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '비밀번호 변경은 아직 제공되지 않습니다.'}</p>
             <button className="solid-btn" style={{ marginTop: 14 }} disabled={status.profile === 'loading'}>{status.profile === 'loading' ? '저장 중…' : '프로필 저장'}</button>
           </form>
         </section>
@@ -107,6 +108,8 @@ export function AccountSettingsPage() {
         </section>
 
         <ConsentSettings />
+
+        <WithdrawAccount />
       </div>
     </main>
   );
@@ -196,6 +199,74 @@ function ConsentSettings() {
           </p>
         </>
       ) : null}
+    </section>
+  );
+}
+
+
+function WithdrawAccount() {
+  const navigate = useNavigate();
+  const withdraw = useTripStore((state) => state.withdraw);
+  const error = useTripStore((state) => state.error);
+  const status = useTripStore((state) => state.status);
+  const showInfo = useUiNoticeStore((state) => state.showInfo);
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const ok = await withdraw(password);
+    if (!ok) {
+      // 실패는 대부분 비밀번호 오류입니다. 입력만 비우고 화면은 유지합니다.
+      setPassword('');
+      return;
+    }
+    showInfo('계정이 삭제되었습니다.', '이용해 주셔서 감사합니다. 같은 이메일로 다시 가입할 수 있습니다.');
+    navigate('/auth', { replace: true });
+  };
+
+  return (
+    <section className="withdraw-panel">
+      <div className="section-title">
+        <h2>계정 삭제</h2>
+        <p>삭제하면 되돌릴 수 없습니다.</p>
+      </div>
+
+      <ul className="withdraw-effects">
+        <li>닉네임, 프로필 이미지, 지역, 여행 성향 결과가 삭제됩니다.</li>
+        <li>진행 중인 매칭이 종료되고 상대방에게 알림이 갑니다.</li>
+        <li>주고받은 매칭 요청이 모두 정리됩니다.</li>
+        {/* 남는 것을 숨기지 않고 먼저 밝힙니다. 삭제라고 해놓고 남기면 그게 문제입니다. */}
+        <li>신고·분쟁 처리와 관련 법령상 보존이 필요한 기록은 별도로 보관됩니다.</li>
+        <li>모든 기기에서 로그아웃되며 계정은 복구할 수 없습니다.</li>
+      </ul>
+
+      {open ? (
+        <form className="withdraw-form" onSubmit={submit}>
+          <label className="field full">
+            <span>확인을 위해 비밀번호를 입력해주세요</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+          {error && status.auth === 'error' ? <div className="error-strip" role="alert">{error}</div> : null}
+          <div className="button-row">
+            <button type="button" className="line-btn" onClick={() => { setOpen(false); setPassword(''); }}>취소</button>
+            <button type="submit" className="danger-btn" disabled={!password || status.auth === 'loading'}>
+              {status.auth === 'loading' ? '삭제하는 중…' : '계정 영구 삭제'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="button-row" style={{ justifyContent: 'flex-start', gap: 14 }}>
+          <button type="button" className="line-btn danger" onClick={() => setOpen(true)}>계정 삭제</button>
+          <Link className="text-btn" to="/legal/account-deletion">삭제 안내 전문 보기</Link>
+        </div>
+      )}
     </section>
   );
 }

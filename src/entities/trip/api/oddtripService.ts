@@ -20,6 +20,7 @@ export interface OddtripService {
   login(email: string, password: string): Promise<ApiResponse<AuthResponse>>;
   register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string; consents: ConsentDecision[] }): Promise<ApiResponse<AuthResponse>>;
   logout(): Promise<void>;
+  withdraw(password?: string): Promise<void>;
   hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
@@ -74,6 +75,13 @@ export const oddtripService: OddtripService = {
     if (refreshToken) {
       await request('/api/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined);
     }
+  },
+
+  async withdraw(password) {
+    // 로그아웃과 달리 세션을 먼저 비우지 않습니다. 비밀번호가 틀리면 탈퇴가
+    // 취소되고 사용자는 그대로 화면에 남아야 하므로, 성공한 뒤에 정리합니다.
+    await request('/api/users/me/withdraw', { method: 'POST', body: { password }, auth: true });
+    clearSession();
   },
 
   hasAuthToken() {

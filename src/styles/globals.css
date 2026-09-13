@@ -193,6 +193,15 @@ button[aria-busy="true"]{cursor:progress}
 .consent-record-table tbody th{font-weight:800}
 .consent-record-table tbody th a{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .consent-record-table td{color:var(--muted)}
+.withdraw-panel{margin-top:46px;padding-top:20px;border-top:2px solid var(--pink)}
+.withdraw-effects{margin:16px 0 18px;padding-left:18px}
+.withdraw-effects li{color:var(--muted);font-size:10px;line-height:1.75}
+.withdraw-effects li+li{margin-top:4px}
+.withdraw-form{max-width:420px;margin-top:4px;padding:16px;background:var(--soft)}
+.withdraw-form .button-row{justify-content:flex-end;margin-top:14px}
+.line-btn.danger{color:var(--pink);border-color:var(--pink)}
+.danger-btn{padding:0 18px;min-height:44px;border:0;background:var(--pink);color:#fff;font-size:11px;font-weight:800;cursor:pointer}
+.danger-btn:disabled{opacity:.45;cursor:not-allowed}
 .tti-start{display:grid;grid-template-columns:1.05fr .95fr;min-height:520px;border-top:2px solid #222}
 .tti-copy{padding:42px 42px 42px 0}
 .tti-copy h1{margin:13px 0 15px;font-size:43px;line-height:1.08;letter-spacing:-.055em}
