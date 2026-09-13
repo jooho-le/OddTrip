@@ -110,7 +110,7 @@ export function SurveyFormPage() {
       updatePreferences(answersToPreference(answers, preferences, SURVEY_DESIGNS.preference));
       await savePreferences();
       if (useTripStore.getState().status.preferences === 'success') {
-        showInfo('독립 선택 조사서를 제출했습니다.', '현재 백엔드가 지원하는 여행 공동 선호 범위에 저장되었습니다.');
+        showInfo('독립 선택 조사서를 제출했습니다.', '내 답안으로 따로 저장되며, 조율 화면에서 상대방의 제출 여부와 차이를 확인할 수 있습니다.');
         navigate(back.to);
       }
       return;

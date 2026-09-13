@@ -1,5 +1,7 @@
 import asyncio
+import time
 import uuid
+from datetime import datetime
 
 import pytest
 from fastapi import HTTPException
@@ -141,6 +143,9 @@ async def _test_withdrawal_appends_instead_of_editing() -> None:
         marketing = next(item for item in status.items if item.type == legal.MARKETING)
         assert marketing.accepted is True
 
+        # 시스템 시계가 거칠어서(Windows 약 15ms) 연속 기록이 같은 시각을 받습니다.
+        # 아래 순서 검증은 진짜 순서를 보려는 것이므로 한 틱을 띄웁니다.
+        time.sleep(0.05)
         await consent_service.record(
             session,
             user_id,
@@ -221,3 +226,43 @@ async def _test_candidates_without_profile_consent_are_not_listed() -> None:
         assert consented.id in listed
         # 동의하지 않은 사람의 프로필은 애초에 조회되지 않습니다.
         assert silent.id not in listed
+
+
+def test_same_timestamp_tie_resolves_to_withdrawal() -> None:
+    asyncio.run(_test_same_timestamp_tie_resolves_to_withdrawal())
+
+
+async def _test_same_timestamp_tie_resolves_to_withdrawal() -> None:
+    """같은 틱에 동의와 철회가 들어오면 어느 쪽이 최신인지 정할 수 없습니다.
+
+    이때는 철회로 읽어야 합니다. 애매한 기록을 동의로 간주하면 받지 않은
+    동의를 받았다고 보는 셈이 됩니다.
+    """
+    sessions = await _session_factory()
+    user_id = str(uuid.uuid4())
+
+    async with sessions() as session:
+        session.add(User(id=user_id, nickname="여행자"))
+        await session.commit()
+
+        at = datetime.utcnow()
+        session.add_all([
+            consent_service.build(
+                user_id=user_id,
+                decision=_decision(legal.MARKETING, accepted=True),
+                source=legal.SOURCE_SIGNUP,
+                at=at,
+            ),
+            consent_service.build(
+                user_id=user_id,
+                decision=_decision(legal.MARKETING, accepted=False),
+                source=legal.SOURCE_SETTINGS,
+                at=at,
+            ),
+        ])
+        await session.commit()
+
+        status = await consent_service.status(session, user_id)
+        marketing = next(item for item in status.items if item.type == legal.MARKETING)
+        assert marketing.accepted is False
+        assert await consent_service.has_accepted(session, user_id, legal.MARKETING) is False

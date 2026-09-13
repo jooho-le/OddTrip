@@ -141,7 +141,19 @@ async def latest_by_type(db: AsyncSession, user_id: str) -> dict[str, UserConsen
             ),
         )
     )
-    return {row.consent_type: row for row in result.scalars()}
+
+    # Two rows for the same consent type can share a timestamp: the system
+    # clock is coarse (about 15ms on Windows), so a quick toggle lands twice
+    # inside one tick and "newest" stops being decidable. When that happens we
+    # keep the withdrawal, because the safe reading of an ambiguous record is
+    # the one that asks the user again rather than the one that assumes
+    # consent.
+    latest: dict[str, UserConsent] = {}
+    for row in result.scalars():
+        current = latest.get(row.consent_type)
+        if current is None or (current.accepted and not row.accepted):
+            latest[row.consent_type] = row
+    return latest
 
 
 async def status(db: AsyncSession, user_id: str) -> ConsentStatusOut:
@@ -157,7 +169,7 @@ async def history(db: AsyncSession, user_id: str, limit: int = 100) -> list[Cons
     result = await db.execute(
         select(UserConsent)
         .where(UserConsent.user_id == user_id)
-        .order_by(UserConsent.accepted_at.desc())
+        .order_by(UserConsent.accepted_at.desc(), UserConsent.id.desc())
         .limit(limit)
     )
     return [_to_out(row) for row in result.scalars()]
@@ -169,13 +181,10 @@ async def has_accepted(db: AsyncSession, user_id: str, consent_type: str) -> boo
     Consent to a superseded revision is not consent to the current one, so a
     version bump closes the gate again until the user answers the new text.
     """
-    result = await db.execute(
-        select(UserConsent)
-        .where(UserConsent.user_id == user_id, UserConsent.consent_type == consent_type)
-        .order_by(UserConsent.accepted_at.desc())
-        .limit(1)
-    )
-    row = result.scalar_one_or_none()
+    # Goes through latest_by_type so the coarse-clock tie is resolved the same
+    # way here as it is in the status response. A gate that disagreed with the
+    # screen about what the user consented to would be worse than either answer.
+    row = (await latest_by_type(db, user_id)).get(consent_type)
     return bool(row and row.accepted and row.version == legal.CURRENT_VERSIONS[consent_type])
 
 

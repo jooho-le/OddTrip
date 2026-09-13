@@ -115,6 +115,50 @@ export interface JointPreference {
   hiddenSpots: boolean;
 }
 
+export interface PersonalPreferenceRecord {
+  userId: string;
+  preferences: JointPreference;
+  updatedAt?: string | null;
+}
+
+export interface PreferenceListComparison {
+  common: string[];
+  onlyMine: string[];
+  onlyCounterpart: string[];
+}
+
+export interface PairPreferenceComparison {
+  places: PreferenceListComparison;
+  activities: PreferenceListComparison;
+  foods: PreferenceListComparison;
+  paceDifference: number;
+  budgetDifference: number;
+  indoorPreferredConflict: boolean;
+  hiddenSpotsConflict: boolean;
+}
+
+export interface PairPreferences {
+  tripId: string;
+  mine?: PersonalPreferenceRecord | null;
+  counterpart?: PersonalPreferenceRecord | null;
+  bothSubmitted: boolean;
+  comparison?: PairPreferenceComparison | null;
+  agreed?: JointPreference | null;
+}
+
+export type PreferenceProposalStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface PreferenceProposal {
+  id: string;
+  tripId: string;
+  proposedBy: string;
+  respondedBy?: string | null;
+  preferences: JointPreference;
+  status: PreferenceProposalStatus;
+  createdAt: string;
+  respondedAt?: string | null;
+}
+
 export interface ConflictResolution {
   suggestion: string;
 }
@@ -285,6 +329,7 @@ export interface ChatRoom {
   currentStep?: string | null;
   lastMessage?: ChatMessage | null;
   unreadCount: number;
+  counterpartLastReadSequence: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -307,6 +352,14 @@ export type ChatReportReason =
   | 'fraud'
   | 'personal_information'
   | 'other';
+
+export interface BlockedUser {
+  id: string;
+  blockerId: string;
+  blockedUserId: string;
+  createdAt: string;
+  user: UserProfile;
+}
 
 export interface AuthResponse {
   accessToken: string;

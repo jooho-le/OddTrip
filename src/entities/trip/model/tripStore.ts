@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { oddtripService } from '../api/oddtripService';
 import { ApiError } from '../../../shared/api/client';
 import { useNotificationStore } from '../../notification/model/notificationStore';
@@ -20,6 +20,8 @@ interface TripState {
   activeTripId?: string;
   tripHistory: TripSummary[];
   preferences: JointPreference;
+  pairPreferences?: PairPreferences;
+  preferenceProposals: PreferenceProposal[];
   attractions: Attraction[];
   agentRun?: AgentRunResponse;
   itinerary: ItineraryDay[];
@@ -42,6 +44,9 @@ interface TripState {
   ensureTrip: () => Promise<string | undefined>;
   updatePreferences: (patch: Partial<JointPreference>) => void;
   savePreferences: () => Promise<void>;
+  loadCoordination: () => Promise<void>;
+  proposePreferences: () => Promise<boolean>;
+  respondPreferenceProposal: (proposalId: string, action: 'accept' | 'reject') => Promise<boolean>;
   resolveDecisionConflict: (conflicts: string[]) => Promise<void>;
   loadAttractions: () => Promise<void>;
   runTravelAgent: () => Promise<void>;
@@ -68,6 +73,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   matches: [],
   matchesConsentRequired: false,
   preferences: initialPreferences,
+  preferenceProposals: [],
   attractions: [],
   itinerary: [],
   alerts: [],
@@ -123,6 +129,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       selectedMatch: undefined,
       activeTripId: undefined,
       preferences: initialPreferences,
+      pairPreferences: undefined,
+      preferenceProposals: [],
       attractions: [],
       agentRun: undefined,
       itinerary: [],
@@ -187,6 +195,8 @@ export const useTripStore = create<TripState>((set, get) => ({
         matches: [],
         selectedMatch: undefined,
         activeTripId: undefined,
+        pairPreferences: undefined,
+        preferenceProposals: [],
         attractions: [],
         agentRun: undefined,
         itinerary: [],
@@ -241,18 +251,24 @@ export const useTripStore = create<TripState>((set, get) => ({
       alerts: [],
       agentRun: undefined,
       decisionSuggestion: undefined,
+      pairPreferences: undefined,
+      preferenceProposals: [],
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary, preferences] = await Promise.all([
+      const [attractions, itinerary, preferences, pair, proposals] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
         oddtripService.getPreferences(tripId),
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
         itinerary: itinerary.data,
-        preferences: preferences.data,
+        preferences: pair.data.mine?.preferences ?? preferences.data,
+        pairPreferences: pair.data,
+        preferenceProposals: proposals.data,
         status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
     } catch {
@@ -296,11 +312,17 @@ export const useTripStore = create<TripState>((set, get) => ({
         }));
         return undefined;
       }
-      const preferences = await oddtripService.getPreferences(tripId).catch(() => undefined);
+      const [preferences, pair, proposals] = await Promise.all([
+        oddtripService.getPreferences(tripId).catch(() => undefined),
+        oddtripService.getPairPreferences(tripId).catch(() => undefined),
+        oddtripService.getPreferenceProposals(tripId).catch(() => undefined),
+      ]);
       set((state) => ({
         activeTripId: tripId,
         tripHistory: response.data,
-        preferences: preferences?.data ?? state.preferences,
+        preferences: pair?.data.mine?.preferences ?? preferences?.data ?? state.preferences,
+        pairPreferences: pair?.data,
+        preferenceProposals: proposals?.data ?? [],
         status: { ...state.status, trip: 'success', preferences: preferences ? 'success' : state.status.preferences },
       }));
       return tripId;
@@ -322,10 +344,66 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     set((state) => ({ status: { ...state.status, preferences: 'loading' } }));
     try {
-      const response = await oddtripService.savePreferences(tripId, draft);
-      set((state) => ({ preferences: response.data, status: { ...state.status, preferences: 'success' } }));
+      await oddtripService.saveMyPreferences(tripId, draft);
+      const pair = await oddtripService.getPairPreferences(tripId);
+      set((state) => ({ preferences: draft, pairPreferences: pair.data, status: { ...state.status, preferences: 'success' } }));
     } catch {
-      set((state) => ({ error: '공동 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
+      set((state) => ({ error: '내 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
+    }
+  },
+  async loadCoordination() {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return;
+    set((state) => ({ status: { ...state.status, coordination: 'loading' } }));
+    try {
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({
+        pairPreferences: pair.data,
+        preferenceProposals: proposals.data,
+        preferences: pair.data.mine?.preferences ?? state.preferences,
+        status: { ...state.status, coordination: 'success' },
+      }));
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '조율 정보를 불러오지 못했습니다.', status: { ...state.status, coordination: 'error' } }));
+    }
+  },
+  async proposePreferences() {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
+    try {
+      const preferences = get().preferences;
+      await oddtripService.saveMyPreferences(tripId, preferences);
+      await oddtripService.createPreferenceProposal(tripId, preferences);
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({ pairPreferences: pair.data, preferenceProposals: proposals.data, status: { ...state.status, proposal: 'success', preferences: 'success' } }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '합의안을 제안하지 못했습니다.', status: { ...state.status, proposal: 'error' } }));
+      return false;
+    }
+  },
+  async respondPreferenceProposal(proposalId, action) {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
+    try {
+      await oddtripService.respondPreferenceProposal(tripId, proposalId, action);
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({ pairPreferences: pair.data, preferenceProposals: proposals.data, status: { ...state.status, proposal: 'success' } }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '합의안에 응답하지 못했습니다.', status: { ...state.status, proposal: 'error' } }));
+      return false;
     }
   },
   async resolveDecisionConflict(conflicts) {
@@ -334,7 +412,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     set((state) => ({ status: { ...state.status, conflict: 'loading' } }));
     try {
-      await oddtripService.savePreferences(tripId, get().preferences);
+      await oddtripService.saveMyPreferences(tripId, get().preferences);
       const response = await oddtripService.resolveConflict(tripId, conflicts);
       set((state) => ({
         decisionSuggestion: response.data.suggestion,

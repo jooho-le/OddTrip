@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { chatService } from '../../entities/chat/api/chatService';
 import { useChatStore } from '../../entities/chat/model/chatStore';
+import { matchRequestService } from '../../entities/match-request/api/matchRequestService';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 
 export function ChatListPage() {
@@ -37,7 +39,7 @@ export function ChatWorkspace({ roomId }: { roomId?: string }) {
 function ChatDrawer({ roomId }: { roomId: string }) {
   const navigate = useNavigate();
   const user = useTripStore((state) => state.user);
-  const { rooms, messagesByRoom, messagesNextBefore, messagesStatus, counterpartRead, socketStatus, error, loadRoom, loadMessages, sendMessage, deleteMessage, reportMessage, markRead, setActiveRoom, clearError } = useChatStore();
+  const { rooms, messagesByRoom, messagesNextBefore, messagesStatus, counterpartRead, socketStatus, error, loadRoom, loadMessages, sendMessage, deleteMessage, reportMessage, markRead, hideRoom, loadRooms, setActiveRoom, clearError } = useChatStore();
   const [content, setContent] = useState('');
   const messagesEnd = useRef<HTMLDivElement>(null);
   const room = rooms.find((item) => item.id === roomId);
@@ -67,12 +69,32 @@ function ChatDrawer({ roomId }: { roomId: string }) {
     await sendMessage(roomId, value);
   };
 
+  const endMatch = async () => {
+    if (!room || !window.confirm('매칭과 채팅을 종료할까요? 기록은 DB에 유지됩니다.')) return;
+    await matchRequestService.endMatch(room.matchId);
+    await loadRoom(roomId);
+  };
+
+  const blockCounterpart = async () => {
+    if (!room || !window.confirm(`${room.counterpart.nickname}님을 차단할까요? 매칭과 채팅도 종료됩니다.`)) return;
+    await chatService.blockCounterpart(room.counterpart.id);
+    await loadRooms('active');
+    navigate('/chat');
+  };
+
+  const hideCurrentRoom = async () => {
+    if (!window.confirm('이 채팅방을 목록에서 숨길까요? 상대방의 화면에는 영향을 주지 않습니다.')) return;
+    await hideRoom(roomId);
+    navigate('/chat');
+  };
+
   const socketCopy = socketLabel(socketStatus);
   return (
     <><button className="scrim" aria-label="채팅 닫기" onClick={() => navigate('/chat')} /><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="chat-drawer-title">
       <div className="drawer-head"><h2 id="chat-drawer-title">{room ? `${room.counterpart.nickname}님과의 채팅` : '채팅 불러오는 중'}</h2><button onClick={() => navigate('/chat')} aria-label="채팅 닫기">×</button></div>
       <div className={`socket-state ${socketStatus === 'connected' ? 'connected' : ''}`} role="status">{socketCopy}</div>
       <div className="chat-context"><b>{room?.trip?.title ?? room?.trip?.region ?? '연결된 여행'}</b><p>{room?.status === 'closed' ? '종료된 채팅 · 읽기 전용' : `현재 단계 · ${room?.currentStep ?? '함께 정하기'}`}</p></div>
+      {room ? <div className="button-row" style={{ padding: '8px 14px', borderBottom: '1px solid #eee' }}><button type="button" className="text-btn" onClick={() => void hideCurrentRoom()}>목록에서 숨기기</button>{room.status !== 'closed' ? <button type="button" className="text-btn" onClick={() => void endMatch()}>매칭 종료</button> : null}<button type="button" className="text-btn" onClick={() => void blockCounterpart()}>사용자 차단</button></div> : null}
       {error ? <div className="error-strip" style={{ margin: 0 }} role="alert"><span>{error}</span><button onClick={clearError}>닫기</button></div> : null}
       <div className="messages">
         {messagesNextBefore[roomId] ? <button className="chat-load-more" onClick={() => void loadMessages(roomId, { more: true })}>이전 메시지 더 보기</button> : null}
