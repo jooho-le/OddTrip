@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { oddtripService } from '../api/oddtripService';
+import { ApiError } from '../../../shared/api/client';
 import { useNotificationStore } from '../../notification/model/notificationStore';
+import { useConsentStore } from '../../consent/model/consentStore';
+import type { ConsentDecision } from '../../consent/api/consentService';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -11,6 +14,8 @@ interface TripState {
   answers: TtiAnswer[];
   result?: TtiResult;
   matches: MatchCandidate[];
+  /** 403으로 후보를 못 받은 상태. 고장이 아니라 매칭 동의 전이라는 뜻. */
+  matchesConsentRequired: boolean;
   selectedMatch?: MatchCandidate;
   activeTripId?: string;
   tripHistory: TripSummary[];
@@ -23,7 +28,7 @@ interface TripState {
   status: Record<string, Status>;
   error?: string;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (input: { email: string; password: string; nickname: string; homeRegion?: string }) => Promise<boolean>;
+  register: (input: { email: string; password: string; nickname: string; homeRegion?: string; consents: ConsentDecision[] }) => Promise<boolean>;
   logout: () => void;
   bootstrap: () => Promise<void>;
   loadQuestions: () => Promise<void>;
@@ -61,6 +66,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   questions: [],
   answers: [],
   matches: [],
+  matchesConsentRequired: false,
   preferences: initialPreferences,
   attractions: [],
   itinerary: [],
@@ -104,12 +110,16 @@ export const useTripStore = create<TripState>((set, get) => ({
     // The tray lives in its own store, so it would otherwise keep the previous
     // account's notifications on screen for the next person who signs in.
     useNotificationStore.getState().reset();
+    // Same for consent: leaving the previous account's status behind would
+    // open the matching gates for whoever signs in next.
+    useConsentStore.getState().reset();
     set({
       user: undefined,
       questions: [],
       answers: [],
       result: undefined,
       matches: [],
+      matchesConsentRequired: false,
       selectedMatch: undefined,
       activeTripId: undefined,
       preferences: initialPreferences,
@@ -253,8 +263,14 @@ export const useTripStore = create<TripState>((set, get) => ({
     set((state) => ({ status: { ...state.status, matches: 'loading' } }));
     try {
       const response = await oddtripService.getMatches();
-      set((state) => ({ matches: response.data, status: { ...state.status, matches: 'success' } }));
-    } catch {
+      set((state) => ({ matches: response.data, matchesConsentRequired: false, status: { ...state.status, matches: 'success' } }));
+    } catch (caught) {
+      // 403은 고장이 아니라 아직 매칭 동의를 하지 않았다는 뜻입니다. 홈처럼
+      // 게이트 밖에서 후보를 당겨오는 화면이 에러 배너를 띄우면 안 됩니다.
+      if (caught instanceof ApiError && caught.status === 403) {
+        set((state) => ({ matches: [], matchesConsentRequired: true, status: { ...state.status, matches: 'success' } }));
+        return;
+      }
       set((state) => ({ error: '매칭 후보를 불러오지 못했습니다.', status: { ...state.status, matches: 'error' } }));
     }
   },

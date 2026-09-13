@@ -1,5 +1,6 @@
 import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
+import type { ConsentDecision } from '../../consent/api/consentService';
 
 function storeSession(data: AuthResponse) {
   saveSession(data);
@@ -17,7 +18,7 @@ interface PublicAttractionRequest {
 
 export interface OddtripService {
   login(email: string, password: string): Promise<ApiResponse<AuthResponse>>;
-  register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<AuthResponse>>;
+  register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string; consents: ConsentDecision[] }): Promise<ApiResponse<AuthResponse>>;
   logout(): Promise<void>;
   hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;

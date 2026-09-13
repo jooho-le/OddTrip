@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { saveRegistrationConsent } from '../../shared/legal/consentStorage';
+import { registrationDecisions } from '../../entities/consent/api/consentService';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 
 type Mode = 'login' | 'register';
@@ -41,23 +41,22 @@ export function AuthPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (mode === 'register' && !requiredAccepted) return;
+    // 동의는 가입 요청에 함께 실립니다. 가입이 성공했는데 동의 기록만
+    // 실패하는 상태가 생기지 않도록 서버가 같은 트랜잭션에서 처리합니다.
     const ok = mode === 'login'
       ? await login(email, password)
-      : await register({ email, password, nickname, homeRegion: homeRegion || undefined });
+      : await register({
+          email,
+          password,
+          nickname,
+          homeRegion: homeRegion || undefined,
+          consents: registrationDecisions(consents.marketing),
+        });
     if (!ok) return;
     if (mode === 'register') {
-      try {
-        saveRegistrationConsent({
-          accountEmail: email,
-          userId: useTripStore.getState().user?.id,
-          marketingAccepted: consents.marketing,
-        });
-      } catch {
-        // 가입 성공을 브라우저 저장소 오류 때문에 되돌릴 수는 없습니다.
-      }
       showInfo(
         '가입 동의를 확인했습니다.',
-        '필수 동의와 선택한 수신 동의는 현재 이 브라우저에 기록됩니다. 서버 동의 이력 저장과 철회 설정은 준비 중입니다.',
+        '동의 항목과 문서 버전, 동의 시각이 계정에 기록되었습니다. 수신 동의는 계정 설정에서 언제든지 철회할 수 있습니다.',
       );
     }
     navigate(mode === 'register' ? '/tti/start' : '/');
