@@ -262,7 +262,10 @@ function WithdrawAccount() {
           </div>
         </form>
       ) : (
-        <button type="button" className="line-btn danger" onClick={() => setOpen(true)}>계정 삭제</button>
+        <div className="button-row" style={{ justifyContent: 'flex-start', gap: 14 }}>
+          <button type="button" className="line-btn danger" onClick={() => setOpen(true)}>계정 삭제</button>
+          <Link className="text-btn" to="/legal/account-deletion">삭제 안내 전문 보기</Link>
+        </div>
       )}
     </section>
   );

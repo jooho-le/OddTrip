@@ -14,7 +14,7 @@
 | 권한 표기 | `-` 비로그인 가능 / `로그인` 인증 필요 / `당사자` 매칭·여행·채팅방 참여자만 |
 | 공통 예외 | 401 인증 실패(`Not authenticated` / `User not found` / `Invalid token` / `Token expired`), 422 Pydantic 검증 실패 |
 | CORS | `CORS_ORIGINS` + 사설망 정규식 허용, `allow_credentials=True` |
-| 총 엔드포인트 | HTTP 56개 + WebSocket 1개 |
+| 총 엔드포인트 | HTTP 57개 + WebSocket 1개 |
 
 ---
 
@@ -22,7 +22,7 @@
 
 | 카테고리 | 메서드 | 엔드포인트 | 설명 | 입력 | 출력 | 권한 | 예외처리 / 정책 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| auth | POST | /api/auth/register | 이메일 회원가입 + 토큰 발급 | email(string), password(string), nickname(string), homeRegion(string?), avatarUrl(string?), consents([ { "type", "version", "accepted" } ]) | { "accessToken": "...", "refreshToken": "...", "tokenType": "bearer", "user": { "id", "email", "nickname", "avatarUrl", "homeRegion", "role", "ttiCode" } } | - | • 400: 필수 항목에 모두 동의해야 합니다. • 400: 약관이 갱신되었습니다. 화면을 새로고침한 뒤 다시 동의해주세요. • 409: 이미 가입된 이메일입니다. • 422: 이메일 형식 오류 / 비밀번호 8~128자 아님 / 닉네임 공백·50자 초과  [정책] 필수 동의 4종(terms / community / adult / privacy_notice)이 모두 accepted=true가 아니면 계정을 만들지 않음 — 동의가 계약 성립 요건이므로 클라이언트가 아닌 서버에서 강제  [정책] 선택 동의(marketing)는 거부한 사실도 accepted=false로 기록  [정책] 동의 행은 계정과 **같은 트랜잭션**에서 INSERT — 동의 없는 계정도, 계정 없는 동의도 생기지 않음  [정책] 클라이언트가 보낸 version이 현행 버전과 다르면 400 — 구버전 번들이 표시한 문서를 현행 동의로 기록하지 않음. 저장되는 값은 항상 서버의 현행 버전  [정책] 이메일 trim + 소문자 정규화  [정책] 비밀번호 PBKDF2-SHA256 210,000회 해싱  [정책] 탈퇴(deleted_at) 계정의 이메일은 중복 검사 대상에서 제외 |
+| auth | POST | /api/auth/register | 이메일 회원가입 + 토큰 발급 | email(string), password(string), nickname(string), homeRegion(string?), avatarUrl(string?), consents([ { "type", "version", "accepted" } ]) | { "accessToken": "...", "refreshToken": "...", "tokenType": "bearer", "user": { "id", "email", "nickname", "avatarUrl", "homeRegion", "role", "ttiCode" } } | - | • 400: 필수 항목에 모두 동의해야 합니다. • 400: 약관이 갱신되었습니다. 화면을 새로고침한 뒤 다시 동의해주세요. • 409: 이미 가입된 이메일입니다. • 422: 이메일 형식 오류 / 비밀번호 8~128자 아님 / 닉네임 공백·50자 초과  [정책] 필수 동의 4종(terms / community / adult / privacy_notice)이 모두 accepted=true가 아니면 계정을 만들지 않음 — 동의가 계약 성립 요건이므로 클라이언트가 아닌 서버에서 강제  [정책] 선택 동의(marketing)는 거부한 사실도 accepted=false로 기록  [정책] 동의 행은 계정과 **같은 트랜잭션**에서 INSERT — 동의 없는 계정도, 계정 없는 동의도 생기지 않음  [정책] 클라이언트가 보낸 version이 현행 버전과 다르면 400 — 구버전 번들이 표시한 문서를 현행 동의로 기록하지 않음. 저장되는 값은 항상 서버의 현행 버전  [정책] 이메일 trim + 소문자 정규화  [정책] 비밀번호 PBKDF2-SHA256 210,000회 해싱  [정책] 중복 검사는 deleted_at을 걸러내지 않음 — users.email이 unique라 조회가 놓친 행은 409가 아니라 INSERT 제약 위반으로 500이 됨. 탈퇴가 이메일을 NULL로 비우므로 탈퇴자의 재가입은 여기서 막히지 않고, 손으로 soft delete한 행만 409로 걸림 |
 | auth | POST | /api/auth/login | 로그인 | email(string), password(string) | AuthOut (register와 동일) | - | • 401: 이메일 또는 비밀번호가 올바르지 않습니다.  [정책] 계정 없음/비밀번호 불일치를 동일 메시지로 응답 — 계정 존재 여부 노출 방지  [정책] 탈퇴 계정 로그인 불가 |
 | auth | POST | /api/auth/refresh | 액세스 토큰 재발급 | refreshToken(string) | AuthOut (새 access + 새 refresh) | - | • 401: 다시 로그인해주세요. (미존재 / 폐기됨 / 만료 / 사용자 없음)  [정책] 리프레시 토큰 로테이션 — 제시된 토큰은 교환과 동시에 revoke, 유출 토큰은 다음 갱신까지만 유효  [정책] 갱신 시 해당 사용자의 만료 토큰 행을 함께 정리 |
 | auth | POST | /api/auth/logout | 세션 1개 폐기 | refreshToken(string) | { "success": true } | - | [정책] 존재하지 않거나 이미 폐기된 토큰도 200 — 호출자 의도(로그아웃)는 충족됨  [정책] access가 아닌 refresh를 받으므로 access 만료 후에도 로그아웃 가능 |
@@ -30,6 +30,7 @@
 | users | POST | /api/users | 데모용 사용자 생성 | nickname(string), avatarUrl(string?), homeRegion(string?) | UserOut | - | • 410: 사용자 생성은 /api/auth/register를 사용해주세요.  [정책] `ALLOW_DEMO_USER_HEADER_AUTH=true`일 때만 동작하는 데모 전용 경로 (운영에서는 항상 410) |
 | users | GET | /api/users/me | 내 정보 조회 | - | UserOut | 로그인 | [정책] `/api/auth/me`와 동일 응답 (프런트 호환용 중복 경로) |
 | users | PATCH | /api/users/me | 프로필 부분 수정 | nickname(string?), avatarUrl(string?), homeRegion(string?) | UserOut | 로그인 | [정책] null(미전달) 필드는 변경하지 않음  [정책] 이메일·비밀번호·role은 이 API로 변경 불가 — role 승격 엔드포인트가 아예 없어 API를 통한 권한 상승 불가 |
+| users | POST | /api/users/me/withdraw | 회원 탈퇴 | password(string?) | { "success": true } | 로그인 | • 401: 비밀번호가 올바르지 않습니다. (미입력 포함)  [정책] 하드 삭제가 아니라 소프트 삭제 + 익명화 — users를 참조하는 FK 20개가 대부분 CASCADE라 행을 지우면 상대방 채팅 기록·신고 자료·동의 이력까지 함께 사라짐. 약관 제24조③이 보존 대상으로 규정  [정책] 익명화 대상: email(NULL), passwordHash, nickname("탈퇴한 사용자"), avatarUrl, homeRegion, ttiCode, ttiScores  [정책] email을 NULL로 비우므로 같은 주소로 재가입 가능 — unique 제약은 NULL 중복을 허용  [정책] 진행 중 active 매칭 전부 ended + 채팅방 closed + 시스템 메시지, 상대에게 `match.ended` 알림. 알림 본문에 탈퇴자 닉네임을 넣지 않음  [정책] pending 매칭 요청은 보낸 것 cancelled / 받은 것 rejected로 정리  [정책] 리프레시 토큰 전부 revoke. 액세스 토큰은 무상태지만 get_current_user가 deleted_at을 걸러 즉시 401  [정책] 비밀번호가 없는 계정(데모 헤더 인증)은 확인 생략  [정책] 유예 기간·복구 경로 없음 (약관 제24조⑤)  [참고] 앱 밖 삭제 요청 경로는 `/legal/account-deletion` (Google Play 요건, 로그인 불필요) |
 | tti | GET | /api/tti/questions | TTI 12문항 조회 | - | [ { "id": "q1", "axis": "PW", "prompt", "leftLabel", "rightLabel", "leftLetter": "P", "rightLetter": "W" } ] | - | [정책] sortOrder 오름차순 고정  [정책] 축 4종(PW 계획밀도 / NC 경험선호 / FA 활동강도 / HS 명소선호) × 3문항 = 12문항 |
 | tti | POST | /api/tti/calculate | TTI 결과 계산 + 저장 | answers: [ { "questionId", "axis", "value": -2~2 } ] × 12 | { "code": "WCAS", "oppositeCode": "PNFH", "title", "description", "strengths": [3건], "axisScores": [ { "axis", "leftLetter", "rightLetter", "score" } × 4 ] } | 로그인 | • 422: 정확히 12개의 답변이 필요합니다 / 같은 질문 답변 중복 / 존재하지 않는 질문 / 잘못된 축 / 값이 -2~2 범위 밖 / 질문과 답변 축 불일치 / 축별 3개 아님  [정책] 축별 합계의 평균을 반올림해 점수 산출  [정책] 점수 0(완전 중립)은 한쪽으로 강제하지 않고 축별 기본값으로 보냄 (PW→W, NC→C, FA→F, HS→H, 전부 0이면 WCFH)  [정책] 결과를 users.tti_code / tti_scores_json에 덮어쓰기 저장  [정책] travel_types에 없는 코드면 title=코드, description="" |
 | tti | GET | /api/tti/result | 저장된 내 TTI 결과 | - | TtiResultOut 또는 null | 로그인 | [정책] 미검사 사용자는 `data: null` (에러 아님)  [정책] users 행만으로 결과를 재구성 — 새로고침·기기 변경 후에도 결과 유지 |
@@ -147,7 +148,6 @@ WebSocket 푸시는 그 위의 best-effort이며, 오프라인 수신자도 다�
 | 개인정보 다운로드 | 열람·수정은 프로필 API로 가능하나 내려받기 경로 없음 |
 | 신고 처리(운영자 검토) | Report 모델에 status/reviewedBy/reviewedAt 컬럼은 있으나 검토 API 없음 (DB 직접 처리) |
 | 관리자 API | `get_current_admin` 의존성만 존재하고 이를 사용하는 엔드포인트 없음 |
-| 회원 탈퇴 | User.deleted_at 컬럼은 있으나 탈퇴 엔드포인트 없음 |
 | 알림 — 여행 D-1 리마인더 | 미구현. 스케줄러(APScheduler/Celery)가 없고 `trips.start_date`가 NULL인 여행이 존재해 대상 선정 규칙부터 필요 |
 | 푸시 알림(FCM/APNs) | 미구현 — 알림은 인앱(WebSocket + 폴링)만 |
 | Trip 생성/수정/삭제 | 별도 API 없음 — 매칭 성립 시 자동 생성, 수정은 PUT /preferences 로만 |
