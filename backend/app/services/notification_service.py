@@ -14,6 +14,7 @@ MATCH_REQUEST_RECEIVED = "match_request.received"
 MATCH_REQUEST_ACCEPTED = "match_request.accepted"
 MATCH_REQUEST_REJECTED = "match_request.rejected"
 MATCH_ENDED = "match.ended"
+REPORT_REVIEWED = "report.reviewed"
 
 
 def _now() -> datetime:

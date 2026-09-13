@@ -4,21 +4,30 @@
 경로 자체가 권한 상승 통로가 되므로, 승격은 서버에 접근할 수 있는 사람이
 손으로 실행하는 동작으로 남긴다. CLI(`backend.app.cli`)가 그 입구다.
 """
+from datetime import datetime
+
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.communication import MatchRequest
+from ..models.chat import ChatMessage
+from ..models.communication import MatchRequest, Report
 from ..models.match import Match
 from ..models.trip import ItineraryDay, ItineraryItem, Trip, TripAttraction
 from ..models.user import User
 from ..schemas.admin import (
+    REPORT_CLOSED_STATUSES,
+    AdminReportDetailOut,
+    AdminReportOut,
+    AdminReportPageOut,
+    AdminReportPersonOut,
+    AdminReportReviewIn,
     AdminStatsOut,
     AdminTripOut,
     AdminUserDetailOut,
     AdminUserOut,
 )
-from . import consent_service
+from . import consent_service, notification_service
 
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
@@ -335,3 +344,179 @@ async def stats(db: AsyncSession) -> AdminStatsOut:
         tti_completion_rate=round(tti_done / active_users * 100, 1) if active_users else 0.0,
         tti_distribution=distribution,
     )
+
+
+# --- 신고 처리 -------------------------------------------------------------
+
+
+def _person(user: User | None, fallback_id: str) -> AdminReportPersonOut:
+    if not user:
+        # 사용자 행이 사라진 경우에도 신고 자체는 남아 있어야 한다.
+        return AdminReportPersonOut(id=fallback_id, nickname="알 수 없음", status="unknown")
+    return AdminReportPersonOut(
+        id=user.id,
+        nickname=user.nickname,
+        email=user.email,
+        status=_user_status(user),
+    )
+
+
+async def _received_counts(db: AsyncSession, user_ids: list[str]) -> dict[str, int]:
+    """피신고자별 누적 신고 수. 제재 수위는 반복성을 함께 보고 정한다."""
+    if not user_ids:
+        return {}
+    result = await db.execute(
+        select(Report.reported_user_id, func.count())
+        .where(Report.reported_user_id.in_(user_ids), Report.deleted_at.is_(None))
+        .group_by(Report.reported_user_id)
+    )
+    return dict(result.all())
+
+
+async def _report_rows(db: AsyncSession, reports: list[Report]) -> list[AdminReportOut]:
+    if not reports:
+        return []
+
+    user_ids = {r.reporter_id for r in reports} | {r.reported_user_id for r in reports}
+    users = {
+        user.id: user
+        for user in (await db.execute(select(User).where(User.id.in_(user_ids)))).scalars()
+    }
+    counts = await _received_counts(db, [r.reported_user_id for r in reports])
+
+    return [
+        AdminReportOut(
+            id=report.id,
+            reason=report.reason,
+            details=report.details,
+            status=report.status,
+            reporter=_person(users.get(report.reporter_id), report.reporter_id),
+            reported_user=_person(users.get(report.reported_user_id), report.reported_user_id),
+            room_id=report.room_id,
+            message_id=report.message_id,
+            reported_user_report_count=counts.get(report.reported_user_id, 0),
+            reviewed_by=report.reviewed_by,
+            reviewed_at=report.reviewed_at,
+            review_note=report.review_note,
+            created_at=report.created_at,
+        )
+        for report in reports
+    ]
+
+
+async def list_reports(
+    db: AsyncSession,
+    *,
+    status: str | None = None,
+    reason: str | None = None,
+    reported_user_id: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> AdminReportPageOut:
+    conditions = [Report.deleted_at.is_(None)]
+    if status:
+        conditions.append(Report.status == status)
+    if reason:
+        conditions.append(Report.reason == reason)
+    if reported_user_id:
+        conditions.append(Report.reported_user_id == reported_user_id)
+
+    total = (await db.execute(
+        select(func.count()).select_from(Report).where(*conditions)
+    )).scalar_one()
+
+    # 미처리 건수는 필터와 무관하게 센다. 운영자가 "처리함"만 보고 있어도
+    # 남은 일이 몇 건인지는 계속 보여야 한다.
+    pending = (await db.execute(
+        select(func.count())
+        .select_from(Report)
+        .where(Report.deleted_at.is_(None), Report.status == "pending")
+    )).scalar_one()
+
+    reports = list((await db.execute(
+        select(Report)
+        .where(*conditions)
+        # 오래된 신고가 먼저 처리되어야 하므로 미처리는 접수 순으로 올린다.
+        .order_by(
+            case((Report.status == "pending", 0), else_=1),
+            Report.created_at.asc(),
+        )
+        .limit(limit)
+        .offset(offset)
+    )).scalars().all())
+
+    return AdminReportPageOut(
+        items=await _report_rows(db, reports), total=total, pending=pending
+    )
+
+
+async def get_report(db: AsyncSession, report_id: str) -> AdminReportDetailOut:
+    report = await db.get(Report, report_id)
+    if not report or report.deleted_at:
+        raise HTTPException(status_code=404, detail="신고를 찾을 수 없습니다.")
+
+    base = (await _report_rows(db, [report]))[0]
+
+    message_content = None
+    if report.message_id:
+        message = await db.get(ChatMessage, report.message_id)
+        # 지워진 메시지는 원문을 보여주지 않는다. 다만 신고 자체는 남는다.
+        if message and not message.deleted_at:
+            message_content = message.content
+
+    related = list((await db.execute(
+        select(Report)
+        .where(
+            Report.reported_user_id == report.reported_user_id,
+            Report.id != report.id,
+            Report.deleted_at.is_(None),
+        )
+        .order_by(Report.created_at.desc())
+        .limit(20)
+    )).scalars().all())
+
+    return AdminReportDetailOut(
+        **base.model_dump(),
+        message_content=message_content,
+        related_reports=await _report_rows(db, related),
+    )
+
+
+async def review_report(
+    db: AsyncSession,
+    report_id: str,
+    admin: User,
+    body: AdminReportReviewIn,
+) -> AdminReportDetailOut:
+    """검토 결과를 남긴다. 제재 자체는 별도 동작이다."""
+    report = await db.get(Report, report_id)
+    if not report or report.deleted_at:
+        raise HTTPException(status_code=404, detail="신고를 찾을 수 없습니다.")
+
+    was_open = report.status not in REPORT_CLOSED_STATUSES
+    now = datetime.utcnow()
+    report.status = body.status
+    report.reviewed_by = admin.id
+    report.reviewed_at = now
+    if body.note is not None:
+        report.review_note = body.note.strip() or None
+
+    notification = None
+    if was_open and body.status in REPORT_CLOSED_STATUSES:
+        # 신고자에게는 처리되었다는 사실만 알린다. 어떤 제재가 내려졌는지는
+        # 피신고자의 정보라 신고자에게 공개할 것이 아니다.
+        notification = notification_service.build(
+            user_id=report.reporter_id,
+            type=notification_service.REPORT_REVIEWED,
+            title="신고 처리가 완료되었어요",
+            body="접수하신 신고 검토가 끝났습니다. 처리 결과는 운영정책에 따라 개별 안내되지 않습니다.",
+            link="/my",
+            payload={"reportId": report.id},
+        )
+        db.add(notification)
+
+    await db.commit()
+    if notification:
+        await notification_service.push([notification])
+
+    return await get_report(db, report_id)

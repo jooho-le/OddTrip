@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..dependencies import get_current_admin, get_db
 from ..models.user import User
+from ..schemas.admin import AdminReportReviewIn
 from ..services import admin_service
 
 router = APIRouter()
@@ -79,4 +80,47 @@ async def get_trip(
     db: AsyncSession = Depends(get_db),
 ):
     data = await admin_service.get_trip(db, trip_id)
+    return {"data": data.model_dump(by_alias=True), "error": None}
+
+
+@router.get("/reports", response_model=dict)
+async def list_reports(
+    status: str | None = Query(default=None, pattern="^(pending|reviewing|resolved|dismissed)$"),
+    reason: str | None = Query(default=None, max_length=30),
+    reported_user_id: str | None = Query(default=None, alias="reportedUserId", max_length=36),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.list_reports(
+        db,
+        status=status,
+        reason=reason,
+        reported_user_id=reported_user_id,
+        limit=limit,
+        offset=offset,
+    )
+    return {"data": data.model_dump(by_alias=True), "error": None}
+
+
+@router.get("/reports/{report_id}", response_model=dict)
+async def get_report(
+    report_id: str,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    data = await admin_service.get_report(db, report_id)
+    return {"data": data.model_dump(by_alias=True), "error": None}
+
+
+@router.patch("/reports/{report_id}", response_model=dict)
+async def review_report(
+    report_id: str,
+    body: AdminReportReviewIn,
+    admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """검토 결과를 기록한다. 제재 집행은 별도 엔드포인트다."""
+    data = await admin_service.review_report(db, report_id, admin, body)
     return {"data": data.model_dump(by_alias=True), "error": None}

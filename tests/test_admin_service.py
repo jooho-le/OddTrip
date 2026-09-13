@@ -4,11 +4,13 @@ from datetime import date, datetime
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from backend.app import legal
 from backend.app.database import Base
-from backend.app.models import User
+from backend.app.models import ChatMessage, ChatRoom, Notification, Report, User
+from backend.app.schemas.admin import AdminReportReviewIn
 from backend.app.schemas.communication import MatchRequestCreate
 from backend.app.schemas.consent import ConsentDecisionIn
 from backend.app.services import admin_service, communication_service, consent_service
@@ -312,3 +314,184 @@ async def _test_stats_on_an_empty_database() -> None:
         assert data.match_acceptance_rate == 0.0
         assert data.tti_completion_rate == 0.0
         assert data.tti_distribution == []
+
+
+# --- 신고 처리 -------------------------------------------------------------
+
+
+def _report(reporter_id: str, reported_id: str, *, reason: str = "harassment", status: str = "pending",
+            created_at: datetime | None = None, message_id: str | None = None) -> Report:
+    return Report(
+        id=str(uuid.uuid4()),
+        reporter_id=reporter_id,
+        reported_user_id=reported_id,
+        reason=reason,
+        details="괴롭힘을 당했습니다.",
+        status=status,
+        message_id=message_id,
+        created_at=created_at or datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+
+
+def test_report_list_puts_pending_oldest_first() -> None:
+    asyncio.run(_test_report_list_puts_pending_oldest_first())
+
+
+async def _test_report_list_puts_pending_oldest_first() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = _user("a@example.com"), _user("b@example.com")
+        session.add_all([a, b])
+        await session.commit()
+
+        old_pending = _report(a.id, b.id, created_at=datetime(2026, 1, 1))
+        new_pending = _report(a.id, b.id, reason="spam", created_at=datetime(2026, 6, 1))
+        done = _report(a.id, b.id, reason="fraud", status="resolved", created_at=datetime(2025, 1, 1))
+        session.add_all([new_pending, done, old_pending])
+        await session.commit()
+
+        page = await admin_service.list_reports(session)
+        assert page.total == 3
+        assert page.pending == 2
+        # 미처리가 먼저, 그 안에서는 오래된 순. 처리된 건은 뒤로.
+        assert [r.id for r in page.items] == [old_pending.id, new_pending.id, done.id]
+
+        # 필터를 걸어도 미처리 건수는 전체 기준으로 유지된다.
+        filtered = await admin_service.list_reports(session, status="resolved")
+        assert filtered.total == 1
+        assert filtered.pending == 2
+
+
+def test_report_row_carries_people_and_repeat_count() -> None:
+    asyncio.run(_test_report_row_carries_people_and_repeat_count())
+
+
+async def _test_report_row_carries_people_and_repeat_count() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = _user("a@example.com"), _user("b@example.com")
+        session.add_all([a, b])
+        await session.commit()
+        session.add_all([_report(a.id, b.id), _report(a.id, b.id, reason="spam")])
+        await session.commit()
+
+        page = await admin_service.list_reports(session)
+        row = page.items[0]
+        assert row.reporter.nickname == a.nickname
+        assert row.reported_user.nickname == b.nickname
+        # 반복성을 목록에서 바로 봐야 제재 수위를 정할 수 있다.
+        assert row.reported_user_report_count == 2
+
+
+def test_report_detail_hides_deleted_message_and_lists_related() -> None:
+    asyncio.run(_test_report_detail_hides_deleted_message_and_lists_related())
+
+
+async def _test_report_detail_hides_deleted_message_and_lists_related() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = await _matched_pair(session, "a@example.com", "b@example.com")
+        room = (await session.execute(select(ChatRoom))).scalars().first()
+        alive = ChatMessage(
+            id=str(uuid.uuid4()), room_id=room.id, sender_id=b.id,
+            client_message_id=str(uuid.uuid4()),
+            content="살아있는 메시지", sequence=100, created_at=datetime.utcnow(),
+        )
+        removed = ChatMessage(
+            id=str(uuid.uuid4()), room_id=room.id, sender_id=b.id,
+            client_message_id=str(uuid.uuid4()),
+            content="지워진 메시지", sequence=101, created_at=datetime.utcnow(),
+            deleted_at=datetime.utcnow(),
+        )
+        session.add_all([alive, removed])
+        await session.commit()
+
+        first = _report(a.id, b.id, message_id=alive.id)
+        second = _report(a.id, b.id, reason="spam", message_id=removed.id)
+        session.add_all([first, second])
+        await session.commit()
+
+        detail = await admin_service.get_report(session, first.id)
+        assert detail.message_content == "살아있는 메시지"
+        # 같은 피신고자의 다른 신고가 함께 보여야 기준이 흔들리지 않는다.
+        assert [r.id for r in detail.related_reports] == [second.id]
+
+        # 지워진 메시지는 원문을 복원해 보여주지 않는다.
+        removed_detail = await admin_service.get_report(session, second.id)
+        assert removed_detail.message_content is None
+
+        with pytest.raises(HTTPException):
+            await admin_service.get_report(session, "no-such-report")
+
+
+def test_review_records_decision_and_notifies_reporter_once() -> None:
+    asyncio.run(_test_review_records_decision_and_notifies_reporter_once())
+
+
+async def _test_review_records_decision_and_notifies_reporter_once() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = _user("a@example.com"), _user("b@example.com")
+        admin = _user("ops@example.com", role="admin")
+        session.add_all([a, b, admin])
+        await session.commit()
+
+        report = _report(a.id, b.id)
+        session.add(report)
+        await session.commit()
+
+        # 검토 중으로 옮기는 단계에서는 아직 알리지 않는다.
+        await admin_service.review_report(
+            session, report.id, admin, AdminReportReviewIn(status="reviewing", note="확인 중")
+        )
+        notifications = (await session.execute(
+            select(Notification).where(Notification.user_id == a.id)
+        )).scalars().all()
+        assert notifications == []
+
+        result = await admin_service.review_report(
+            session, report.id, admin, AdminReportReviewIn(status="resolved", note="경고 처리함")
+        )
+        assert result.status == "resolved"
+        assert result.reviewed_by == admin.id
+        assert result.reviewed_at is not None
+        assert result.review_note == "경고 처리함"
+
+        notifications = (await session.execute(
+            select(Notification).where(Notification.user_id == a.id)
+        )).scalars().all()
+        assert len(notifications) == 1
+        # 어떤 제재가 내려졌는지는 피신고자의 정보라 신고자에게 담지 않는다.
+        assert "경고" not in notifications[0].body
+
+        # 이미 닫힌 신고를 다시 저장해도 알림이 또 가지 않는다.
+        await admin_service.review_report(
+            session, report.id, admin, AdminReportReviewIn(status="dismissed", note="재검토")
+        )
+        notifications = (await session.execute(
+            select(Notification).where(Notification.user_id == a.id)
+        )).scalars().all()
+        assert len(notifications) == 1
+
+
+def test_review_rejects_missing_report() -> None:
+    asyncio.run(_test_review_rejects_missing_report())
+
+
+async def _test_review_rejects_missing_report() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        admin = _user("ops@example.com", role="admin")
+        session.add(admin)
+        await session.commit()
+
+        with pytest.raises(HTTPException):
+            await admin_service.review_report(
+                session, "no-such-report", admin, AdminReportReviewIn(status="resolved")
+            )

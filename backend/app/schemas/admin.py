@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -71,3 +72,61 @@ class AdminStatsOut(AdminModel):
     # 가입자 중 TTI를 끝낸 비율.
     tti_completion_rate: float
     tti_distribution: list[dict]
+
+
+# --- 신고 처리 -------------------------------------------------------------
+#
+# 상태 흐름: pending(접수) -> reviewing(검토 중) -> resolved(조치함) | dismissed(조치 없음)
+
+REPORT_STATUSES = ("pending", "reviewing", "resolved", "dismissed")
+REPORT_CLOSED_STATUSES = ("resolved", "dismissed")
+
+
+class AdminReportPersonOut(AdminModel):
+    """신고 화면에 필요한 만큼만 담은 사람 정보."""
+
+    id: str
+    nickname: str
+    email: str | None = None
+    status: str
+
+
+class AdminReportOut(AdminModel):
+    id: str
+    reason: str
+    details: str | None = None
+    status: str
+    reporter: AdminReportPersonOut
+    reported_user: AdminReportPersonOut
+    room_id: str | None = None
+    message_id: str | None = None
+    # 같은 사람이 지금까지 받은 신고 수. 제재 수위는 반복성을 함께 보고
+    # 정하므로 목록에서 바로 보여야 한다.
+    reported_user_report_count: int = 0
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
+    review_note: str | None = None
+    created_at: datetime
+
+
+class AdminReportDetailOut(AdminReportOut):
+    # 신고된 메시지 원문. 지워진 메시지면 None이다.
+    message_content: str | None = None
+    # 같은 피신고자에 대한 다른 신고들. 처리 기준을 맞추기 위한 참고.
+    related_reports: list[AdminReportOut] = []
+
+
+class AdminReportPageOut(AdminModel):
+    items: list[AdminReportOut]
+    total: int
+    pending: int
+
+
+class AdminReportReviewIn(AdminModel):
+    """검토 결과 기록.
+
+    조치 자체(경고·정지·탈퇴)는 별도 동작이고, 여기서는 판단과 근거만 남긴다.
+    """
+
+    status: Literal["reviewing", "resolved", "dismissed"]
+    note: str | None = Field(default=None, max_length=2000)
