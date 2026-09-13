@@ -32,6 +32,7 @@ interface TripState {
   login: (email: string, password: string) => Promise<boolean>;
   register: (input: { email: string; password: string; nickname: string; homeRegion?: string; consents: ConsentDecision[] }) => Promise<boolean>;
   logout: () => void;
+  withdraw: (password?: string) => Promise<boolean>;
   bootstrap: () => Promise<void>;
   loadQuestions: () => Promise<void>;
   setAnswer: (answer: TtiAnswer) => void;
@@ -66,6 +67,31 @@ const initialPreferences: JointPreference = {
   indoorPreferred: false,
   hiddenSpots: false
 };
+
+// 로그아웃과 탈퇴가 같은 상태를 비웁니다. 한쪽만 늘어나면 다음 사용자에게
+// 이전 계정의 흔적이 남으므로 한 곳에서 관리합니다.
+function clearedSession(): Partial<TripState> {
+  return {
+      user: undefined,
+      questions: [],
+      answers: [],
+      result: undefined,
+      matches: [],
+      matchesConsentRequired: false,
+      selectedMatch: undefined,
+      activeTripId: undefined,
+      preferences: initialPreferences,
+      pairPreferences: undefined,
+      preferenceProposals: [],
+      attractions: [],
+      agentRun: undefined,
+      itinerary: [],
+      alerts: [],
+      decisionSuggestion: undefined,
+      status: {},
+      error: undefined,
+  };
+}
 
 export const useTripStore = create<TripState>((set, get) => ({
   questions: [],
@@ -109,6 +135,25 @@ export const useTripStore = create<TripState>((set, get) => ({
       return false;
     }
   },
+  async withdraw(password) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      await oddtripService.withdraw(password);
+    } catch (error) {
+      // 비밀번호 오류가 가장 흔한 실패이므로 세션을 건드리지 않고 화면에 남깁니다.
+      set((state) => ({
+        error: error instanceof Error ? error.message : '회원 탈퇴에 실패했습니다.',
+        status: { ...state.status, auth: 'error' },
+      }));
+      return false;
+    }
+    // 서버에서 계정이 닫혔으므로 로그아웃과 같은 정리를 합니다. 다만 폐기된
+    // 리프레시 토큰으로 로그아웃을 또 호출할 필요는 없습니다.
+    useNotificationStore.getState().reset();
+    useConsentStore.getState().reset();
+    set(clearedSession());
+    return true;
+  },
   logout() {
     // Revoking the refresh token server-side is best effort; the local session
     // is cleared immediately either way. logout() never rejects.
@@ -119,26 +164,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     // Same for consent: leaving the previous account's status behind would
     // open the matching gates for whoever signs in next.
     useConsentStore.getState().reset();
-    set({
-      user: undefined,
-      questions: [],
-      answers: [],
-      result: undefined,
-      matches: [],
-      matchesConsentRequired: false,
-      selectedMatch: undefined,
-      activeTripId: undefined,
-      preferences: initialPreferences,
-      pairPreferences: undefined,
-      preferenceProposals: [],
-      attractions: [],
-      agentRun: undefined,
-      itinerary: [],
-      alerts: [],
-      decisionSuggestion: undefined,
-      status: {},
-      error: undefined,
-    });
+    set(clearedSession());
   },
   async bootstrap() {
     if (!oddtripService.hasAuthToken()) {
