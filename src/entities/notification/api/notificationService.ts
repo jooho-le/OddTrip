@@ -5,7 +5,9 @@ export type NotificationType =
   | 'match_request.accepted'
   | 'match_request.rejected'
   | 'match.ended'
-  | 'report.reviewed';
+  | 'report.reviewed'
+  | 'account.sanctioned'
+  | 'sanction.released';
 
 export interface AppNotification {
   id: string;

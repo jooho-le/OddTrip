@@ -12,7 +12,7 @@ from .models.match import Match
 from .models.trip import Trip
 from .models.user import User
 from .security import decode_access_token
-from .services import consent_service
+from .services import consent_service, sanction_service
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -37,6 +37,13 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # 제재 상태는 이미 읽어 온 이 행으로 판단한다. 여기서 sanctions 표를 한 번
+    # 더 뒤지면 모든 인증 요청에 질의가 하나씩 붙는다.
+    if sanction_service.is_suspended(user):
+        raise HTTPException(
+            status_code=403,
+            detail="이용이 정지된 계정입니다. 고객센터로 문의해주세요.",
+        )
     return user
 
 
@@ -64,6 +71,11 @@ async def require_matching_consent(
     403 rather than 404: the caller is authenticated and the resource exists,
     they simply have an unmet precondition they can satisfy themselves.
     """
+    if sanction_service.is_matching_restricted(user):
+        raise HTTPException(
+            status_code=403,
+            detail="매칭 기능 이용이 제한된 상태입니다. 고객센터로 문의해주세요.",
+        )
     for consent_type in legal.MATCHING_GATES:
         if not await consent_service.has_accepted(db, user.id, consent_type):
             raise HTTPException(

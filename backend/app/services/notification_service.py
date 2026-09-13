@@ -15,6 +15,8 @@ MATCH_REQUEST_ACCEPTED = "match_request.accepted"
 MATCH_REQUEST_REJECTED = "match_request.rejected"
 MATCH_ENDED = "match.ended"
 REPORT_REVIEWED = "report.reviewed"
+ACCOUNT_SANCTIONED = "account.sanctioned"
+SANCTION_RELEASED = "sanction.released"
 
 
 def _now() -> datetime:

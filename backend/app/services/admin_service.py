@@ -27,7 +27,7 @@ from ..schemas.admin import (
     AdminUserDetailOut,
     AdminUserOut,
 )
-from . import consent_service, notification_service
+from . import consent_service, notification_service, sanction_service
 
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
@@ -96,7 +96,7 @@ async def demote(db: AsyncSession, email: str) -> User:
 
 
 def _user_status(user: User) -> str:
-    return "withdrawn" if user.deleted_at else "active"
+    return sanction_service.account_status(user)
 
 
 async def _match_counts(db: AsyncSession, user_ids: list[str]) -> dict[str, int]:

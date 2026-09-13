@@ -130,3 +130,36 @@ class AdminReportReviewIn(AdminModel):
 
     status: Literal["reviewing", "resolved", "dismissed"]
     note: str | None = Field(default=None, max_length=2000)
+
+
+# --- 제재 ---------------------------------------------------------------
+
+
+class AdminSanctionIn(AdminModel):
+    """제재 부과.
+
+    ``days``는 기간제 제재(매칭 제한·일시 정지)에만 쓴다. 경고·영구정지·탈퇴는
+    기간 개념이 없다.
+    """
+
+    type: Literal["warning", "matching_restriction", "suspension", "ban", "withdrawal"]
+    reason: str = Field(max_length=30)
+    note: str | None = Field(default=None, max_length=2000)
+    days: int | None = Field(default=None, ge=1, le=3650)
+    report_id: str | None = Field(default=None, max_length=36)
+
+
+class AdminSanctionOut(AdminModel):
+    id: str
+    user_id: str
+    type: str
+    reason: str
+    note: str | None = None
+    expires_at: datetime | None = None
+    released_at: datetime | None = None
+    released_by: str | None = None
+    report_id: str | None = None
+    issued_by: str | None = None
+    created_at: datetime
+    # 지금 효력이 있는지. 만료됐거나 해제된 제재와 구분한다.
+    active: bool = False
