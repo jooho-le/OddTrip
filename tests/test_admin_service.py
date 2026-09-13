@@ -1,13 +1,17 @@
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from backend.app import legal
 from backend.app.database import Base
 from backend.app.models import User
-from backend.app.services import admin_service
+from backend.app.schemas.communication import MatchRequestCreate
+from backend.app.schemas.consent import ConsentDecisionIn
+from backend.app.services import admin_service, communication_service, consent_service
 from tests.test_chat_service import _sqlite_test_engine
 
 
@@ -96,3 +100,215 @@ async def _test_missing_and_withdrawn_accounts_are_rejected() -> None:
         session.add(_user("plain@example.com"))
         await session.commit()
         assert (await admin_service.demote(session, "plain@example.com")).role == "user"
+
+
+# --- 운영 조회 -------------------------------------------------------------
+
+
+async def _matched_pair(session, a_email: str, b_email: str):
+    """양쪽이 수락한 매칭 하나와 그에 딸린 여행을 만든다."""
+    a = _user(a_email)
+    a.tti_code, a.tti_scores_json = "PNFH", [{"axis": x, "score": -2} for x in ("PW", "NC", "FA", "HS")]
+    b = _user(b_email)
+    b.tti_code, b.tti_scores_json = "WCAS", [{"axis": x, "score": 2} for x in ("PW", "NC", "FA", "HS")]
+    session.add_all([a, b])
+    await session.commit()
+
+    for user in (a, b):
+        await consent_service.record(
+            session,
+            user.id,
+            [ConsentDecisionIn(
+                type=legal.MATCHING_PROFILE,
+                version=legal.CURRENT_VERSIONS[legal.MATCHING_PROFILE],
+                accepted=True,
+            )],
+            legal.SOURCE_MATCHING_GATE,
+        )
+
+    request = await communication_service.create_match_request(
+        session,
+        a,
+        MatchRequestCreate(
+            receiver_id=b.id,
+            region="부산",
+            start_date=date(2026, 10, 1),
+            end_date=date(2026, 10, 3),
+            greeting_message="같이 가요",
+        ),
+    )
+    await communication_service.accept_match_request(session, request.id, b)
+    return a, b
+
+
+def test_user_list_counts_matches_and_trips() -> None:
+    asyncio.run(_test_user_list_counts_matches_and_trips())
+
+
+async def _test_user_list_counts_matches_and_trips() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = await _matched_pair(session, "a@example.com", "b@example.com")
+        session.add(_user("lonely@example.com"))
+        await session.commit()
+
+        items, total = await admin_service.list_users(session)
+        assert total == 3
+        by_email = {item.email: item for item in items}
+
+        # 매칭은 한 건인데 양쪽 모두에게 1로 잡혀야 한다.
+        assert by_email["a@example.com"].matches == 1
+        assert by_email["b@example.com"].matches == 1
+        assert by_email["a@example.com"].trips == 1
+        assert by_email["lonely@example.com"].matches == 0
+        assert by_email["lonely@example.com"].trips == 0
+
+
+def test_user_list_filters_and_paginates() -> None:
+    asyncio.run(_test_user_list_filters_and_paginates())
+
+
+async def _test_user_list_filters_and_paginates() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        session.add_all([
+            _user("active@example.com"),
+            _user("gone@example.com", deleted=True),
+        ])
+        await session.commit()
+
+        active, total = await admin_service.list_users(session, status="active")
+        assert total == 1 and active[0].status == "active"
+
+        withdrawn, total = await admin_service.list_users(session, status="withdrawn")
+        assert total == 1 and withdrawn[0].status == "withdrawn"
+
+        # 검색은 대소문자를 가리지 않는다.
+        found, total = await admin_service.list_users(session, query="ACTIVE@")
+        assert total == 1 and found[0].email == "active@example.com"
+
+        # total은 페이지 크기가 아니라 조건에 맞는 전체 수여야 한다.
+        page, total = await admin_service.list_users(session, limit=1)
+        assert len(page) == 1 and total == 2
+
+
+def test_trip_list_carries_travelers_and_counts() -> None:
+    asyncio.run(_test_trip_list_carries_travelers_and_counts())
+
+
+async def _test_trip_list_carries_travelers_and_counts() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        await _matched_pair(session, "a@example.com", "b@example.com")
+
+        items, total = await admin_service.list_trips(session)
+        assert total == 1
+        trip = items[0]
+        # 참여자는 매칭 양쪽이므로 두 명이어야 한다.
+        assert len(trip.travelers) == 2
+        assert trip.attractions == 0
+        assert trip.itinerary_items == 0
+
+        detail = await admin_service.get_trip(session, trip.id)
+        assert detail.id == trip.id
+
+        with pytest.raises(HTTPException):
+            await admin_service.get_trip(session, "no-such-trip")
+
+
+def test_user_detail_includes_consent_summary() -> None:
+    asyncio.run(_test_user_detail_includes_consent_summary())
+
+
+async def _test_user_detail_includes_consent_summary() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        user = _user("member@example.com")
+        session.add(user)
+        await session.commit()
+
+        await consent_service.record(
+            session,
+            user.id,
+            [ConsentDecisionIn(
+                type=legal.ADULT,
+                version=legal.CURRENT_VERSIONS[legal.ADULT],
+                accepted=True,
+            )],
+            legal.SOURCE_SIGNUP,
+        )
+
+        detail = await admin_service.get_user(session, user.id)
+        # 성인 확인 여부를 운영 화면에서 봐야 하므로 요약으로 싣는다.
+        assert detail.consents[legal.ADULT] is True
+        assert detail.consents[legal.MARKETING] is False
+
+        with pytest.raises(HTTPException):
+            await admin_service.get_user(session, "no-such-user")
+
+
+def test_stats_excludes_unanswered_requests_from_acceptance_rate() -> None:
+    asyncio.run(_test_stats_excludes_unanswered_requests_from_acceptance_rate())
+
+
+async def _test_stats_excludes_unanswered_requests_from_acceptance_rate() -> None:
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        a, b = await _matched_pair(session, "a@example.com", "b@example.com")
+        # 아직 답하지 않은 요청. 성사율 분모에 들어가면 안 된다.
+        c = _user("c@example.com")
+        c.tti_code, c.tti_scores_json = "WCAS", [{"axis": x, "score": 2} for x in ("PW", "NC", "FA", "HS")]
+        session.add(c)
+        await session.commit()
+        await consent_service.record(
+            session,
+            c.id,
+            [ConsentDecisionIn(
+                type=legal.MATCHING_PROFILE,
+                version=legal.CURRENT_VERSIONS[legal.MATCHING_PROFILE],
+                accepted=True,
+            )],
+            legal.SOURCE_MATCHING_GATE,
+        )
+        await communication_service.create_match_request(
+            session,
+            a,
+            MatchRequestCreate(
+                receiver_id=c.id,
+                region="서울",
+                start_date=date(2026, 11, 1),
+                end_date=date(2026, 11, 3),
+                greeting_message="안녕하세요",
+            ),
+        )
+
+        data = await admin_service.stats(session)
+        assert data.total_users == 3
+        assert data.active_users == 3
+        assert data.total_matches == 1
+        assert data.total_trips == 1
+        # 수락 1건 / 응답된 요청 1건 = 100%. 대기 중 1건은 분모에서 빠진다.
+        assert data.match_acceptance_rate == 100.0
+        assert data.tti_completion_rate == 100.0
+        assert {row["code"] for row in data.tti_distribution} == {"PNFH", "WCAS"}
+
+
+def test_stats_on_an_empty_database() -> None:
+    asyncio.run(_test_stats_on_an_empty_database())
+
+
+async def _test_stats_on_an_empty_database() -> None:
+    """0으로 나누는 자리가 두 곳이라 빈 DB에서 터지기 쉽다."""
+    sessions = await _session_factory()
+
+    async with sessions() as session:
+        data = await admin_service.stats(session)
+        assert data.total_users == 0
+        assert data.match_acceptance_rate == 0.0
+        assert data.tti_completion_rate == 0.0
+        assert data.tti_distribution == []
