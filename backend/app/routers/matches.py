@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_current_user, get_db
+from ..dependencies import get_current_user, get_db, require_matching_consent
 from ..models.match import Match
 from ..models.communication import MatchUserState
 from ..models.user import User
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("", response_model=dict)
 async def get_matches(
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_matching_consent),
     db: AsyncSession = Depends(get_db),
 ):
     candidates = await match_service.find_matches(db, user)
@@ -44,7 +44,7 @@ async def get_match_detail(
 )
 async def accept_match(
     matched_user_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_matching_consent),
     db: AsyncSession = Depends(get_db),
 ):
     raise HTTPException(

@@ -25,6 +25,7 @@ export function HomePage() {
     error,
     loadTripHistory,
     loadMatches,
+    matchesConsentRequired,
     openTrip,
   } = useTripStore();
   const { unreadTotal, loadUnreadCount } = useChatStore();
@@ -94,7 +95,14 @@ export function HomePage() {
               <div>
                 {status.matches === 'loading' && !matches.length ? <LoadingFeed /> : null}
                 {matches.slice(0, 3).map((candidate, index) => <CandidateRecord candidate={candidate} index={index} key={candidate.id} />)}
-                {status.matches === 'success' && !matches.length ? (
+                {matchesConsentRequired ? (
+                  <div className="empty-state">
+                    <strong>동행 후보를 보려면 매칭 동의가 필요합니다.</strong>
+                    <p>프로필 공개 범위와 안전 이용수칙을 확인하면 후보를 불러옵니다.</p>
+                    <Link className="solid-btn" to="/matches">확인하고 시작하기</Link>
+                  </div>
+                ) : null}
+                {!matchesConsentRequired && status.matches === 'success' && !matches.length ? (
                   <div className="empty-state">
                     <strong>{user?.ttiCode ? '현재 추천할 동행 기록이 없습니다.' : '여행 성향 조사가 먼저 필요합니다.'}</strong>
                     <p>{user?.ttiCode ? '새로운 후보가 생기면 이곳에서 바로 확인할 수 있습니다.' : '조사 결과가 저장되면 실제 매칭 후보를 불러옵니다.'}</p>

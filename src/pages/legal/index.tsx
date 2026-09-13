@@ -2,12 +2,16 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import {
-  hasMatchingProfileConsent,
-  saveMatchingProfileConsent,
-} from '../../shared/legal/consentStorage';
+  decision,
+  isAccepted,
+  stateOf,
+  MATCHING_GATES,
+  type ConsentType,
+} from '../../entities/consent/api/consentService';
+import { useConsentStore } from '../../entities/consent/model/consentStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 
-type LegalDocumentKey = 'terms' | 'community' | 'privacy' | 'matching-profile' | 'marketing';
+type LegalDocumentKey = 'terms' | 'community' | 'privacy' | 'safety' | 'matching-profile' | 'marketing';
 
 const LEGAL_DOCUMENTS: Record<LegalDocumentKey, { title: string; file: string; kicker: string }> = {
   terms: {
@@ -24,6 +28,11 @@ const LEGAL_DOCUMENTS: Record<LegalDocumentKey, { title: string; file: string; k
     title: '필수 개인정보 처리 안내',
     file: '/legal/privacy-processing-notice.md',
     kicker: 'PRIVACY NOTICE',
+  },
+  safety: {
+    title: '안전 이용수칙',
+    file: '/legal/safety-guide.md',
+    kicker: 'SAFETY GUIDE',
   },
   'matching-profile': {
     title: '매칭 프로필 공개 동의',
@@ -79,6 +88,7 @@ export function LegalPage() {
           <Link className={documentKey === 'terms' ? 'active' : ''} to="/legal/terms">이용약관</Link>
           <Link className={documentKey === 'community' ? 'active' : ''} to="/legal/community">운영정책</Link>
           <Link className={documentKey === 'privacy' ? 'active' : ''} to="/legal/privacy">개인정보 처리 안내</Link>
+          <Link className={documentKey === 'safety' ? 'active' : ''} to="/legal/safety">안전 이용수칙</Link>
         </nav>
         <Link className="line-btn" to="/auth">가입 화면으로</Link>
       </header>
@@ -158,23 +168,63 @@ export function MatchingProfileConsentGate({ children }: { children: ReactNode }
   const navigate = useNavigate();
   const user = useTripStore((state) => state.user);
   const showInfo = useUiNoticeStore((state) => state.showInfo);
-  const [accepted, setAccepted] = useState(() => user ? hasMatchingProfileConsent(user.id) : false);
-  const [checked, setChecked] = useState(false);
+  const status = useConsentStore((state) => state.status);
+  const loadStatus = useConsentStore((state) => state.loadStatus);
+  const submitStatus = useConsentStore((state) => state.submitStatus);
+  const consentError = useConsentStore((state) => state.error);
+  const load = useConsentStore((state) => state.load);
+  const submit = useConsentStore((state) => state.submit);
+  const [checked, setChecked] = useState<Partial<Record<ConsentType, boolean>>>({});
 
   useEffect(() => {
-    setAccepted(user ? hasMatchingProfileConsent(user.id) : false);
-    setChecked(false);
-  }, [user?.id]);
+    if (!user) return;
+    setChecked({});
+    void load();
+  }, [user?.id, load]);
 
-  if (!user || accepted) return <>{children}</>;
+  if (!user) return <>{children}</>;
 
-  const accept = () => {
-    if (!checked) return;
-    saveMatchingProfileConsent(user.id);
-    setAccepted(true);
+  // 아직 상태를 모르는 동안에는 통과시키지 않습니다. 조회에 실패한 상태를
+  // 동의로 해석하면 게이트가 있으나 마나입니다.
+  if (loadStatus === 'idle' || loadStatus === 'loading') {
+    return (
+      <main className="page">
+        <div className="container">
+          <header className="page-heading"><h1>동행 찾기</h1><p>동의 상태를 확인하고 있습니다.</p></header>
+          <div className="skeleton-stack"><div className="skeleton-row" /><div className="skeleton-row" /></div>
+        </div>
+      </main>
+    );
+  }
+
+  if (loadStatus === 'error') {
+    return (
+      <main className="page">
+        <div className="container">
+          <header className="page-heading"><h1>동행 찾기</h1><p>동의 상태를 확인하지 못했습니다.</p></header>
+          <div className="error-strip" role="alert"><span>{consentError ?? '동의 상태를 불러오지 못했습니다.'}</span><button onClick={() => void load()}>다시 시도</button></div>
+        </div>
+      </main>
+    );
+  }
+
+  const pending = MATCHING_GATES.filter((type) => !isAccepted(status, type));
+  if (!pending.length) return <>{children}</>;
+
+  // 이전에 동의했지만 문서가 개정된 경우입니다. 첫 동의와 다른 안내가 필요합니다.
+  const reconsent = pending.some((type) => stateOf(status, type)?.stale);
+  const ready = pending.every((type) => checked[type]);
+  const tick = (type: ConsentType, value: boolean) => setChecked((current) => ({ ...current, [type]: value }));
+
+  const accept = async () => {
+    if (!ready) return;
+    // 아직 동의하지 않은 항목만 보냅니다. 이미 유효한 동의를 다시 적재하면
+    // 이력에 의미 없는 줄이 쌓입니다.
+    const ok = await submit(pending.map((type) => decision(type)), 'matching_gate');
+    if (!ok) return;
     showInfo(
-      '매칭 프로필 공개 동의를 확인했습니다.',
-      '현재 동의 기록은 이 브라우저에 보관됩니다. 서버 동의 이력 저장과 다른 기기 동기화는 준비 중입니다.',
+      '매칭 이용 동의를 확인했습니다.',
+      '동의한 문서와 버전, 동의 시각이 계정에 기록되었습니다. 기록은 계정 설정에서 확인할 수 있습니다.',
     );
   };
 
@@ -182,28 +232,54 @@ export function MatchingProfileConsentGate({ children }: { children: ReactNode }
     <>
       <main className="page">
         <div className="container">
-          <header className="page-heading"><h1>동행 찾기</h1><p>프로필 공개 범위를 확인한 뒤 시작합니다.</p></header>
-          <div className="empty-state"><strong>매칭 프로필 공개 동의가 필요합니다.</strong><p>동의 전에는 후보 프로필을 불러오거나 내 프로필을 다른 후보에게 공개하지 않습니다.</p></div>
+          <header className="page-heading"><h1>동행 찾기</h1><p>프로필 공개 범위와 안전 이용수칙을 확인한 뒤 시작합니다.</p></header>
+          <div className="empty-state"><strong>매칭을 시작하기 전에 확인할 내용이 있습니다.</strong><p>동의 전에는 후보 프로필을 불러오거나 내 프로필을 다른 후보에게 공개하지 않습니다.</p></div>
         </div>
       </main>
       <div className="ui-notice-layer matching-consent-layer" role="presentation">
         <section className="ui-notice-dialog matching-consent-dialog" role="dialog" aria-modal="true" aria-labelledby="matching-consent-title">
-          <div className="ui-notice-kicker">MATCHING PROFILE CONSENT</div>
-          <h2 id="matching-consent-title">내 프로필 공개 범위를 확인해주세요.</h2>
-          <p>동행 후보 추천과 비교를 위해 닉네임, 나이대, 활동·희망 지역, 여행 성향과 선호, 여행 조건 및 확인 상태가 매칭 후보에게 제공됩니다.</p>
-          <dl>
-            <div><dt>제공받는 자</dt><dd>매칭 후보 및 상호 매칭된 회원</dd></div>
-            <div><dt>이용 목적</dt><dd>동행 후보 확인·비교 및 공동 여행계획</dd></div>
-            <div><dt>열람 기간</dt><dd>공개 중단·매칭 종료·탈퇴 중 가장 이른 때까지</dd></div>
-          </dl>
-          <label className="consent-check prominent">
-            <input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
-            <span><b>[필수]</b> 매칭을 위하여 내 프로필 정보가 매칭 후보 회원에게 제공되는 것에 동의합니다.</span>
-          </label>
-          <Link className="legal-detail-link" to="/legal/matching-profile" target="_blank">제공 항목과 거부권 전문 보기 ↗</Link>
+          <div className="ui-notice-kicker">{reconsent ? 'CONSENT UPDATE' : 'BEFORE YOU MATCH'}</div>
+          <h2 id="matching-consent-title">{reconsent ? '문서가 개정되어 다시 확인이 필요합니다.' : '매칭을 시작하기 전에 확인해주세요.'}</h2>
+
+          {pending.includes('matching_profile') ? (
+            <>
+              <p>동행 후보 추천과 비교를 위해 닉네임, 나이대, 활동·희망 지역, 여행 성향과 선호, 여행 조건 및 확인 상태가 매칭 후보에게 제공됩니다.</p>
+              <dl>
+                <div><dt>제공받는 자</dt><dd>매칭 후보 및 상호 매칭된 회원</dd></div>
+                <div><dt>이용 목적</dt><dd>동행 후보 확인·비교 및 공동 여행계획</dd></div>
+                <div><dt>열람 기간</dt><dd>공개 중단·매칭 종료·탈퇴 중 가장 이른 때까지</dd></div>
+              </dl>
+              <label className="consent-check prominent">
+                <input type="checkbox" checked={Boolean(checked.matching_profile)} onChange={(event) => tick('matching_profile', event.target.checked)} />
+                <span><b>[필수]</b> 매칭을 위하여 내 프로필 정보가 매칭 후보 회원에게 제공되는 것에 동의합니다.</span>
+              </label>
+              <Link className="legal-detail-link" to="/legal/matching-profile" target="_blank">제공 항목과 거부권 전문 보기 ↗</Link>
+            </>
+          ) : null}
+
+          {pending.includes('safety_guide') ? (
+            <>
+              <p className="matching-consent-safety-lead">프로필 정보는 사실과 다를 수 있고, 인증 표시가 상대방의 안전성을 보증하지는 않습니다. 다음 내용을 확인해주세요.</p>
+              <ul className="matching-consent-safety-list">
+                <li>실명, 전화번호, 신분증, 계좌번호, 상세주소와 실시간 위치는 공유하지 않습니다.</li>
+                <li>예약금·보증금·대리구매 등 어떤 이유로도 상대방에게 송금하지 않습니다.</li>
+                <li>금전 요구, 사칭, 협박, 성적 요구, 스토킹이 발생하면 대화를 중단하고 신고·차단합니다.</li>
+                <li>신체적 위험이 있으면 112 또는 현지 긴급기관에 즉시 신고합니다.</li>
+              </ul>
+              <label className="consent-check prominent">
+                <input type="checkbox" checked={Boolean(checked.safety_guide)} onChange={(event) => tick('safety_guide', event.target.checked)} />
+                <span><b>[필수]</b> 안전 이용수칙을 확인했습니다.</span>
+              </label>
+              <Link className="legal-detail-link" to="/legal/safety" target="_blank">안전 이용수칙 전문 보기 ↗</Link>
+            </>
+          ) : null}
+
+          {submitStatus === 'error' && consentError ? <div className="error-strip" role="alert">{consentError}</div> : null}
           <div className="button-row matching-consent-actions">
             <button type="button" className="line-btn" onClick={() => navigate('/home')}>나중에</button>
-            <button type="button" className="solid-btn" disabled={!checked} onClick={accept}>동의하고 매칭 활성화</button>
+            <button type="button" className="solid-btn" disabled={!ready || submitStatus === 'loading'} onClick={() => void accept()}>
+              {submitStatus === 'loading' ? '기록하는 중…' : '동의하고 매칭 활성화'}
+            </button>
           </div>
         </section>
       </div>

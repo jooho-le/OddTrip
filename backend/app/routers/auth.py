@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import legal
 from ..config import settings
 from ..dependencies import get_current_user, get_db
 from ..models.token import RefreshToken
 from ..models.user import User
 from ..schemas.auth import AuthLoginIn, AuthOut, AuthRegisterIn, RefreshIn
 from ..schemas.user import UserOut
+from ..services import consent_service
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -41,6 +43,17 @@ async def _issue_tokens(db: AsyncSession, user: User) -> AuthOut:
 
 @router.post("/register", response_model=dict)
 async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
+    # Checked before anything is written: consent is what forms the contract,
+    # so a signup missing it must not produce an account at all. The client
+    # also blocks the button, but that check lives in the browser and this one
+    # is the one that holds.
+    consent_service.validate(
+        body.consents,
+        source=legal.SOURCE_SIGNUP,
+        allowed=legal.REGISTRATION_TYPES,
+        required=legal.REGISTRATION_REQUIRED,
+    )
+
     existing = await db.execute(select(User).where(User.email == body.email, User.deleted_at.is_(None)))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
@@ -55,6 +68,19 @@ async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
     )
     db.add(user)
     await db.flush()
+
+    # Same transaction as the account, and one timestamp for the whole screen:
+    # the user ticked these boxes in a single act.
+    accepted_at = utcnow()
+    db.add_all([
+        consent_service.build(
+            user_id=user.id,
+            decision=decision,
+            source=legal.SOURCE_SIGNUP,
+            at=accepted_at,
+        )
+        for decision in body.consents
+    ])
 
     data = await _issue_tokens(db, user)
     await db.commit()
