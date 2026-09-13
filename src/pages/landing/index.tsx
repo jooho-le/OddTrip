@@ -185,7 +185,7 @@ function IntroLanding() {
 
 function AuthenticatedHome() {
   const navigate = useNavigate();
-  const { user, tripHistory, matches, error, loadTripHistory, loadMatches, openTrip } = useTripStore();
+  const { user, tripHistory, matches, matchesConsentRequired, error, loadTripHistory, loadMatches, openTrip } = useTripStore();
   const { unreadTotal, loadUnreadCount } = useChatStore();
 
   useEffect(() => {
@@ -225,7 +225,7 @@ function AuthenticatedHome() {
                 <div><small>{candidate.ttiCode} · {candidate.matchLevel}</small><h3>{candidate.nickname}의 여행 방식</h3><p>{candidate.summary}</p></div>
                 <Link className="line-btn accent" to={`/matches/${candidate.id}`}>상세 비교</Link>
               </article>
-            )) : <div className="empty-state"><strong>{user?.ttiCode ? '추천 후보가 없습니다.' : 'TTI 진단이 먼저 필요합니다.'}</strong><p>{user?.ttiCode ? '조건에 맞는 새 후보가 생기면 이곳에 표시됩니다.' : '진단 결과가 있어야 서로 다른 여행자를 추천할 수 있습니다.'}</p><Link className="solid-btn" to="/tti/start">{user?.ttiCode ? 'TTI 다시 확인' : 'TTI 시작'}</Link></div>}
+            )) : matchesConsentRequired ? <div className="empty-state"><strong>동행 후보를 보려면 매칭 동의가 필요합니다.</strong><p>프로필 공개 범위와 안전 이용수칙을 확인하면 후보를 불러옵니다.</p><Link className="solid-btn" to="/matches">확인하고 시작하기</Link></div> : <div className="empty-state"><strong>{user?.ttiCode ? '추천 후보가 없습니다.' : 'TTI 진단이 먼저 필요합니다.'}</strong><p>{user?.ttiCode ? '조건에 맞는 새 후보가 생기면 이곳에 표시됩니다.' : '진단 결과가 있어야 서로 다른 여행자를 추천할 수 있습니다.'}</p><Link className="solid-btn" to="/tti/start">{user?.ttiCode ? 'TTI 다시 확인' : 'TTI 시작'}</Link></div>}
           </section>
 
           <aside className="home-sidebar">
