@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { oddtripService } from '../api/oddtripService';
+import { useNotificationStore } from '../../notification/model/notificationStore';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -106,6 +107,9 @@ export const useTripStore = create<TripState>((set, get) => ({
     // Revoking the refresh token server-side is best effort; the local session
     // is cleared immediately either way. logout() never rejects.
     void oddtripService.logout();
+    // The tray lives in its own store, so it would otherwise keep the previous
+    // account's notifications on screen for the next person who signs in.
+    useNotificationStore.getState().reset();
     set({
       user: undefined,
       questions: [],
