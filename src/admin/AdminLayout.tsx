@@ -6,6 +6,7 @@ const navigation = [
   { to: '/admin', label: '대시보드', end: true },
   { to: '/admin/users', label: '회원' },
   { to: '/admin/trips', label: '여행' },
+  { to: '/admin/reports', label: '신고' },
   { to: '/admin/attractions', label: '관광지' },
   { to: '/admin/tti', label: 'TTI' },
   { to: '/admin/operations', label: '운영' },
@@ -15,7 +16,7 @@ export function AdminLayout() {
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   useEffect(() => {
-    showDemoOnce('admin-demo', '관리자 화면의 수치와 목록은 현재 예시 데이터입니다. 운영 상태로 해석하거나 실제 관리 작업으로 사용하지 마세요.');
+    showDemoOnce('admin-demo', '회원·여행·신고 화면은 실제 데이터로 동작하며 제재는 즉시 적용됩니다. 관광지·TTI·운영 상태 화면은 아직 예시 데이터입니다.');
   }, [showDemoOnce]);
 
   return (
