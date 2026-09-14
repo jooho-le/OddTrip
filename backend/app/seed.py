@@ -10,10 +10,12 @@ from sqlalchemy.schema import CreateIndex
 logger = logging.getLogger(__name__)
 
 from . import legal
+from .config import settings
 from .database import async_session, engine, Base
 from .models.consent import UserConsent
 from .models.tti import TtiQuestion, TravelType
 from .models.user import User
+from .security import hash_password
 
 
 TTI_QUESTIONS = [
@@ -137,8 +139,44 @@ async def seed():
 
             await _seed_sample_consents(session, user_data["id"])
 
+        await _seed_admin(session)
+
         await session.commit()
         print("Seed completed successfully!")
+
+
+async def _seed_admin(session) -> None:
+    """ADMIN_EMAIL/ADMIN_PASSWORD가 채워져 있으면 관리자 계정을 준비합니다.
+
+    관리자를 만드는 HTTP 경로를 두지 않기로 했으므로(그 경로가 곧 권한 상승
+    통로가 됩니다) 팀이 관리자 화면을 열어보려면 시작점이 하나는 있어야
+    합니다. .env에 두 값을 넣고 서버를 켜면 됩니다.
+
+    이미 있는 계정의 비밀번호는 덮어쓰지 않고 권한만 올립니다. 서버를 켤
+    때마다 비밀번호가 .env 값으로 되돌아가면, 바꿔 쓴 사람이 다음 기동에
+    영문도 모르고 로그인하지 못합니다.
+    """
+    email = settings.admin_email.strip().lower()
+    if not email or not settings.admin_password:
+        return
+
+    existing = (await session.execute(
+        select(User).where(User.email == email, User.deleted_at.is_(None))
+    )).scalar_one_or_none()
+
+    if existing:
+        if existing.role != "admin":
+            existing.role = "admin"
+            logger.info("seed: promoted %s to admin", email)
+        return
+
+    session.add(User(
+        email=email,
+        password_hash=hash_password(settings.admin_password),
+        nickname="운영자",
+        role="admin",
+    ))
+    logger.info("seed: created admin %s", email)
 
 
 async def _seed_sample_consents(session, user_id: str) -> None:

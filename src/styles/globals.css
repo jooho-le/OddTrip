@@ -202,6 +202,15 @@ button[aria-busy="true"]{cursor:progress}
 .line-btn.danger{color:var(--pink);border-color:var(--pink)}
 .danger-btn{padding:0 18px;min-height:44px;border:0;background:var(--pink);color:#fff;font-size:11px;font-weight:800;cursor:pointer}
 .danger-btn:disabled{opacity:.45;cursor:not-allowed}
+.report-dialog{width:min(520px,100%);max-height:calc(100dvh - 40px);overflow:auto}
+.report-reasons{display:grid;gap:6px;margin-top:16px}
+.report-reason{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid var(--line);cursor:pointer}
+.report-reason.selected{border-color:var(--orange);background:color-mix(in srgb,var(--orange) 6%,var(--paper))}
+.report-reason input{width:16px;height:16px;flex:none;margin:2px 0 0;accent-color:var(--orange)}
+.report-reason b{display:block;font-size:11px}
+.report-reason small{display:block;margin-top:2px;color:var(--muted);font-size:9px;line-height:1.5}
+.report-dialog textarea{width:100%;padding:10px;border:1px solid var(--line);font:inherit;font-size:11px;resize:vertical}
+.report-guard{margin-top:12px!important;padding:10px 12px;background:var(--soft);color:var(--muted);font-size:9px!important;line-height:1.6!important}
 .tti-start{display:grid;grid-template-columns:1.05fr .95fr;min-height:520px;border-top:2px solid #222}
 .tti-copy{padding:42px 42px 42px 0}
 .tti-copy h1{margin:13px 0 15px;font-size:43px;line-height:1.08;letter-spacing:-.055em}

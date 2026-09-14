@@ -4,7 +4,10 @@ export type NotificationType =
   | 'match_request.received'
   | 'match_request.accepted'
   | 'match_request.rejected'
-  | 'match.ended';
+  | 'match.ended'
+  | 'report.reviewed'
+  | 'account.sanctioned'
+  | 'sanction.released';
 
 export interface AppNotification {
   id: string;

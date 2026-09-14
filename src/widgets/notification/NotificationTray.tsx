@@ -9,6 +9,9 @@ const ICONS: Record<AppNotification['type'], string> = {
   'match_request.accepted': '🎉',
   'match_request.rejected': '💬',
   'match.ended': '🚪',
+  'report.reviewed': '🛡️',
+  'account.sanctioned': '⚠️',
+  'sanction.released': '✅',
 };
 
 export function NotificationTray() {

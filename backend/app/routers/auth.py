@@ -12,7 +12,7 @@ from ..models.token import RefreshToken
 from ..models.user import User
 from ..schemas.auth import AuthLoginIn, AuthOut, AuthRegisterIn, RefreshIn
 from ..schemas.user import UserOut
-from ..services import consent_service
+from ..services import consent_service, sanction_service
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -97,6 +97,13 @@ async def login(body: AuthLoginIn, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    # 비밀번호를 맞힌 뒤에 알린다. 자격 증명 확인 전에 정지 사실을 알려주면
+    # 남의 이메일로 계정 상태를 떠볼 수 있다.
+    if sanction_service.is_suspended(user):
+        raise HTTPException(
+            status_code=403,
+            detail="이용이 정지된 계정입니다. 고객센터로 문의해주세요.",
+        )
 
     data = await _issue_tokens(db, user)
     await db.commit()

@@ -30,6 +30,7 @@ import { TripDetailPage } from '../admin/pages/TripDetailPage';
 import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/AttractionsPage';
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
+import { ReportsPage } from '../admin/pages/ReportsPage';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 
@@ -78,6 +79,7 @@ function AppRoutes() {
           <Route path="users" element={<UsersPage />} />
           <Route path="trips" element={<TripsPage />} />
           <Route path="trips/:id" element={<TripDetailPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route path="attractions" element={<AdminAttractionsPage />} />
           <Route path="tti" element={<TtiPage />} />
           <Route path="operations" element={<OperationsPage />} />

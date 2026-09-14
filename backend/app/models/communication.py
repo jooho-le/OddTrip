@@ -110,6 +110,9 @@ class Report(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
     reviewed_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # 운영자가 남기는 판단 근거. 반복 위반자를 가릴 때 이전 건을 어떤 이유로
+    # 어떻게 처리했는지 읽을 수 있어야 기준이 흔들리지 않는다.
+    review_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
