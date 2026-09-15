@@ -1,5 +1,6 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
+import type { ConsentDecision } from '../../consent/api/consentService';
 
 function storeSession(data: AuthResponse) {
   saveSession(data);
@@ -17,8 +18,9 @@ interface PublicAttractionRequest {
 
 export interface OddtripService {
   login(email: string, password: string): Promise<ApiResponse<AuthResponse>>;
-  register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<AuthResponse>>;
+  register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string; consents: ConsentDecision[] }): Promise<ApiResponse<AuthResponse>>;
   logout(): Promise<void>;
+  withdraw(password?: string): Promise<void>;
   hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
@@ -28,6 +30,11 @@ export interface OddtripService {
   getTrips(): Promise<ApiResponse<TripSummary[]>>;
   getPreferences(tripId: string): Promise<ApiResponse<JointPreference>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
+  saveMyPreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<{ userId: string; preferences: JointPreference; updatedAt?: string }>>;
+  getPairPreferences(tripId: string): Promise<ApiResponse<PairPreferences>>;
+  getPreferenceProposals(tripId: string): Promise<ApiResponse<PreferenceProposal[]>>;
+  createPreferenceProposal(tripId: string, preferences: JointPreference): Promise<ApiResponse<PreferenceProposal>>;
+  respondPreferenceProposal(tripId: string, proposalId: string, action: 'accept' | 'reject'): Promise<ApiResponse<PreferenceProposal>>;
   resolveConflict(tripId: string, conflicts: string[]): Promise<ApiResponse<ConflictResolution>>;
   getAttractions(tripId: string): Promise<ApiResponse<Attraction[]>>;
   generatePublicAttractions(tripId: string, request?: PublicAttractionRequest): Promise<ApiResponse<Attraction[]>>;
@@ -68,6 +75,13 @@ export const oddtripService: OddtripService = {
     if (refreshToken) {
       await request('/api/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined);
     }
+  },
+
+  async withdraw(password) {
+    // 로그아웃과 달리 세션을 먼저 비우지 않습니다. 비밀번호가 틀리면 탈퇴가
+    // 취소되고 사용자는 그대로 화면에 남아야 하므로, 성공한 뒤에 정리합니다.
+    await request('/api/users/me/withdraw', { method: 'POST', body: { password }, auth: true });
+    clearSession();
   },
 
   hasAuthToken() {
@@ -114,6 +128,32 @@ export const oddtripService: OddtripService = {
       method: 'PUT',
       auth: true,
       body: preferences
+    });
+  },
+
+  saveMyPreferences(tripId, preferences) {
+    return request(`/api/trips/${tripId}/preferences/me`, {
+      method: 'PUT', auth: true, body: preferences
+    });
+  },
+
+  getPairPreferences(tripId) {
+    return request<PairPreferences>(`/api/trips/${tripId}/preferences/pair`, { auth: true });
+  },
+
+  getPreferenceProposals(tripId) {
+    return request<PreferenceProposal[]>(`/api/trips/${tripId}/preferences/proposals`, { auth: true });
+  },
+
+  createPreferenceProposal(tripId, preferences) {
+    return request<PreferenceProposal>(`/api/trips/${tripId}/preferences/proposals`, {
+      method: 'POST', auth: true, body: { preferences }
+    });
+  },
+
+  respondPreferenceProposal(tripId, proposalId, action) {
+    return request<PreferenceProposal>(`/api/trips/${tripId}/preferences/proposals/${proposalId}/${action}`, {
+      method: 'POST', auth: true
     });
   },
 

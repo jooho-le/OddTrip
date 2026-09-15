@@ -110,7 +110,7 @@ export function SurveyFormPage() {
       updatePreferences(answersToPreference(answers, preferences, SURVEY_DESIGNS.preference));
       await savePreferences();
       if (useTripStore.getState().status.preferences === 'success') {
-        showInfo('독립 선택 조사서를 제출했습니다.', '현재 백엔드가 지원하는 여행 공동 선호 범위에 저장되었습니다.');
+        showInfo('독립 선택 조사서를 제출했습니다.', '내 답안으로 따로 저장되며, 조율 화면에서 상대방의 제출 여부와 차이를 확인할 수 있습니다.');
         navigate(back.to);
       }
       return;
@@ -121,7 +121,7 @@ export function SurveyFormPage() {
       return;
     }
 
-    showInfo('저장하지 않았습니다.', `${spec.title}는 체험용 입력입니다. 백엔드 계약이 준비되기 전에는 제출 완료 상태로 변경하지 않습니다.`);
+    showComingSoon(spec.title, `${spec.title} 입력을 저장하고 상대에게 전달하는 백엔드 기능을 준비하고 있습니다. 입력한 선택은 저장하거나 제출 완료로 표시하지 않았습니다.`);
   };
 
   const leaveWithDraft = () => {

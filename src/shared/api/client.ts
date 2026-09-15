@@ -1,6 +1,15 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import type { ApiResponse, AuthResponse } from '../../types';
 
+/** An API failure that kept its HTTP status, so callers can tell an unmet
+ * precondition (403) from a genuine error without matching on message text. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 export const SESSION_KEYS = {
   userId: 'oddtrip.userId',
@@ -82,10 +91,11 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<ApiResp
 
 function normalizeApiError(error: unknown) {
   if (!axios.isAxiosError(error)) return error instanceof Error ? error : new Error('API 요청에 실패했습니다.');
+  const status = error.response?.status;
   const detail = error.response?.data?.error ?? error.response?.data?.detail;
   const message = Array.isArray(detail) ? '입력값을 확인해주세요.' : detail;
-  if (message) return new Error(String(message));
-  if (error.code === 'ECONNABORTED') return new Error('요청 시간이 초과되었습니다.');
-  if (!error.response) return new Error('서버에 연결할 수 없습니다.');
-  return new Error('API 요청에 실패했습니다.');
+  if (message) return new ApiError(String(message), status);
+  if (error.code === 'ECONNABORTED') return new ApiError('요청 시간이 초과되었습니다.', status);
+  if (!error.response) return new ApiError('서버에 연결할 수 없습니다.', status);
+  return new ApiError('API 요청에 실패했습니다.', status);
 }

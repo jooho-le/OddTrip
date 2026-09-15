@@ -4,6 +4,7 @@ import { useChatStore } from '../entities/chat/model/chatStore';
 import { useTripStore } from '../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../features/prototype/designContent';
 import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
+import { NotificationTray } from '../widgets/notification/NotificationTray';
 
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
@@ -17,7 +18,6 @@ export function PrototypeLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const user = useTripStore((state) => state.user);
   const logout = useTripStore((state) => state.logout);
-  const rooms = useChatStore((state) => state.rooms);
   const roomsStatus = useChatStore((state) => state.roomsStatus);
   const unreadTotal = useChatStore((state) => state.unreadTotal);
   const loadRooms = useChatStore((state) => state.loadRooms);
@@ -49,16 +49,11 @@ export function PrototypeLayout() {
   };
 
   const openChat = () => {
-    const room = rooms.find((item) => item.status === 'active') ?? rooms[0];
-    if (room) {
-      navigate(`/chat/${encodeURIComponent(room.id)}`, { state: { backgroundLocation: location } });
-      return;
-    }
     if (roomsStatus === 'loading' || roomsStatus === 'idle') {
       showInfo('채팅방을 확인하고 있습니다.', '활성 채팅방 목록을 불러온 뒤 다시 눌러 주세요.');
       return;
     }
-    showInfo('활성 채팅방이 없습니다.', '동행 요청이 수락되면 채팅방과 여행 공간이 함께 생성됩니다.');
+    navigate('/chat');
   };
 
   const nickname = user?.nickname ?? '여행자';
@@ -96,14 +91,7 @@ export function PrototypeLayout() {
               >
                 💬︎{unreadTotal > 0 ? <span className="tool-dot" /> : null}
               </button>
-              <button
-                type="button"
-                className="round-btn"
-                aria-label="알림 기능 안내"
-                onClick={() => showComingSoon('여행 알림', '여행 단계와 날씨를 알려주는 서버 알림은 현재 준비 중인 기능입니다. 채팅 안 읽음 수는 채팅 버튼에서 별도로 확인할 수 있습니다.')}
-              >
-                🔔︎
-              </button>
+              <NotificationTray />
               <button type="button" className="profile-btn" aria-expanded={profileOpen} onClick={(event) => { event.stopPropagation(); setProfileOpen((open) => !open); }}>
                 {user?.avatarUrl
                   ? <img src={user.avatarUrl} alt="" />

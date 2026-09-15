@@ -164,7 +164,7 @@ function IntroLanding() {
           <div className="intro-records-head"><div><p className="eyebrow" data-reveal>RECORDS</p><h2 data-reveal>여행이 끝나면 기록이 남습니다</h2></div><p data-reveal>아래 카드는 디자인 이해를 위한 예시입니다. 실제 기록 API가 연결되면 사용자 데이터로 교체됩니다.</p></div>
           <div className="intro-record-grid">
             {[['지우 · WCAS', '영도 골목에서 세 시간', '계획 없이 걷다가 찾은 작은 책방과 이름 없는 카페.', demoPhotos.recordA], ['민 · WCAF', '기장시장에서 하루 종일', '시장 음식과 해안 액티비티를 하루에 묶은 기록.', demoPhotos.recordB], ['민서 · PNFH', '강릉에서 각자의 아침', '오전은 따로, 오후는 함께 정한 이틀의 기록.', demoPhotos.recordC]].map(([person, title, copy, photo]) => (
-              <article className="intro-record" data-reveal key={person}><div className="photo" style={{ backgroundImage: `url('${photo}')` }} /><div className="copy"><small>{person} · DEMO</small><h3>{title}</h3><p>{copy}</p></div></article>
+              <article className="intro-record" data-reveal key={person}><div className="photo" style={{ backgroundImage: `url('${photo}')` }} /><div className="copy"><small>{person}</small><h3>{title}</h3><p>{copy}</p></div></article>
             ))}
           </div>
         </div>
@@ -185,7 +185,7 @@ function IntroLanding() {
 
 function AuthenticatedHome() {
   const navigate = useNavigate();
-  const { user, tripHistory, matches, error, loadTripHistory, loadMatches, openTrip } = useTripStore();
+  const { user, tripHistory, matches, matchesConsentRequired, error, loadTripHistory, loadMatches, openTrip } = useTripStore();
   const { unreadTotal, loadUnreadCount } = useChatStore();
 
   useEffect(() => {
@@ -209,7 +209,7 @@ function AuthenticatedHome() {
         {activeTrip ? (
           <section className="home-hero" aria-label="현재 여행">
             <img className="home-hero-image" src={demoPhotos.hero} alt="현재 여행의 디자인 예시 배경" />
-            <div className="home-hero-copy"><span className="home-hero-status">{statusLabel(activeTrip.status)}</span><span className="demo-label" style={{ marginLeft: 7 }}>IMAGE · DEMO</span><h1>{tripTitle(activeTrip, user?.nickname)}</h1><p>{dateRange(activeTrip.startDate, activeTrip.endDate)} · {activeTrip.region ?? '지역 미정'}</p><button onClick={() => void openActiveTrip()}>현재 여행 바로 가기 <i>→</i></button></div>
+            <div className="home-hero-copy"><span className="home-hero-status">{statusLabel(activeTrip.status)}</span><h1>{tripTitle(activeTrip, user?.nickname)}</h1><p>{dateRange(activeTrip.startDate, activeTrip.endDate)} · {activeTrip.region ?? '지역 미정'}</p><button onClick={() => void openActiveTrip()}>현재 여행 바로 가기 <i>→</i></button></div>
           </section>
         ) : (
           <section className="home-hero-empty"><div><span className="eyebrow">FIRST ODDTRIP</span><h1>아직 진행 중인 여행이 없습니다.</h1><p>TTI 결과를 바탕으로 동행 후보를 살펴보고 요청을 보내보세요.</p><Link className="solid-btn" to={user?.ttiCode ? '/matches' : '/tti/start'}>{user?.ttiCode ? '동행 찾기' : 'TTI 시작하기'}</Link></div></section>
@@ -225,7 +225,7 @@ function AuthenticatedHome() {
                 <div><small>{candidate.ttiCode} · {candidate.matchLevel}</small><h3>{candidate.nickname}의 여행 방식</h3><p>{candidate.summary}</p></div>
                 <Link className="line-btn accent" to={`/matches/${candidate.id}`}>상세 비교</Link>
               </article>
-            )) : <div className="empty-state"><strong>{user?.ttiCode ? '추천 후보가 없습니다.' : 'TTI 진단이 먼저 필요합니다.'}</strong><p>{user?.ttiCode ? '조건에 맞는 새 후보가 생기면 이곳에 표시됩니다.' : '진단 결과가 있어야 서로 다른 여행자를 추천할 수 있습니다.'}</p><Link className="solid-btn" to="/tti/start">{user?.ttiCode ? 'TTI 다시 확인' : 'TTI 시작'}</Link></div>}
+            )) : matchesConsentRequired ? <div className="empty-state"><strong>동행 후보를 보려면 매칭 동의가 필요합니다.</strong><p>프로필 공개 범위와 안전 이용수칙을 확인하면 후보를 불러옵니다.</p><Link className="solid-btn" to="/matches">확인하고 시작하기</Link></div> : <div className="empty-state"><strong>{user?.ttiCode ? '추천 후보가 없습니다.' : 'TTI 진단이 먼저 필요합니다.'}</strong><p>{user?.ttiCode ? '조건에 맞는 새 후보가 생기면 이곳에 표시됩니다.' : '진단 결과가 있어야 서로 다른 여행자를 추천할 수 있습니다.'}</p><Link className="solid-btn" to="/tti/start">{user?.ttiCode ? 'TTI 다시 확인' : 'TTI 시작'}</Link></div>}
           </section>
 
           <aside className="home-sidebar">

@@ -1,10 +1,11 @@
-import { CalendarRange, CircleUserRound, Heart, House, MapPinned } from 'lucide-react';
+import { CalendarRange, CircleUserRound, Heart, House, MapPinned, MessageCircle } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../../shared/lib/classNames';
 
 const tabs = [
   { to: '/', label: 'HOME', icon: House },
   { to: '/matches', label: '매칭', icon: Heart },
+  { to: '/chat', label: '채팅', icon: MessageCircle },
   { to: '/attractions', label: '추천', icon: MapPinned },
   { to: '/itinerary', label: '일정', icon: CalendarRange },
   { to: '/my', label: 'MY', icon: CircleUserRound }
@@ -13,7 +14,7 @@ const tabs = [
 export function BottomTabs() {
   return (
     <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-40 border-t border-black/5 bg-white/94 backdrop-blur-xl md:hidden">
-      <div className="grid grid-cols-5 px-2 pt-2">
+      <div className="grid grid-cols-6 px-2 pt-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

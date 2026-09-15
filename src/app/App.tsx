@@ -20,6 +20,7 @@ import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
 import { AuthPage } from '../pages/auth';
 import { LegalPage, MatchingProfileConsentGate } from '../pages/legal';
 import { AccountSettingsPage } from '../pages/account-settings';
+import { ChatListPage } from '../pages/chat';
 import { AdminLayout } from '../admin/AdminLayout';
 import { DashboardPage } from '../admin/pages/DashboardPage';
 import { UsersPage } from '../admin/pages/UsersPage';
@@ -28,6 +29,7 @@ import { TripDetailPage } from '../admin/pages/TripDetailPage';
 import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/AttractionsPage';
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
+import { ReportsPage } from '../admin/pages/ReportsPage';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 
@@ -76,6 +78,7 @@ function AppRoutes() {
           <Route path="users" element={<UsersPage />} />
           <Route path="trips" element={<TripsPage />} />
           <Route path="trips/:id" element={<TripDetailPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route path="attractions" element={<AdminAttractionsPage />} />
           <Route path="tti" element={<TtiPage />} />
           <Route path="operations" element={<OperationsPage />} />
@@ -97,8 +100,7 @@ function AppRoutes() {
           <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
 
-          {/* A direct chat deep link uses the HTML home as its background. */}
-          <Route path="/chat" element={<HomePage />} />
+          <Route path="/chat" element={<ChatListPage />} />
           <Route path="/chat/:roomId" element={<HomePage />} />
         </Route>
 

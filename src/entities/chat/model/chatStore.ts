@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ChatMessage, ChatReportReason, ChatRoom } from '../../../types';
 import { buildChatSocketUrl, chatService, type ChatSocketEvent } from '../api/chatService';
+import { useNotificationStore } from '../../notification/model/notificationStore';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 export type LocalChatMessage = ChatMessage & { pending?: boolean };
@@ -68,6 +69,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const response = await chatService.getRoom(roomId);
       set((state) => ({
         rooms: upsertRoom(state.rooms, response.data),
+        counterpartRead: {
+          ...state.counterpartRead,
+          [roomId]: response.data.counterpartLastReadSequence,
+        },
       }));
       return response.data;
     } catch (error) {
@@ -85,7 +90,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const beforeSequence = more ? current.messagesNextBefore[roomId] ?? undefined : undefined;
       const response = await chatService.getMessages(roomId, { beforeSequence: beforeSequence ?? undefined, limit: 30 });
-      const incoming = [...response.data.items].reverse();
+      // The API contract already returns messages in ascending sequence order.
+      const incoming = response.data.items;
       set((state) => ({
         messagesByRoom: {
           ...state.messagesByRoom,
@@ -355,6 +361,13 @@ function handleSocketEvent(
   if (event.event === 'user.blocked') {
     const { matchId } = event.data;
     set((current) => ({ rooms: current.rooms.map((room) => (room.matchId === matchId ? { ...room, status: 'closed' } : room)) }));
+  }
+
+  // Notifications ride the chat socket rather than opening a second one. The
+  // row is already durable server-side, so a dropped frame only costs
+  // immediacy: the tray still shows it on the next poll.
+  if (event.event === 'notification.created') {
+    useNotificationStore.getState().receive(event.data);
   }
 }
 

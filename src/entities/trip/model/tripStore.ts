@@ -1,6 +1,10 @@
 import { create } from 'zustand';
-import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { oddtripService } from '../api/oddtripService';
+import { ApiError } from '../../../shared/api/client';
+import { useNotificationStore } from '../../notification/model/notificationStore';
+import { useConsentStore } from '../../consent/model/consentStore';
+import type { ConsentDecision } from '../../consent/api/consentService';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -10,10 +14,14 @@ interface TripState {
   answers: TtiAnswer[];
   result?: TtiResult;
   matches: MatchCandidate[];
+  /** 403으로 후보를 못 받은 상태. 고장이 아니라 매칭 동의 전이라는 뜻. */
+  matchesConsentRequired: boolean;
   selectedMatch?: MatchCandidate;
   activeTripId?: string;
   tripHistory: TripSummary[];
   preferences: JointPreference;
+  pairPreferences?: PairPreferences;
+  preferenceProposals: PreferenceProposal[];
   attractions: Attraction[];
   agentRun?: AgentRunResponse;
   itinerary: ItineraryDay[];
@@ -22,8 +30,9 @@ interface TripState {
   status: Record<string, Status>;
   error?: string;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (input: { email: string; password: string; nickname: string; homeRegion?: string }) => Promise<boolean>;
+  register: (input: { email: string; password: string; nickname: string; homeRegion?: string; consents: ConsentDecision[] }) => Promise<boolean>;
   logout: () => void;
+  withdraw: (password?: string) => Promise<boolean>;
   bootstrap: () => Promise<void>;
   loadQuestions: () => Promise<void>;
   setAnswer: (answer: TtiAnswer) => void;
@@ -36,6 +45,9 @@ interface TripState {
   ensureTrip: () => Promise<string | undefined>;
   updatePreferences: (patch: Partial<JointPreference>) => void;
   savePreferences: () => Promise<void>;
+  loadCoordination: () => Promise<void>;
+  proposePreferences: () => Promise<boolean>;
+  respondPreferenceProposal: (proposalId: string, action: 'accept' | 'reject') => Promise<boolean>;
   resolveDecisionConflict: (conflicts: string[]) => Promise<void>;
   loadAttractions: () => Promise<void>;
   runTravelAgent: () => Promise<void>;
@@ -56,11 +68,38 @@ const initialPreferences: JointPreference = {
   hiddenSpots: false
 };
 
+// 로그아웃과 탈퇴가 같은 상태를 비웁니다. 한쪽만 늘어나면 다음 사용자에게
+// 이전 계정의 흔적이 남으므로 한 곳에서 관리합니다.
+function clearedSession(): Partial<TripState> {
+  return {
+      user: undefined,
+      questions: [],
+      answers: [],
+      result: undefined,
+      matches: [],
+      matchesConsentRequired: false,
+      selectedMatch: undefined,
+      activeTripId: undefined,
+      preferences: initialPreferences,
+      pairPreferences: undefined,
+      preferenceProposals: [],
+      attractions: [],
+      agentRun: undefined,
+      itinerary: [],
+      alerts: [],
+      decisionSuggestion: undefined,
+      status: {},
+      error: undefined,
+  };
+}
+
 export const useTripStore = create<TripState>((set, get) => ({
   questions: [],
   answers: [],
   matches: [],
+  matchesConsentRequired: false,
   preferences: initialPreferences,
+  preferenceProposals: [],
   attractions: [],
   itinerary: [],
   alerts: [],
@@ -96,27 +135,36 @@ export const useTripStore = create<TripState>((set, get) => ({
       return false;
     }
   },
+  async withdraw(password) {
+    set((state) => ({ status: { ...state.status, auth: 'loading' }, error: undefined }));
+    try {
+      await oddtripService.withdraw(password);
+    } catch (error) {
+      // 비밀번호 오류가 가장 흔한 실패이므로 세션을 건드리지 않고 화면에 남깁니다.
+      set((state) => ({
+        error: error instanceof Error ? error.message : '회원 탈퇴에 실패했습니다.',
+        status: { ...state.status, auth: 'error' },
+      }));
+      return false;
+    }
+    // 서버에서 계정이 닫혔으므로 로그아웃과 같은 정리를 합니다. 다만 폐기된
+    // 리프레시 토큰으로 로그아웃을 또 호출할 필요는 없습니다.
+    useNotificationStore.getState().reset();
+    useConsentStore.getState().reset();
+    set(clearedSession());
+    return true;
+  },
   logout() {
     // Revoking the refresh token server-side is best effort; the local session
     // is cleared immediately either way. logout() never rejects.
     void oddtripService.logout();
-    set({
-      user: undefined,
-      questions: [],
-      answers: [],
-      result: undefined,
-      matches: [],
-      selectedMatch: undefined,
-      activeTripId: undefined,
-      preferences: initialPreferences,
-      attractions: [],
-      agentRun: undefined,
-      itinerary: [],
-      alerts: [],
-      decisionSuggestion: undefined,
-      status: {},
-      error: undefined,
-    });
+    // The tray lives in its own store, so it would otherwise keep the previous
+    // account's notifications on screen for the next person who signs in.
+    useNotificationStore.getState().reset();
+    // Same for consent: leaving the previous account's status behind would
+    // open the matching gates for whoever signs in next.
+    useConsentStore.getState().reset();
+    set(clearedSession());
   },
   async bootstrap() {
     if (!oddtripService.hasAuthToken()) {
@@ -173,6 +221,8 @@ export const useTripStore = create<TripState>((set, get) => ({
         matches: [],
         selectedMatch: undefined,
         activeTripId: undefined,
+        pairPreferences: undefined,
+        preferenceProposals: [],
         attractions: [],
         agentRun: undefined,
         itinerary: [],
@@ -227,18 +277,24 @@ export const useTripStore = create<TripState>((set, get) => ({
       alerts: [],
       agentRun: undefined,
       decisionSuggestion: undefined,
+      pairPreferences: undefined,
+      preferenceProposals: [],
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary, preferences] = await Promise.all([
+      const [attractions, itinerary, preferences, pair, proposals] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
         oddtripService.getPreferences(tripId),
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
         itinerary: itinerary.data,
-        preferences: preferences.data,
+        preferences: pair.data.mine?.preferences ?? preferences.data,
+        pairPreferences: pair.data,
+        preferenceProposals: proposals.data,
         status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
     } catch {
@@ -249,8 +305,14 @@ export const useTripStore = create<TripState>((set, get) => ({
     set((state) => ({ status: { ...state.status, matches: 'loading' } }));
     try {
       const response = await oddtripService.getMatches();
-      set((state) => ({ matches: response.data, status: { ...state.status, matches: 'success' } }));
-    } catch {
+      set((state) => ({ matches: response.data, matchesConsentRequired: false, status: { ...state.status, matches: 'success' } }));
+    } catch (caught) {
+      // 403은 고장이 아니라 아직 매칭 동의를 하지 않았다는 뜻입니다. 홈처럼
+      // 게이트 밖에서 후보를 당겨오는 화면이 에러 배너를 띄우면 안 됩니다.
+      if (caught instanceof ApiError && caught.status === 403) {
+        set((state) => ({ matches: [], matchesConsentRequired: true, status: { ...state.status, matches: 'success' } }));
+        return;
+      }
       set((state) => ({ error: '매칭 후보를 불러오지 못했습니다.', status: { ...state.status, matches: 'error' } }));
     }
   },
@@ -276,11 +338,17 @@ export const useTripStore = create<TripState>((set, get) => ({
         }));
         return undefined;
       }
-      const preferences = await oddtripService.getPreferences(tripId).catch(() => undefined);
+      const [preferences, pair, proposals] = await Promise.all([
+        oddtripService.getPreferences(tripId).catch(() => undefined),
+        oddtripService.getPairPreferences(tripId).catch(() => undefined),
+        oddtripService.getPreferenceProposals(tripId).catch(() => undefined),
+      ]);
       set((state) => ({
         activeTripId: tripId,
         tripHistory: response.data,
-        preferences: preferences?.data ?? state.preferences,
+        preferences: pair?.data.mine?.preferences ?? preferences?.data ?? state.preferences,
+        pairPreferences: pair?.data,
+        preferenceProposals: proposals?.data ?? [],
         status: { ...state.status, trip: 'success', preferences: preferences ? 'success' : state.status.preferences },
       }));
       return tripId;
@@ -302,10 +370,66 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     set((state) => ({ status: { ...state.status, preferences: 'loading' } }));
     try {
-      const response = await oddtripService.savePreferences(tripId, draft);
-      set((state) => ({ preferences: response.data, status: { ...state.status, preferences: 'success' } }));
+      await oddtripService.saveMyPreferences(tripId, draft);
+      const pair = await oddtripService.getPairPreferences(tripId);
+      set((state) => ({ preferences: draft, pairPreferences: pair.data, status: { ...state.status, preferences: 'success' } }));
     } catch {
-      set((state) => ({ error: '공동 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
+      set((state) => ({ error: '내 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
+    }
+  },
+  async loadCoordination() {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return;
+    set((state) => ({ status: { ...state.status, coordination: 'loading' } }));
+    try {
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({
+        pairPreferences: pair.data,
+        preferenceProposals: proposals.data,
+        preferences: pair.data.mine?.preferences ?? state.preferences,
+        status: { ...state.status, coordination: 'success' },
+      }));
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '조율 정보를 불러오지 못했습니다.', status: { ...state.status, coordination: 'error' } }));
+    }
+  },
+  async proposePreferences() {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
+    try {
+      const preferences = get().preferences;
+      await oddtripService.saveMyPreferences(tripId, preferences);
+      await oddtripService.createPreferenceProposal(tripId, preferences);
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({ pairPreferences: pair.data, preferenceProposals: proposals.data, status: { ...state.status, proposal: 'success', preferences: 'success' } }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '합의안을 제안하지 못했습니다.', status: { ...state.status, proposal: 'error' } }));
+      return false;
+    }
+  },
+  async respondPreferenceProposal(proposalId, action) {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, proposal: 'loading' } }));
+    try {
+      await oddtripService.respondPreferenceProposal(tripId, proposalId, action);
+      const [pair, proposals] = await Promise.all([
+        oddtripService.getPairPreferences(tripId),
+        oddtripService.getPreferenceProposals(tripId),
+      ]);
+      set((state) => ({ pairPreferences: pair.data, preferenceProposals: proposals.data, status: { ...state.status, proposal: 'success' } }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '합의안에 응답하지 못했습니다.', status: { ...state.status, proposal: 'error' } }));
+      return false;
     }
   },
   async resolveDecisionConflict(conflicts) {
@@ -314,7 +438,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     set((state) => ({ status: { ...state.status, conflict: 'loading' } }));
     try {
-      await oddtripService.savePreferences(tripId, get().preferences);
+      await oddtripService.saveMyPreferences(tripId, get().preferences);
       const response = await oddtripService.resolveConflict(tripId, conflicts);
       set((state) => ({
         decisionSuggestion: response.data.suggestion,

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useChatStore } from '../../entities/chat/model/chatStore';
+import { useNotificationStore } from '../../entities/notification/model/notificationStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import {
   FEED_THUMB_FALLBACKS,
@@ -8,6 +8,7 @@ import {
   PROFILE_FALLBACKS,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { formatRelativeTime } from '../../shared/lib/formatDate';
 import type { MatchCandidate, TripSummary } from '../../types';
 
 const coverImage = imageUrl('photo-1507525428034-b723cf961d3e', 1600, 90);
@@ -25,20 +26,25 @@ export function HomePage() {
     error,
     loadTripHistory,
     loadMatches,
+    matchesConsentRequired,
     openTrip,
   } = useTripStore();
-  const { unreadTotal, loadUnreadCount } = useChatStore();
+  const notifications = useNotificationStore((state) => state.items);
+  const notificationStatus = useNotificationStore((state) => state.status);
+  const notificationUnread = useNotificationStore((state) => state.unreadCount);
+  const loadNotifications = useNotificationStore((state) => state.load);
+  const markNotificationRead = useNotificationStore((state) => state.markRead);
   const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   useEffect(() => {
     void loadTripHistory();
-    void loadUnreadCount();
+    void loadNotifications();
     if (user?.ttiCode) void loadMatches();
     if (location.pathname === '/home') {
-      showDemoOnce('home-recent-notices', '홈의 최근 알림 두 건은 HTML 디자인을 보존하기 위한 예시입니다. 실제 서버 알림 기능과 연결된 값이 아닙니다.');
+      showDemoOnce('home-fallback-images', '프로필이나 여행 이미지가 등록되지 않은 경우 디자인 원본의 대체 이미지를 사용합니다. 동행·여행·알림 정보는 서버 응답을 사용합니다.');
     }
-  }, [loadTripHistory, loadUnreadCount, loadMatches, showDemoOnce, user?.ttiCode, location.pathname]);
+  }, [loadTripHistory, loadNotifications, loadMatches, showDemoOnce, user?.ttiCode, location.pathname]);
 
   const activeTrip = tripHistory.find((trip) => !['completed', 'cancelled'].includes(trip.status));
 
@@ -94,7 +100,14 @@ export function HomePage() {
               <div>
                 {status.matches === 'loading' && !matches.length ? <LoadingFeed /> : null}
                 {matches.slice(0, 3).map((candidate, index) => <CandidateRecord candidate={candidate} index={index} key={candidate.id} />)}
-                {status.matches === 'success' && !matches.length ? (
+                {matchesConsentRequired ? (
+                  <div className="empty-state">
+                    <strong>동행 후보를 보려면 매칭 동의가 필요합니다.</strong>
+                    <p>프로필 공개 범위와 안전 이용수칙을 확인하면 후보를 불러옵니다.</p>
+                    <Link className="solid-btn" to="/matches">확인하고 시작하기</Link>
+                  </div>
+                ) : null}
+                {!matchesConsentRequired && status.matches === 'success' && !matches.length ? (
                   <div className="empty-state">
                     <strong>{user?.ttiCode ? '현재 추천할 동행 기록이 없습니다.' : '여행 성향 조사가 먼저 필요합니다.'}</strong>
                     <p>{user?.ttiCode ? '새로운 후보가 생기면 이곳에서 바로 확인할 수 있습니다.' : '조사 결과가 저장되면 실제 매칭 후보를 불러옵니다.'}</p>
@@ -124,10 +137,26 @@ export function HomePage() {
             </div>
 
             <div className="side-box">
-              <div className="side-head">최근 알림 <span>{unreadTotal ? `${unreadTotal}개 채팅 안 읽음` : '예시 2건'}</span></div>
+              <div className="side-head">최근 알림 <span>{notificationUnread ? `${notificationUnread}개 안 읽음` : '새 알림 없음'}</span></div>
               <div className="notice-list">
-                <div className="notice-item">동행이 독립 선택을 제출했습니다.<time>오늘 20:14</time></div>
-                <div className="notice-item">여행 일정에 비 소식이 있어요.<time>오늘 18:32</time></div>
+                {notificationStatus === 'loading' && !notifications.length ? <div className="notice-item">알림을 불러오는 중입니다.</div> : null}
+                {notificationStatus === 'error' && !notifications.length ? <div className="notice-item">알림을 불러오지 못했습니다.<button type="button" className="text-btn" onClick={() => void loadNotifications()}>다시 시도</button></div> : null}
+                {notificationStatus === 'success' && !notifications.length ? <div className="notice-item">새 알림이 없습니다.</div> : null}
+                {notifications.slice(0, 2).map((notification) => (
+                  <button
+                    type="button"
+                    className="notice-item home-notice-item"
+                    key={notification.id}
+                    onClick={() => {
+                      void markNotificationRead(notification.id);
+                      if (notification.link) navigate(notification.link);
+                    }}
+                  >
+                    <b>{notification.title}</b>
+                    {notification.body ? <span>{notification.body}</span> : null}
+                    <time>{formatRelativeTime(notification.createdAt)}</time>
+                  </button>
+                ))}
               </div>
             </div>
 
