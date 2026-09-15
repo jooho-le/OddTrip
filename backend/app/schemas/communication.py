@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from .user import UserOut
+from .trip import validate_trip_dates
 
 
 class CommunicationModel(BaseModel):
@@ -29,8 +30,8 @@ class MatchRequestCreate(CommunicationModel):
     @classmethod
     def validate_date_range(cls, value: date, info) -> date:
         start_date = info.data.get("start_date")
-        if start_date and value < start_date:
-            raise ValueError("여행 종료일은 시작일보다 빠를 수 없습니다.")
+        if start_date:
+            validate_trip_dates(start_date, value)
         return value
 
 

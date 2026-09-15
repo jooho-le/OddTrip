@@ -97,7 +97,7 @@ export const SURVEY_DESIGNS: Record<Exclude<SurveyKey, 'tti'>, SurveyDesignSpec>
   approval: {
     title: '일정 확인·승인서',
     code: 'ODDTRIP FORM 05 · FINAL APPROVAL',
-    note: '최종 일정의 이동량, 예산, 장소 구성을 확인합니다. 양쪽 승인과 수정 요청 저장은 아직 준비 중입니다.',
+    note: '최종 일정의 이동량, 예산, 장소 구성을 확인합니다. 두 사람 모두 승인하면 일정이 최종 확정됩니다.',
     kind: 'choice',
     questions: ['현재 공동 일정을 어떻게 처리할까요?'],
     options: [['이 일정 승인', '활동량 수정 요청', '이동량 수정 요청', '장소 변경 요청']],

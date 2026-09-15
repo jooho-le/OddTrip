@@ -22,7 +22,7 @@ class Notification(Base):
     user_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # "match_request.received" | "match_request.accepted" | "match_request.rejected" | "match.ended"
+    # Domain event name, e.g. "match_request.received" or "itinerary.confirmed".
     type: Mapped[str] = mapped_column(String(40), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str | None] = mapped_column(String(500))

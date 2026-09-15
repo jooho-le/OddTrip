@@ -5,7 +5,7 @@ from .match import Match
 from .notification import Notification
 from .sanction import Sanction
 from .token import RefreshToken
-from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripAttraction, TripPreferenceProposal, TripUserPreference
+from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripApproval, TripAttraction, TripPreferenceProposal, TripUserPreference
 from .tti import TravelType, TtiQuestion
 from .user import User
 
@@ -26,6 +26,7 @@ __all__ = [
     "TravelType",
     "Match",
     "Trip",
+    "TripApproval",
     "TripUserPreference",
     "TripPreferenceProposal",
     "Place",

@@ -398,6 +398,10 @@ match_request.updated
 preference.updated
 preference.proposal_created
 preference.proposal_responded
+trip.created
+trip.updated
+trip.cancelled
+itinerary.approval_updated
 ```
 
 메시지는 REST에서 commit한 후 WebSocket으로 전달한다. 단일 프로세스는 메모리 연결 관리자를 사용하며 다중 worker는 Redis Pub/Sub이 필요하다.
@@ -426,6 +430,10 @@ preference.proposal_responded
 | `preference.updated` | 개인 선호 저장 후 | `tripId`, `userId` |
 | `preference.proposal_created` | 합의안 생성 후 | `tripId`, `proposalId`, `proposedBy` |
 | `preference.proposal_responded` | 합의안 응답 후 | `tripId`, `proposalId`, `status`, `respondedBy` |
+| `trip.created` | 활성 매칭에 새 여행 생성 후 | `tripId`, `status` |
+| `trip.updated` | 제목·지역·기간 수정 후 | `tripId`, `status`, `itineraryInvalidated` |
+| `trip.cancelled` | 여행 취소 후 | `tripId`, `status` |
+| `itinerary.approval_updated` | 일정 승인·수정 요청 후 | `tripId`, `itineraryRevision`, `tripStatus` |
 
 클라이언트는 이벤트를 DB의 최종 결과로 간주해 화면 상태를 직접 추측하기보다 관련 GET API를 다시 호출한다. 현재 프론트는 앱 전체에서 하나의 WebSocket 연결을 공유한다.
 
@@ -529,10 +537,40 @@ POST /api/trips/{tripId}/preferences/proposals
 
 여행 D-1 알림은 Trip과 Match를 조회하는 알림 스케줄러가 담당한다.
 
+## 여행 생성·수정·취소
+
+매칭 요청 수락 시 첫 여행은 자동 생성된다. 이후 같은 활성 매칭에서 이전 여행이 완료되거나 취소된 경우 직접 새 여행을 만들 수 있다.
+
+```http
+POST   /api/trips
+GET    /api/trips/{tripId}
+PATCH  /api/trips/{tripId}
+DELETE /api/trips/{tripId}
+```
+
+한 매칭에는 `planning` 또는 `confirmed` 상태 여행이 하나만 존재한다. 생성 서비스의 행 잠금과 DB 부분 유니크 인덱스를 함께 사용해 동시 요청도 막는다. 지역이나 기간 수정은 기존 일정·안전정보를 무효화하고, 일정이 존재했다면 revision을 증가시켜 기존 승인이 현재 일정에 재사용되지 않게 한다.
+
+DELETE는 공동 여행 기록을 지우지 않고 `cancelled`로 전환하는 소프트 취소다. `cancelledAt`, `cancelledBy`를 기록하며 재요청은 멱등 처리한다. 생성·수정·취소는 상대에게 인앱 알림을 남기고 양쪽 WebSocket에 각각 `trip.created`, `trip.updated`, `trip.cancelled`를 전송한다.
+
+## 일정 승인
+
+일정이 생성된 뒤 두 여행자는 현재 일정 revision에 각각 응답한다.
+
+```http
+GET /api/trips/{tripId}/approval
+PUT /api/trips/{tripId}/approval/me
+```
+
+승인은 `{ "action": "approve" }`, 수정 요청은 `{ "action": "change_request", "comment": "이동량을 줄여 주세요." }`로 전송한다. 두 사람 모두 승인하면 Trip은 `confirmed`가 된다. 일정 재생성 시 `itineraryRevision`이 증가하여 이전 승인은 현재 상태에서 제외되고 Trip은 다시 `planning`으로 돌아간다. 이전 revision의 응답 행은 운영 이력으로 보존한다.
+
+응답이 바뀌면 상대에게 인앱 알림을 저장하고, 두 사용자에게 `itinerary.approval_updated` WebSocket 이벤트를 보낸다. 동일한 응답 재전송은 알림을 중복 생성하지 않는다.
+
 ## DB 적용 상태
 
-- SQLAlchemy 모델에는 매칭·채팅·차단·신고·개인 선호·합의안 테이블이 등록되어 있다.
+- SQLAlchemy 모델에는 매칭·채팅·차단·신고·개인 선호·합의안·일정 승인 테이블이 등록되어 있다.
 - `20260908_add_trip_user_preferences.py`에는 개인 선호와 합의안 테이블 migration이 작성되어 있다.
+- `20260915_add_trip_approvals.py`에는 일정 revision과 승인 이력 테이블 migration이 작성되어 있다.
+- `20260915_add_trip_crud.py`에는 여행 취소 필드와 진행 중 여행 중복 방지 인덱스 migration이 작성되어 있다.
 - 이 문서 작성 작업에서는 실제 PostgreSQL에 migration을 실행하지 않았다.
 - DB 담당자가 관리하는 최신 revision과 연결한 뒤 적용해야 한다.
 - 애플리케이션 코드는 테이블이 실제 DB에 존재한다는 전제로 동작한다.
@@ -547,8 +585,10 @@ POST /api/trips/{tripId}/preferences/proposals
 6. 채팅방 진입 후 마지막 message sequence를 `PUT /read`에 보낸다.
 7. 두 사용자가 개인 선호를 저장한 뒤 비교 결과를 확인한다.
 8. 합의안을 제안하고 상대가 수락하면 관광지·일정 단계로 이동한다.
-9. 종료된 채팅은 과거 메시지만 보여주고 입력창을 비활성화한다.
-10. 숨김·차단 후에는 해당 항목을 현재 사용자 화면에서 제거한다.
+9. 내 여행 화면에서 완료·취소된 동행과 새 여행을 만들고, 진행 중 여행의 제목·지역·기간을 수정하거나 소프트 취소한다.
+10. 생성·수정·취소 WebSocket 이벤트를 받으면 여행 목록과 현재 여행 데이터를 다시 조회한다.
+11. 종료된 채팅은 과거 메시지만 보여주고 입력창을 비활성화한다.
+12. 숨김·차단 후에는 해당 항목을 현재 사용자 화면에서 제거한다.
 
 ## 검증 체크리스트
 
@@ -561,6 +601,8 @@ POST /api/trips/{tripId}/preferences/proposals
 - [x] 숨긴 채팅 목록·직접 접근 차단
 - [x] 매칭 종료·차단 후 메시지 전송 차단
 - [x] 합의안 본인 수락·중복 응답 차단
+- [x] 일정 양쪽 승인·수정 요청·재생성 시 승인 무효화
+- [x] 여행 직접 생성·부분 수정·소프트 취소·진행 중 여행 중복 차단
 - [x] 프론트 TypeScript production build
 - [ ] 실제 PostgreSQL migration 적용 확인
 - [ ] 배포 환경 다중 worker Redis Pub/Sub 적용
@@ -581,6 +623,8 @@ POST /api/trips/{tripId}/preferences/proposals
 | `app/routers/communication.py` | 매칭 요청·종료·차단 API |
 | `app/routers/decision.py` | 개인 선호·비교·합의 API |
 | `app/services/decision_service.py` | 사용자별 선호 비교·합의 반영 |
+| `app/services/trip_service.py` | 여행 생성·부분 수정·소프트 취소 |
+| `app/routers/trips.py` | 여행 목록·단건·생성·수정·취소 API |
 | `src/shared/realtime/socketBus.ts` | 프론트 공용 WebSocket 연결 |
 | `src/pages/matches/index.tsx` | 추천 후보·받은 요청·보낸 요청 |
 | `src/pages/chat/index.tsx` | 채팅·삭제·신고·종료·숨김·차단 UI |

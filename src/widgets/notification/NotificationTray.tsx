@@ -12,6 +12,12 @@ const ICONS: Record<AppNotification['type'], string> = {
   'report.reviewed': '🛡️',
   'account.sanctioned': '⚠️',
   'sanction.released': '✅',
+  'trip.created': '🧳',
+  'trip.updated': '📍',
+  'trip.cancelled': '🗑️',
+  'itinerary.approved': '🗓️',
+  'itinerary.change_requested': '✏️',
+  'itinerary.confirmed': '✅',
 };
 
 export function NotificationTray() {

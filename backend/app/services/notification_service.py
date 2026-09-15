@@ -17,6 +17,12 @@ MATCH_ENDED = "match.ended"
 REPORT_REVIEWED = "report.reviewed"
 ACCOUNT_SANCTIONED = "account.sanctioned"
 SANCTION_RELEASED = "sanction.released"
+ITINERARY_APPROVED = "itinerary.approved"
+ITINERARY_CHANGE_REQUESTED = "itinerary.change_requested"
+ITINERARY_CONFIRMED = "itinerary.confirmed"
+TRIP_CREATED = "trip.created"
+TRIP_UPDATED = "trip.updated"
+TRIP_CANCELLED = "trip.cancelled"
 
 
 def _now() -> datetime:

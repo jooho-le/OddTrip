@@ -1,4 +1,4 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripApprovalAction, TripApprovalState, TripCancelResult, TripCreateInput, TripSummary, TripUpdateInput, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
 import type { ConsentDecision } from '../../consent/api/consentService';
 
@@ -28,6 +28,10 @@ export interface OddtripService {
   getTtiResult(): Promise<ApiResponse<TtiResult | null>>;
   getMatches(): Promise<ApiResponse<MatchCandidate[]>>;
   getTrips(): Promise<ApiResponse<TripSummary[]>>;
+  getTrip(tripId: string): Promise<ApiResponse<TripSummary>>;
+  createTrip(input: TripCreateInput): Promise<ApiResponse<TripSummary>>;
+  updateTrip(tripId: string, input: TripUpdateInput): Promise<ApiResponse<TripSummary>>;
+  cancelTrip(tripId: string): Promise<ApiResponse<TripCancelResult>>;
   getPreferences(tripId: string): Promise<ApiResponse<JointPreference>>;
   savePreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<JointPreference>>;
   saveMyPreferences(tripId: string, preferences: JointPreference): Promise<ApiResponse<{ userId: string; preferences: JointPreference; updatedAt?: string }>>;
@@ -42,6 +46,8 @@ export interface OddtripService {
   toggleAttraction(tripId: string, attractionId: string, patch: Partial<Pick<Attraction, 'saved' | 'excluded'>>): Promise<ApiResponse<Attraction>>;
   getItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
   generateItinerary(tripId: string): Promise<ApiResponse<ItineraryDay[]>>;
+  getApproval(tripId: string): Promise<ApiResponse<TripApprovalState>>;
+  respondApproval(tripId: string, action: TripApprovalAction, comment?: string): Promise<ApiResponse<TripApprovalState>>;
   getSafetyAlerts(tripId: string): Promise<ApiResponse<SafetyAlert[]>>;
   updateProfile(input: { nickname?: string; homeRegion?: string; avatarUrl?: string }): Promise<ApiResponse<UserProfile>>;
 }
@@ -117,6 +123,22 @@ export const oddtripService: OddtripService = {
 
   getTrips() {
     return request<TripSummary[]>('/api/trips', { auth: true });
+  },
+
+  getTrip(tripId) {
+    return request<TripSummary>(`/api/trips/${tripId}`, { auth: true });
+  },
+
+  createTrip(input) {
+    return request<TripSummary>('/api/trips', { method: 'POST', auth: true, body: input });
+  },
+
+  updateTrip(tripId, input) {
+    return request<TripSummary>(`/api/trips/${tripId}`, { method: 'PATCH', auth: true, body: input });
+  },
+
+  cancelTrip(tripId) {
+    return request<TripCancelResult>(`/api/trips/${tripId}`, { method: 'DELETE', auth: true });
   },
 
   getPreferences(tripId) {
@@ -221,6 +243,18 @@ export const oddtripService: OddtripService = {
     });
   },
 
+  getApproval(tripId) {
+    return request<TripApprovalState>(`/api/trips/${tripId}/approval`, { auth: true });
+  },
+
+  respondApproval(tripId, action, comment) {
+    return request<TripApprovalState>(`/api/trips/${tripId}/approval/me`, {
+      method: 'PUT',
+      auth: true,
+      body: { action, comment }
+    });
+  },
+
   getSafetyAlerts(tripId) {
     return request<SafetyAlert[]>(`/api/trips/${tripId}/safety`, { auth: true });
   },
@@ -233,7 +267,7 @@ export const oddtripService: OddtripService = {
 async function request<T>(
   path: string,
   options: {
-    method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
     auth?: boolean;
     userId?: string;

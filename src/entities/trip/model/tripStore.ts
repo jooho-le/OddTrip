@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripSummary, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunResponse, Attraction, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripApprovalAction, TripApprovalState, TripCreateInput, TripSummary, TripUpdateInput, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { oddtripService } from '../api/oddtripService';
 import { ApiError } from '../../../shared/api/client';
 import { useNotificationStore } from '../../notification/model/notificationStore';
@@ -25,6 +25,7 @@ interface TripState {
   attractions: Attraction[];
   agentRun?: AgentRunResponse;
   itinerary: ItineraryDay[];
+  approval?: TripApprovalState;
   alerts: SafetyAlert[];
   decisionSuggestion?: string;
   status: Record<string, Status>;
@@ -40,6 +41,9 @@ interface TripState {
   loadResult: () => Promise<void>;
   loadTripHistory: () => Promise<void>;
   openTrip: (tripId: string) => Promise<void>;
+  createTrip: (input: TripCreateInput) => Promise<TripSummary | undefined>;
+  updateTrip: (tripId: string, input: TripUpdateInput) => Promise<boolean>;
+  cancelTrip: (tripId: string) => Promise<boolean>;
   loadMatches: () => Promise<void>;
   selectMatch: (id: string) => void;
   ensureTrip: () => Promise<string | undefined>;
@@ -54,6 +58,8 @@ interface TripState {
   toggleAttraction: (id: string, key: 'saved' | 'excluded') => Promise<void>;
   loadItinerary: () => Promise<void>;
   regenerateItinerary: () => Promise<void>;
+  loadApproval: () => Promise<void>;
+  respondApproval: (action: TripApprovalAction, comment?: string) => Promise<boolean>;
   loadAlerts: () => Promise<void>;
   updateProfile: (input: { nickname?: string; homeRegion?: string; avatarUrl?: string }) => Promise<boolean>;
 }
@@ -86,6 +92,7 @@ function clearedSession(): Partial<TripState> {
       attractions: [],
       agentRun: undefined,
       itinerary: [],
+      approval: undefined,
       alerts: [],
       decisionSuggestion: undefined,
       status: {},
@@ -102,6 +109,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   preferenceProposals: [],
   attractions: [],
   itinerary: [],
+  approval: undefined,
   alerts: [],
   tripHistory: [],
   status: {},
@@ -226,6 +234,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         attractions: [],
         agentRun: undefined,
         itinerary: [],
+        approval: undefined,
         alerts: [],
         decisionSuggestion: undefined,
         status: {
@@ -274,6 +283,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       activeTripId: tripId,
       attractions: [],
       itinerary: [],
+      approval: undefined,
       alerts: [],
       agentRun: undefined,
       decisionSuggestion: undefined,
@@ -282,12 +292,13 @@ export const useTripStore = create<TripState>((set, get) => ({
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary, preferences, pair, proposals] = await Promise.all([
+      const [attractions, itinerary, preferences, pair, proposals, approval] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
         oddtripService.getPreferences(tripId),
         oddtripService.getPairPreferences(tripId),
         oddtripService.getPreferenceProposals(tripId),
+        oddtripService.getApproval(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
@@ -295,10 +306,95 @@ export const useTripStore = create<TripState>((set, get) => ({
         preferences: pair.data.mine?.preferences ?? preferences.data,
         pairPreferences: pair.data,
         preferenceProposals: proposals.data,
+        approval: approval.data,
         status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
     } catch {
       set({ error: '여행을 여는 데 실패했습니다.' });
+    }
+  },
+  async createTrip(input) {
+    set((state) => ({ status: { ...state.status, tripMutation: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.createTrip(input);
+      set((state) => ({
+        activeTripId: response.data.tripId,
+        tripHistory: [response.data, ...state.tripHistory.filter((trip) => trip.tripId !== response.data.tripId)],
+        preferences: initialPreferences,
+        pairPreferences: undefined,
+        preferenceProposals: [],
+        attractions: [],
+        itinerary: [],
+        approval: undefined,
+        alerts: [],
+        agentRun: undefined,
+        decisionSuggestion: undefined,
+        status: { ...state.status, tripMutation: 'success', trip: 'success', attractions: 'idle', itinerary: 'idle', approval: 'idle', alerts: 'idle' },
+      }));
+      return response.data;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '새 여행을 만들지 못했습니다.', status: { ...state.status, tripMutation: 'error' } }));
+      return undefined;
+    }
+  },
+  async updateTrip(tripId, input) {
+    set((state) => ({ status: { ...state.status, tripMutation: 'loading' }, error: undefined }));
+    try {
+      const previous = get().tripHistory.find((trip) => trip.tripId === tripId);
+      const response = await oddtripService.updateTrip(tripId, input);
+      const itineraryInvalidated = Boolean(previous && (
+        (input.region !== undefined && input.region !== previous.region)
+        || (input.startDate !== undefined && input.startDate !== previous.startDate)
+        || (input.endDate !== undefined && input.endDate !== previous.endDate)
+      ));
+      set((state) => ({
+        tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? response.data : trip),
+        itinerary: state.activeTripId === tripId && itineraryInvalidated ? [] : state.itinerary,
+        approval: state.activeTripId === tripId && itineraryInvalidated ? undefined : state.approval,
+        alerts: state.activeTripId === tripId && itineraryInvalidated ? [] : state.alerts,
+        status: {
+          ...state.status,
+          tripMutation: 'success',
+          itinerary: itineraryInvalidated ? 'idle' : state.status.itinerary,
+          approval: itineraryInvalidated ? 'idle' : state.status.approval,
+          alerts: itineraryInvalidated ? 'idle' : state.status.alerts,
+        },
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '여행 정보를 수정하지 못했습니다.', status: { ...state.status, tripMutation: 'error' } }));
+      return false;
+    }
+  },
+  async cancelTrip(tripId) {
+    set((state) => ({ status: { ...state.status, tripMutation: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.cancelTrip(tripId);
+      set((state) => ({
+        activeTripId: state.activeTripId === tripId ? undefined : state.activeTripId,
+        tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? {
+          ...trip,
+          status: response.data.status,
+          cancelledAt: response.data.cancelledAt,
+          cancelledBy: response.data.cancelledBy,
+        } : trip),
+        ...(state.activeTripId === tripId ? {
+          preferences: initialPreferences,
+          pairPreferences: undefined,
+          preferenceProposals: [],
+          attractions: [],
+          itinerary: [],
+          approval: undefined,
+          alerts: [],
+          agentRun: undefined,
+          decisionSuggestion: undefined,
+        } : {}),
+        status: { ...state.status, tripMutation: 'success', trip: state.activeTripId === tripId ? 'idle' : state.status.trip },
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '여행을 취소하지 못했습니다.', status: { ...state.status, tripMutation: 'error' } }));
+      return false;
     }
   },
   async loadMatches() {
@@ -528,7 +624,10 @@ export const useTripStore = create<TripState>((set, get) => ({
   async loadItinerary() {
     const current = get();
     if (current.status.itinerary === 'loading') return;
-    if (current.itinerary.length) return;
+    if (current.itinerary.length) {
+      if (!current.approval) await get().loadApproval();
+      return;
+    }
 
     set((state) => ({ status: { ...state.status, itinerary: 'loading' } }));
     try {
@@ -541,7 +640,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       if (!response.data.length) {
         response = await oddtripService.generateItinerary(tripId);
       }
-      set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
+      const approval = await oddtripService.getApproval(tripId);
+      set((state) => ({ itinerary: response.data, approval: approval.data, status: { ...state.status, itinerary: 'success', approval: 'success' } }));
     } catch {
       set((state) => ({ error: '일정을 생성하지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
     }
@@ -557,9 +657,47 @@ export const useTripStore = create<TripState>((set, get) => ({
         return;
       }
       const response = await oddtripService.generateItinerary(tripId);
-      set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
+      const approval = await oddtripService.getApproval(tripId);
+      set((state) => ({
+        itinerary: response.data,
+        approval: approval.data,
+        tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? { ...trip, status: approval.data.tripStatus } : trip),
+        status: { ...state.status, itinerary: 'success', approval: 'success' }
+      }));
     } catch {
       set((state) => ({ error: '일정을 다시 만들지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
+    }
+  },
+  async loadApproval() {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return;
+    set((state) => ({ status: { ...state.status, approval: 'loading' } }));
+    try {
+      const response = await oddtripService.getApproval(tripId);
+      set((state) => ({
+        approval: response.data,
+        tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? { ...trip, status: response.data.tripStatus } : trip),
+        status: { ...state.status, approval: 'success' },
+      }));
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '일정 승인 상태를 불러오지 못했습니다.', status: { ...state.status, approval: 'error' } }));
+    }
+  },
+  async respondApproval(action, comment) {
+    const tripId = get().activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, approval: 'loading' }, error: undefined }));
+    try {
+      const response = await oddtripService.respondApproval(tripId, action, comment);
+      set((state) => ({
+        approval: response.data,
+        tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? { ...trip, status: response.data.tripStatus } : trip),
+        status: { ...state.status, approval: 'success' },
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({ error: error instanceof Error ? error.message : '일정 승인 응답을 저장하지 못했습니다.', status: { ...state.status, approval: 'error' } }));
+      return false;
     }
   },
   async loadAlerts() {

@@ -28,6 +28,8 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
     trip = await db.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="여행 정보를 찾을 수 없습니다.")
+    if trip.status in ("completed", "cancelled"):
+        raise HTTPException(status_code=409, detail="종료되거나 취소된 여행의 일정은 변경할 수 없습니다.")
 
     match = await db.get(Match, trip.match_id)
     if not match:
@@ -58,7 +60,7 @@ async def generate_itinerary(db: AsyncSession, trip_id: str) -> list[ItineraryDa
         preferences=trip.preferences_json or {},
     )
 
-    await _save_raw_itinerary(db, trip_id, raw)
+    await _save_raw_itinerary(db, trip, raw)
     return await get_itinerary(db, trip_id)
 
 
@@ -132,6 +134,7 @@ async def _generate_planner_itinerary(
         )
     )
 
+    await _begin_new_revision(db, trip)
     await _delete_existing_days(db, trip_id)
 
     for planned_day in planned_days:
@@ -166,8 +169,10 @@ async def _generate_planner_itinerary(
     await db.commit()
 
 
-async def _save_raw_itinerary(db: AsyncSession, trip_id: str, raw: list[dict]) -> None:
+async def _save_raw_itinerary(db: AsyncSession, trip: Trip, raw: list[dict]) -> None:
     """Persist the OpenAI fallback itinerary, which carries no place ids."""
+    trip_id = trip.id
+    await _begin_new_revision(db, trip)
     await _delete_existing_days(db, trip_id)
 
     for day_data in raw:
@@ -196,6 +201,16 @@ async def _save_raw_itinerary(db: AsyncSession, trip_id: str, raw: list[dict]) -
             ))
 
     await db.commit()
+
+
+async def _begin_new_revision(db: AsyncSession, trip: Trip) -> None:
+    """Invalidate responses before replacing the itinerary in this transaction."""
+    trip.itinerary_revision = (trip.itinerary_revision or 0) + 1
+    # A confirmed trip becomes a draft again as soon as its approved schedule
+    # changes. Older responses stay as an audit trail, while approval reads only
+    # consider rows whose revision matches the current itinerary.
+    trip.status = "planning"
+    await db.flush()
 
 
 async def _delete_existing_days(db: AsyncSession, trip_id: str) -> None:
@@ -245,5 +260,3 @@ def _to_day_out(
             )
         )
     return sorted(days.values(), key=lambda d: d.day)
-
-

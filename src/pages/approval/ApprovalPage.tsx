@@ -1,18 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function ApprovalPage() {
-  const { itinerary } = useTripStore();
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const { itinerary, approval, status, loadApproval, respondApproval } = useTripStore();
+  const showInfo = useUiNoticeStore((state) => state.showInfo);
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
-    showComingSoon('일정 승인', '양쪽 일정 승인과 수정 요청은 현재 준비 중인 기능입니다. 지금은 생성된 일정을 확인할 수 있습니다.');
-  }, [showComingSoon]);
+    void loadApproval();
+  }, [loadApproval]);
 
-  const explain = () => showComingSoon('일정 승인', '양쪽 일정 승인과 수정 요청은 현재 준비 중인 기능입니다. 지금은 생성된 일정을 확인할 수 있습니다.');
+  const submit = async (action: 'approve' | 'change_request') => {
+    const success = await respondApproval(action, comment || undefined);
+    if (success) showInfo(action === 'approve' ? '일정을 승인했습니다.' : '수정 요청을 보냈습니다.', action === 'approve' ? '동행의 승인 상태와 함께 저장됐습니다.' : '동행이 요청 내용을 확인할 수 있습니다.');
+  };
 
   return (
     <TripWorkspaceShell active="schedule">
@@ -29,8 +33,11 @@ export function ApprovalPage() {
           <div className="approval-box">
             <div className="side-head">승인 작업 <span>함께 확인</span></div>
             <div className="approval-body">
-              <button className="line-btn" style={{ width: '100%' }} type="button" onClick={explain}>수정 요청</button>
-              <button className="solid-btn" style={{ width: '100%', marginTop: 8 }} type="button" onClick={explain}>일정 승인</button>
+              <p>{approval?.mine.nickname ?? '나'} · {approvalStatusText(approval?.mine.status)}</p>
+              <p>{approval?.counterpart.nickname ?? '동행'} · {approvalStatusText(approval?.counterpart.status)}</p>
+              <textarea maxLength={500} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="수정 요청 사유" />
+              <button className="line-btn" style={{ width: '100%' }} type="button" disabled={!comment.trim() || status.approval === 'loading'} onClick={() => void submit('change_request')}>수정 요청</button>
+              <button className="solid-btn" style={{ width: '100%', marginTop: 8 }} type="button" disabled={!itinerary.length || status.approval === 'loading'} onClick={() => void submit('approve')}>일정 승인</button>
             </div>
           </div>
           <Link className="line-btn" style={{ display: 'block', textAlign: 'center' }} to="/trip/schedule">일정으로 돌아가기</Link>
@@ -38,4 +45,10 @@ export function ApprovalPage() {
       </div>
     </TripWorkspaceShell>
   );
+}
+
+function approvalStatusText(status?: string) {
+  if (status === 'approved') return '승인 완료';
+  if (status === 'change_requested') return '수정 요청';
+  return '검토 전';
 }

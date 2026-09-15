@@ -83,4 +83,8 @@ export type ChatSocketEvent =
   | { event: 'match.ended'; data: { matchId: string; roomId: string | null; status: string; endedAt: string } }
   | { event: 'user.blocked'; data: { matchId: string } }
   | { event: 'notification.created'; data: AppNotification }
+  | { event: 'trip.created'; data: { tripId: string; status: string } }
+  | { event: 'trip.updated'; data: { tripId: string; status: string; itineraryInvalidated: boolean } }
+  | { event: 'trip.cancelled'; data: { tripId: string; status: string } }
+  | { event: 'itinerary.approval_updated'; data: { tripId: string; itineraryRevision: number; tripStatus: string } }
   | { event: 'pong'; data?: undefined };
