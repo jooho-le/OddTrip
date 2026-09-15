@@ -445,37 +445,36 @@ OddTrip/
 └─ tests/                플래너 단위 테스트
 ```
 
-## 📱 구현 — 프론트엔드 화면 구성 (매칭 후)
+## 📱 구현 — 프론트엔드 화면과 라우트
 
-매칭 성사 이후의 채팅·공동 조율·AI 추천·일정·승인·안전 플로우는 `front` 브랜치에서 구현한다. 화면은 `src/pages` 아래 도메인별 폴더로 구성하며, 색상·타이포그래피·컴포넌트는 공통 디자인 시스템(`shared/ui`) 토큰을 따른다.
+`front`는 `0562bbe`의 문서형 설문, 여행 커버·탭, 우측 채팅 드로어를 디자인 기준으로 유지한다. 기능 계약은 `origin/dev@5739957`을 기준으로 프론트 코드만 선별 반영했다.
 
-| 도메인 | 페이지 | 주요 구성 |
+| 접근 | 라우트 | 현재 동작 |
 | :-- | :-- | :-- |
-| **Chat** | `ChatListPage`, `ChatRoomPage` | 채팅방 목록(프로필·최근 메시지·안읽음), 상단 정보(TTI 유형·반대도·신고/차단), 텍스트/이미지/장소·일정 공유, 시스템 메시지, 조율 퀵 액션, 채팅 투표, 조율 카드 |
-| **Decision** | `DecisionHomePage`, `Step1SelectPage`, `WaitingPage`, `Step2AnalysisPage`, `Step3ConcessionPage`, `Step4OddRulePage` | 공동 조율 진행률, 1단계 각자 독립 선택(장소·활동·음식·운영), 상대 제출 대기, 2단계 차이 분석, 3단계 양보 범위 설정, 4단계 Odd Rule 선택 |
-| **AI Proposal** | `ProposalListPage`, `ProposalComparePage`, `ProposalDetailPage` | AI 조율안 생성 중 상태, 균형형/도전형/안정형 목록, 반영률·일정강도 비교, 조율안 상세(추천 관광지·예상 일정·투표) |
-| **Attractions** | `AttractionListPage`, `AttractionDetailPage` | 공통/개별 성향 반영 관광지 목록, 카드(저장·제외·채팅 공유·투표), 상세(운영시간·날씨·두 사람 점수) |
-| **Itinerary** | `ItineraryPage`, `ItineraryDetailPage` | 일차별 일정, 지도 동선, 이동/체류 시간, 날씨·추천 근거, 장소 상세와 변경 요청 |
-| **Approval** | `ApprovalPage` | 승인 요청 알림, 내/상대 검토 상태, 수정 요청(활동량·이동량·예산·장소 변경), 수정안 재생성, 양쪽 승인 완료 |
-| **Safety** | `SafetyPage` | 여행지 날씨, 재난·안전 알림, 우천 대체 일정, 안전 정보 공유 |
-| **My Trip (일부)** | `ChatHistoryPage`, `OngoingTripPage`, `PastTripPage`, `SavedAttractionsPage` | 진행 중/종료된 채팅, 진행 중 여행(조율 진행률·AI 조율안·승인 대기), 지난 여행, 저장한 관광지 |
+| 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
+| 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈, 매칭 후보·요청, 여행 목록, 프로필·동의 조회/철회·회원 탈퇴. |
+| 여행 | `/trip/:tab` | `overview`, `coordination`, `places`, `schedule` 탭. 개인 선호, 상대 제출 상태, 합의안 제안·응답, 장소 저장·제외, 일정 생성과 안전 정보 조회를 연결한다. |
+| 조사서 | `/survey/:key` | TTI와 독립 선호는 저장한다. 양보 범위·Odd Rule·일정 승인은 정보 구조만 제공하며 제출 시 준비 중 안내를 표시한다. |
+| 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
+| 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
+| 관리자 준비 | `/admin/attractions`, `/admin/tti`, `/admin/operations` | 기존 정보 구조를 유지한다. 진입 시 세션당 한 번 예시 데이터임을 알리고, 미지원 조작은 준비 중 안내만 표시한다. |
 
-> 매칭 전 영역(Landing·Auth·TTI·Matching·Match Request·My Trip 일부)은 별도 담당으로 분리되어 있으며, 이 표는 `front` 브랜치에서 진행하는 매칭 후 화면 범위만을 정리한 것이다.
+공통 API 상태는 로딩·빈 결과·오류·재시도로 구분한다. 액세스 토큰 만료 시 refresh를 한 번 수행하고 실패하면 세션을 비운 뒤 로그인 화면으로 이동한다. 정적/예시 화면은 상시 배지 대신 안내 팝업을 사용하며 출처를 검증할 수 없는 외부 정보는 `출처 미제공`으로 표시한다.
 
 ## 🔌 구현 — API 구성
 
-라우터별 책임을 분리해 9개 그룹으로 구성. 모든 보호 라우트는 `Bearer` 토큰 검증과 Trip 소유권 체크를 거친다.
+프론트가 현재 호출하는 주요 계약은 다음과 같다. 모든 보호 요청은 `Bearer` 액세스 토큰을 사용한다.
 
 | Router | 역할 |
 | :-- | :-- |
-| `/api/auth` | 회원가입, 로그인, 내 정보 |
-| `/api/users` | 사용자 관련 (개발용) |
-| `/api/tti` | 성향 진단 질문, 결과(4차원 벡터) 계산 |
-| `/api/matches` | 반대 성향 매칭 후보·수락 |
-| `/api/decision` | 공동 선호 조율·저장 |
-| `/api/attractions` | 관광지 조회·생성·랭킹 |
-| `/api/agent` | AI 여행 에이전트 실행 |
-| `/api/itinerary` | 일정 조회·생성(플래너 파이프라인) |
-| `/api/safety` | 날씨·재난 안전 정보 |
+| `/api/auth` | 회원가입(동의 포함), 로그인, refresh, logout, 내 정보 |
+| `/api/me/consents` | 현재 동의·이력 조회, 매칭 프로필/안전수칙 동의, 마케팅 철회 |
+| `/api/users/me` | 프로필 수정, 회원 탈퇴 |
+| `/api/tti` | 질문, 계산, 저장 결과 조회 |
+| `/api/matches`, `/api/match-requests` | 후보 조회와 요청 생성·수락·거절·취소·종료·숨김 |
+| `/api/chat` | 방·메시지·읽음·신고·차단, 채팅/알림 WebSocket 이벤트 |
+| `/api/notifications` | 목록, 안 읽음 수, 개별·전체 읽음 처리 |
+| `/api/trips` | 여행 목록, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정, 안전 정보 |
+| `/api/admin` | 통계, 회원·동의·제재, 여행, 신고 목록·상세·검토 |
 
-> 🔗 전체 명세는 **[Swagger API Docs](https://oddtrip.onrender.com/docs)** 에서 확인할 수 있다.
+Trip 직접 생성·수정·삭제, SMS 본인인증, 일정 양쪽 승인, D-1·모바일 Push, 관광지·TTI·운영 관리자 API는 아직 프론트에서 성공 상태를 만들지 않는다. 상세 후속 계약과 검증 조건은 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
