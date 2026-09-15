@@ -46,7 +46,13 @@ class MatchRequestOut(CommunicationModel):
     expires_at: datetime | None = None
     responded_at: datetime | None = None
     created_at: datetime
+    requester: UserOut
+    receiver: UserOut
     counterpart: UserOut | None = None
+    match_level: str
+    recommendation_score: int
+    differences: list[str] = Field(default_factory=list)
+    complements: list[str] = Field(default_factory=list)
 
 
 class MatchAcceptOut(CommunicationModel):
@@ -54,6 +60,7 @@ class MatchAcceptOut(CommunicationModel):
     match_id: str
     room_id: str
     trip_id: str
+    user_ids: list[str]
 
 
 class MatchEndOut(CommunicationModel):

@@ -41,6 +41,7 @@ OddTrip은 단순히 비슷한 사람을 추천하는 앱이 아닙니다. 사�
   - [🗄️ 구현 — 데이터 모델](#️-구현--데이터-모델)
   - [🧰 구현 — 기술 스택](#-구현--기술-스택)
   - [📂 구현 — 폴더 구조](#-구현--폴더-구조)
+  - [📱 구현 — 프론트엔드 화면 구성 (매칭 후)](#-구현--프론트엔드-화면-구성-매칭-후)
   - [🔌 구현 — API 구성](#-구현--api-구성)
 
 <br/>
@@ -422,17 +423,17 @@ SQLAlchemy Async ORM으로 매핑하고, 스키마 변경은 **Alembic** 마이�
 
 ```txt
 OddTrip/
-├─ src/                  # Frontend (React + TypeScript)
+├─ src/                  # 프론트엔드(React + TypeScript)
 │  ├─ app/               앱 라우팅과 공통 레이아웃
 │  ├─ pages/             화면 단위 페이지
-│  ├─ components/        여러 화면에서 쓰는 컴포넌트
-│  ├─ entities/          Zustand 전역 상태
-│  ├─ services/          백엔드 API 호출 계층
-│  ├─ shared/            공통 UI와 유틸
+│  ├─ widgets/           전역 내비게이션과 앱 공통 위젯
+│  ├─ features/          알림과 지도 등 사용자 기능
+│  ├─ entities/          도메인 API와 Zustand 상태
+│  ├─ shared/            공통 API 클라이언트, UI, 도우미 함수
 │  ├─ styles/            전역 스타일
 │  └─ types/             도메인 타입
 │
-├─ backend/              # Backend (FastAPI)
+├─ backend/              # 백엔드(FastAPI)
 │  └─ app/
 │     ├─ routers/        FastAPI 라우터
 │     ├─ services/       비즈니스 로직
@@ -444,20 +445,37 @@ OddTrip/
 └─ tests/                플래너 단위 테스트
 ```
 
+## 📱 구현 — 프론트엔드 화면과 라우트
+
+`front`는 `0562bbe`의 문서형 설문, 여행 커버·탭, 우측 채팅 드로어를 디자인 기준으로 유지한다. 기능 계약은 `origin/dev@5739957`을 기준으로 프론트 코드만 선별 반영했다.
+
+| 접근 | 라우트 | 현재 동작 |
+| :-- | :-- | :-- |
+| 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
+| 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈, 매칭 후보·요청, 여행 목록, 프로필·동의 조회/철회·회원 탈퇴. 홈의 `최근 기록`은 실제 여행 목록을 최신 순으로 보여주고, `일정 일치`는 현재 여행 기간과 받은/보낸 요청 기간을 프론트에서 비교한다. `/verification`, `/settings/notifications`, `/help`에서 본인확인 준비 상태, 인앱·마케팅 알림 설정, 이용 안내를 제공한다. |
+| 여행 | `/trip/:tab` | `overview`, `coordination`, `places`, `schedule` 탭. 개인 선호, 상대 제출 상태, 합의안 제안·응답, 장소 저장·제외, 일정 생성과 안전 정보 조회를 연결한다. 장소의 `내 성향`·`동행 성향`·`반대 성향 체험`은 서버가 제공한 TTI·개인 선호·추천 장소 속성 안에서만 필터링하며 별도 저장 상태를 만들지 않는다. `/trips/new`, `/trip/settings`는 직접 CRUD 계약 전까지 입력 검증과 준비 중 안내만 제공한다. |
+| 일정 | `/trip/schedule/map`, `/survey/approval` | 저장된 일정 순서·좌표 가용성을 경로 문서로 표시하고, 일정 버전·참여자별 승인 구조를 제공한다. 지도 렌더링과 승인/수정 요청은 서버 계약이 없어 준비 중 안내만 표시한다. |
+| 조사서 | `/survey/:key` | TTI와 독립 선호는 저장한다. 양보 범위·Odd Rule은 정보 구조만 제공하며 제출 시 준비 중 안내를 표시한다. |
+| 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
+| 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 운영자 로그인은 `/admin`으로 바로 이동하고 일반 회원용 보호 화면 접근도 관리 콘솔로 되돌린다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
+| 관리자 준비 | `/admin/attractions`, `/admin/tti`, `/admin/operations` | 관광지 예시 목록은 검색·분류·상세 열람을 제공하고 TTI 질문 목록은 실제 질문 API를 읽어 축별로 필터링한다. 관광지 추가·편집, TTI 요약·버전·편집, 운영 상태는 진입 시 세션당 한 번 예시 데이터임을 알리며 미지원 조작은 준비 중 안내만 표시한다. |
+
+공통 API 상태는 로딩·빈 결과·오류·재시도로 구분한다. 액세스 토큰 만료 시 refresh를 한 번 수행하고 실패하면 세션을 비운 뒤 로그인 화면으로 이동한다. 정적/예시 화면은 상시 배지 대신 안내 팝업을 사용하며 출처를 검증할 수 없는 외부 정보는 `출처 미제공`으로 표시한다.
+
 ## 🔌 구현 — API 구성
 
-라우터별 책임을 분리해 9개 그룹으로 구성. 모든 보호 라우트는 `Bearer` 토큰 검증과 Trip 소유권 체크를 거친다.
+프론트가 현재 호출하는 주요 계약은 다음과 같다. 모든 보호 요청은 `Bearer` 액세스 토큰을 사용한다.
 
 | Router | 역할 |
 | :-- | :-- |
-| `/api/auth` | 회원가입, 로그인, 내 정보 |
-| `/api/users` | 사용자 관련 (개발용) |
-| `/api/tti` | 성향 진단 질문, 결과(4차원 벡터) 계산 |
-| `/api/matches` | 반대 성향 매칭 후보·수락 |
-| `/api/decision` | 공동 선호 조율·저장 |
-| `/api/attractions` | 관광지 조회·생성·랭킹 |
-| `/api/agent` | AI 여행 에이전트 실행 |
-| `/api/itinerary` | 일정 조회·생성(플래너 파이프라인) |
-| `/api/safety` | 날씨·재난 안전 정보 |
+| `/api/auth` | 회원가입(동의 포함), 로그인, refresh, logout, 내 정보 |
+| `/api/me/consents` | 현재 동의·이력 조회, 매칭 프로필/안전수칙 동의, 마케팅 철회 |
+| `/api/users/me` | 프로필 수정, 회원 탈퇴 |
+| `/api/tti` | 질문, 계산, 저장 결과 조회 |
+| `/api/matches`, `/api/match-requests` | 후보 조회와 요청 생성·수락·거절·취소·종료·숨김 |
+| `/api/chat` | 방·메시지·읽음·신고·차단, 채팅/알림 WebSocket 이벤트 |
+| `/api/notifications` | 목록, 안 읽음 수, 개별·전체 읽음 처리 |
+| `/api/trips` | 여행 목록, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정, 안전 정보 |
+| `/api/admin` | 통계, 회원·동의·제재, 여행, 신고 목록·상세·검토 |
 
-> 🔗 전체 명세는 **[Swagger API Docs](https://oddtrip.onrender.com/docs)** 에서 확인할 수 있다.
+Trip 직접 생성·수정·삭제, SMS 본인인증, 일정 양쪽 승인, 실제 지도 렌더링, D-1·모바일 Push, 관광지·TTI 편집·운영 관리자 API는 대응 화면은 갖추었지만 성공 상태를 만들지 않는다. 상세 후속 계약과 검증 조건은 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.

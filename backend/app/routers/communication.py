@@ -11,6 +11,7 @@ from ..services import communication_service
 request_router = APIRouter()
 match_router = APIRouter()
 user_router = APIRouter()
+me_router = APIRouter()
 
 
 @request_router.post("", response_model=dict)
@@ -68,7 +69,7 @@ async def accept_match_request(
     data, match = await communication_service.accept_match_request(db, request_id, user)
     await chat_connection_manager.send_to_users(
         {match.user_id, match.matched_user_id},
-        {"event": "room.created", "data": data.model_dump(by_alias=True, mode="json")},
+        {"event": "chat.room_created", "data": data.model_dump(by_alias=True, mode="json")},
     )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
@@ -109,6 +110,16 @@ async def end_match(
 
 @match_router.delete("/{match_id}", response_model=dict)
 async def hide_match(
+    match_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    state = await communication_service.hide_match(db, match_id, user.id)
+    return {"data": {"matchId": state.match_id, "hiddenAt": state.hidden_at}, "error": None}
+
+
+@me_router.delete("/matches/{match_id}", response_model=dict)
+async def hide_my_match(
     match_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
