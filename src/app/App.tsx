@@ -30,8 +30,15 @@ import { AttractionsPage as AdminAttractionsPage } from '../admin/pages/Attracti
 import { TtiPage } from '../admin/pages/TtiPage';
 import { OperationsPage } from '../admin/pages/OperationsPage';
 import { ReportsPage } from '../admin/pages/ReportsPage';
+import { NewTripPage, TripSettingsPage } from '../pages/trip-management';
+import { VerificationPage } from '../pages/verification';
+import { NotificationSettingsPage } from '../pages/notification-settings';
+import { HelpPage } from '../pages/help';
+import { ScheduleMapPage } from '../pages/schedule-map';
+import { ScheduleApprovalPage } from '../pages/schedule-approval';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
+import { landingPathForRole } from './roleRoutes';
 
 type RouteState = { backgroundLocation?: Location };
 
@@ -95,10 +102,17 @@ function AppRoutes() {
           <Route path="/matches/:id" element={<MatchingProfileConsentGate><MateDetailPage /></MatchingProfileConsentGate>} />
           <Route path="/my" element={<MyTripsPage />} />
           <Route path="/my/*" element={<Navigate to="/my" replace />} />
+          <Route path="/trips/new" element={<NewTripPage />} />
           <Route path="/trip" element={<Navigate to="/trip/overview" replace />} />
+          <Route path="/trip/settings" element={<TripSettingsPage />} />
+          <Route path="/trip/schedule/map" element={<ScheduleMapPage />} />
           <Route path="/trip/:tab" element={<TripWorkspacePage />} />
+          <Route path="/survey/approval" element={<ScheduleApprovalPage />} />
           <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
+          <Route path="/verification" element={<VerificationPage />} />
+          <Route path="/help" element={<HelpPage />} />
 
           <Route path="/chat" element={<ChatListPage />} />
           <Route path="/chat/:roomId" element={<HomePage />} />
@@ -120,7 +134,7 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {chatRoomId && user && localStorage.getItem('oddtrip.authToken')
+      {chatRoomId && user?.role !== 'admin' && localStorage.getItem('oddtrip.authToken')
         ? <PrototypeChatDrawer roomId={chatRoomId} closeTo={closeChatTo} />
         : null}
     </>
@@ -132,7 +146,7 @@ function RootRoute() {
   const status = useTripStore((state) => state.status.user);
   const hasToken = Boolean(localStorage.getItem('oddtrip.authToken'));
   if (hasToken && !user && status !== 'error') return <RouteGateLoading />;
-  return user && hasToken ? <Navigate to="/home" replace /> : <IntroLandingPage />;
+  return user && hasToken ? <Navigate to={landingPathForRole(user.role)} replace /> : <IntroLandingPage />;
 }
 
 function ScrollToTop() {
@@ -155,6 +169,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to={expired ? '/auth?expired=1' : '/auth'} replace />;
   }
   if (!user) return <Navigate to="/auth" replace />;
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 

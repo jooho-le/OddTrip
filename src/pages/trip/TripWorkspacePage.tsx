@@ -9,7 +9,8 @@ import {
   PROFILE_FALLBACKS,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
-import type { Attraction, TripSummary, UserProfile } from '../../types';
+import type { Attraction, ItineraryItem, TripSummary, UserProfile } from '../../types';
+import { filterAttractions, oppositeTtiCode, type PlaceFilter } from './placeFilters';
 
 const TABS = [
   ['overview', '개요'],
@@ -40,6 +41,7 @@ export function TripWorkspacePage() {
     <main className="page">
       <div className="container">
         <section className="trip-cover">
+          <button type="button" className="trip-settings-link" onClick={() => navigate('/trip/settings')}>여행 설정</button>
           <div className="trip-cover-copy">
             <span className="eyebrow" style={{ color: '#ffb39f' }}>CURRENT TRIP · {(trip.region ?? 'ODDTRIP').toUpperCase()}</span>
             <h1>{tripTitle(trip, user?.nickname)}</h1>
@@ -229,7 +231,7 @@ function CoordinationTab({ trip, user }: { trip: TripSummary; user?: UserProfile
           {incomingProposal ? <article className="proposal"><strong>도착한 합의안</strong><p>{preferenceSummary(incomingProposal.preferences)}</p><dl><dt>일정 강도</dt><dd>{incomingProposal.preferences.pace}</dd><dt>예산 기준</dt><dd>{incomingProposal.preferences.budget}</dd><dt>상태</dt><dd>응답 필요</dd></dl><div className="button-row" style={{ marginTop: 14 }}><button type="button" className="line-btn" disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'reject')}>거절</button><button type="button" className="solid-btn" disabled={status.proposal === 'loading'} onClick={() => void respondPreferenceProposal(incomingProposal.id, 'accept')}>수락</button></div></article> : null}
           {pairPreferences?.agreed ? <article className="proposal"><strong>합의 완료</strong><p>{preferenceSummary(pairPreferences.agreed)}</p><dl><dt>일정 강도</dt><dd>{pairPreferences.agreed.pace}</dd><dt>예산 기준</dt><dd>{pairPreferences.agreed.budget}</dd><dt>상태</dt><dd>확정</dd></dl><button type="button" className="solid-btn" style={{ width: '100%', marginTop: 14 }} onClick={() => navigate('/trip/places')}>여행지 추천 보기</button></article> : null}
         </div>
-        {decisionSuggestion ? <div className="detail-note"><h3>AI 조정 제안</h3><p>{decisionSuggestion}</p></div> : null}
+        {decisionSuggestion ? <div className="detail-note"><h3>AI 조정 제안</h3><p>{decisionSuggestion}</p><button type="button" className="line-btn" style={{ marginTop: 12 }} onClick={() => useUiNoticeStore.getState().showComingSoon('AI 조정 제안 확정', '제안을 두 사람의 합의안으로 확정하는 API가 준비되기 전까지 현재 합의 상태는 변경하지 않습니다.')}>이 제안 반영</button></div> : null}
       </section>
     </>
   );
@@ -240,11 +242,23 @@ function preferenceSummary(preferences: ReturnType<typeof useTripStore.getState>
 }
 
 function PlacesTab() {
-  const { attractions, status, error, loadAttractions, toggleAttraction, regenerateItinerary } = useTripStore();
+  const {
+    user,
+    activeTripId,
+    tripHistory,
+    preferences,
+    pairPreferences,
+    attractions,
+    status,
+    error,
+    loadAttractions,
+    toggleAttraction,
+    regenerateItinerary,
+  } = useTripStore();
   const navigate = useNavigate();
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-  const [filter, setFilter] = useState<'all' | 'saved'>('all');
+  const [filter, setFilter] = useState<PlaceFilter>('all');
+  const [votePlace, setVotePlace] = useState<Attraction | null>(null);
 
   useEffect(() => { void loadAttractions(); }, [loadAttractions]);
   useEffect(() => {
@@ -253,7 +267,24 @@ function PlacesTab() {
     }
   }, [attractions, showDemoOnce]);
 
-  const visible = filter === 'saved' ? attractions.filter((item) => item.saved) : attractions;
+  const trip = tripHistory.find((item) => item.tripId === activeTripId)
+    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const counterpartPreferences = pairPreferences?.counterpart?.preferences;
+  const visible = filterAttractions({
+    attractions,
+    filter,
+    mine: preferences,
+    counterpart: counterpartPreferences,
+    mineTtiCode: user?.ttiCode,
+    counterpartTtiCode: trip?.partner?.ttiCode,
+  });
+  const filterDescription = {
+    all: '현재 여행의 실제 추천 결과와 저장 상태를 확인합니다.',
+    saved: '두 사람이 함께 저장한 실제 장소만 모아봅니다.',
+    mine: `${user?.ttiCode ?? '내 선호'}와 내가 제출한 선택에 가까운 장소를 골라 보여줍니다.`,
+    partner: `${trip?.partner?.nickname ?? '동행'}의 ${trip?.partner?.ttiCode ?? '제출 선호'}에 가까운 장소를 골라 보여줍니다.`,
+    opposite: `${oppositeTtiCode(user?.ttiCode) ?? '반대 성향'}에 가까운 장소를 골라 평소와 다른 여행을 살펴봅니다.`,
+  }[filter];
 
   const buildItinerary = async () => {
     await regenerateItinerary();
@@ -262,37 +293,58 @@ function PlacesTab() {
 
   return (
     <>
-      <div className="section-title"><h2>추천 여행지</h2><p>현재 여행의 실제 추천 결과와 저장 상태를 확인합니다.</p></div>
-      <div className="place-tabs">
-        <button type="button" className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>전체</button>
-        <button type="button" className={filter === 'saved' ? 'on' : ''} onClick={() => setFilter('saved')}>공통 선호</button>
-        <button type="button" onClick={() => showComingSoon('개인별 여행지 필터')}>내 성향</button>
-        <button type="button" onClick={() => showComingSoon('동행 성향 필터')}>동행 성향</button>
-        <button type="button" onClick={() => showComingSoon('반대 성향 체험 필터')}>반대 성향 체험</button>
+      <div className="section-title"><h2>추천 여행지</h2><p>{filterDescription}</p></div>
+      <div className="place-tabs" role="tablist" aria-label="추천 여행지 필터">
+        {([
+          ['all', '전체'],
+          ['saved', '공통 선호'],
+          ['mine', '내 성향'],
+          ['partner', '동행 성향'],
+          ['opposite', '반대 성향 체험'],
+        ] as const).map(([key, label]) => (
+          <button type="button" role="tab" aria-selected={filter === key} className={filter === key ? 'on' : ''} onClick={() => setFilter(key)} key={key}>{label}</button>
+        ))}
       </div>
       {error && status.attractions === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadAttractions()}>다시 시도</button></div> : null}
       {status.attractions === 'loading' && !attractions.length ? <LoadingCards /> : null}
       <section className="place-grid">
-        {visible.map((place, index) => <PlaceCard place={place} index={index} onToggle={() => void toggleAttraction(place.id, 'saved')} onVote={() => showComingSoon('장소 개인 투표', '현재 백엔드는 여행별 장소 저장과 제외만 지원합니다. 개인별 일정 투표는 저장하지 않습니다.')} key={place.id} />)}
+        {visible.map((place) => <PlaceCard place={place} onToggle={() => void toggleAttraction(place.id, 'saved')} onVote={() => setVotePlace(place)} key={place.id} />)}
       </section>
-      {status.attractions === 'success' && !visible.length ? <div className="empty-state"><strong>{filter === 'saved' ? '저장한 여행지가 없습니다.' : '추천 여행지가 없습니다.'}</strong><p>{filter === 'saved' ? '전체 탭에서 여행지를 저장해 주세요.' : '공동 선호를 작성한 뒤 다시 시도해 주세요.'}</p></div> : null}
+      {status.attractions === 'success' && !visible.length ? <PlaceFilterEmpty filter={filter} partnerName={trip?.partner?.nickname} /> : null}
       <div className="workflow-cta">
         <p><b>장소 선택을 마쳤나요?</b>저장된 장소와 현재 추천 결과를 바탕으로 공동 일정을 만듭니다.</p>
         <button type="button" className="solid-btn" disabled={!attractions.length || status.itinerary === 'loading'} onClick={() => void buildItinerary()}>{status.itinerary === 'loading' ? '일정 만드는 중…' : '선택한 장소로 일정 만들기'}</button>
       </div>
+      {votePlace ? <PlaceVoteDialog place={votePlace} onClose={() => setVotePlace(null)} /> : null}
     </>
   );
 }
 
-function PlaceCard({ place, index, onToggle, onVote }: { place: Attraction; index: number; onToggle: () => void; onVote: () => void }) {
+function PlaceFilterEmpty({ filter, partnerName }: { filter: PlaceFilter; partnerName?: string }) {
+  const content: Record<PlaceFilter, [string, string]> = {
+    all: ['추천 여행지가 없습니다.', '공동 선호를 작성한 뒤 다시 시도해 주세요.'],
+    saved: ['함께 저장한 여행지가 없습니다.', '전체 탭에서 두 사람이 원하는 장소를 저장해 주세요.'],
+    mine: ['내 성향에 맞는 장소를 찾지 못했습니다.', 'TTI 또는 독립 선택을 작성하면 현재 추천 결과 안에서 다시 찾아봅니다.'],
+    partner: [`${partnerName ?? '동행'}의 성향 정보가 아직 부족합니다.`, '상대가 독립 선택을 제출하면 현재 추천 결과 안에서 가까운 장소를 보여줍니다.'],
+    opposite: ['반대 성향으로 분류할 장소가 없습니다.', 'TTI 작성 후 추천 장소가 늘어나면 평소와 다른 후보를 보여줍니다.'],
+  };
+  return <div className="empty-state"><strong>{content[filter][0]}</strong><p>{content[filter][1]}</p></div>;
+}
+
+function PlaceCard({ place, onToggle, onVote }: { place: Attraction; onToggle: () => void; onVote: () => void }) {
+  const demoSource = isDemoSource(place.source);
   const source = place.source && !isDemoSource(place.source) ? `출처 · ${place.source}` : '출처 미제공';
+  const reason = demoSource ? `${place.category} 추천 후보` : place.reason ?? place.category;
+  const description = demoSource
+    ? '현재 여행에서 두 사람이 함께 검토할 장소 후보입니다.'
+    : place.description ?? place.addr1 ?? '상세 설명이 제공되지 않았습니다.';
   return (
     <article className="place-card">
-      <img src={place.imageUrl ?? imageUrl(PLACE_IMAGE_FALLBACKS[index % PLACE_IMAGE_FALLBACKS.length], 600)} alt="" />
+      <img src={place.imageUrl ?? imageUrl(PLACE_IMAGE_FALLBACKS[stablePlaceImageIndex(place.id)], 600)} alt="" />
       <div className="place-card-body">
-        <small>{place.reason ?? place.category}</small>
+        <small>{reason}</small>
         <h3>{place.name}</h3>
-        <p>{place.description ?? place.addr1 ?? '상세 설명이 제공되지 않았습니다.'}<br />{source}</p>
+        <p>{description}<br />{source}</p>
         <div className="score-row">
           <div><b>{score(place.hiddenScore)}</b><span>숨은곳</span></div>
           <div><b>{score(place.congestionScore)}</b><span>혼잡도</span></div>
@@ -304,11 +356,48 @@ function PlaceCard({ place, index, onToggle, onVote }: { place: Attraction; inde
   );
 }
 
+function PlaceVoteDialog({ place, onClose }: { place: Attraction; onClose: () => void }) {
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const [vote, setVote] = useState<'want' | 'neutral' | 'skip' | ''>('');
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [onClose]);
+
+  const submit = () => {
+    if (!vote) return;
+    onClose();
+    showComingSoon('장소 개인 투표', '선택한 의견은 서버에 전송하거나 여행의 저장 상태를 변경하지 않았습니다. 사용자별 투표 API가 연결되면 이 화면에서 제출할 수 있습니다.');
+  };
+
+  return (
+    <div className="ui-notice-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="place-vote-dialog" role="dialog" aria-modal="true" aria-labelledby="place-vote-title">
+        <div className="place-vote-head"><span className="eyebrow">PRIVATE PLACE VOTE</span><button type="button" aria-label="닫기" onClick={onClose}>×</button></div>
+        <h2 id="place-vote-title">{place.name}</h2>
+        <p>이 장소를 공동 일정에 넣는 것에 대한 내 의견을 선택합니다. 상대의 응답과 합산되기 전까지 비공개로 처리되는 화면입니다.</p>
+        <div className="place-vote-options">
+          {([
+            ['want', '꼭 가고 싶어요', '내 핵심 선호로 표시'],
+            ['neutral', '함께 가도 좋아요', '상대 선택을 수용'],
+            ['skip', '이번에는 제외하고 싶어요', '다른 후보를 요청'],
+          ] as const).map(([value, label, detail]) => (
+            <button type="button" className={vote === value ? 'selected' : ''} onClick={() => setVote(value)} key={value}><b>{vote === value ? '✓' : '□'} {label}</b><span>{detail}</span></button>
+          ))}
+        </div>
+        <div className="planning-actions"><button type="button" className="line-btn" onClick={onClose}>취소</button><button type="button" className="solid-btn" disabled={!vote} onClick={submit}>내 의견 제출</button></div>
+      </section>
+    </div>
+  );
+}
+
 function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) {
   const { itinerary, alerts, status, error, loadItinerary, loadAlerts } = useTripStore();
   const navigate = useNavigate();
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
   const [selectedDay, setSelectedDay] = useState(1);
+  const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
 
   useEffect(() => {
     void loadItinerary();
@@ -321,18 +410,19 @@ function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
   const day = itinerary.find((item) => item.day === selectedDay) ?? itinerary[0];
 
   return (
+    <>
     <div className="schedule-grid">
       <section>
         <div className="section-title"><h2>공동 일정</h2><p>{itinerary.length ? '승인과 안전 정보도 일정 안에서 확인합니다.' : '장소 선택을 마치면 이 미리보기로 공동 일정이 생성됩니다.'}</p></div>
         <div className="day-tabs">
           {itinerary.map((item) => <button type="button" className={item.day === selectedDay ? 'on' : ''} onClick={() => setSelectedDay(item.day)} key={item.day}>{item.day}일차</button>)}
-          <button type="button" onClick={() => showComingSoon('지도·동선', '일정 장소를 지도와 이동 경로로 연결하는 화면을 준비하고 있습니다.')}>지도·동선</button>
+          <button type="button" onClick={() => navigate('/trip/schedule/map')}>지도·동선</button>
         </div>
         {error && status.itinerary === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadItinerary()}>다시 시도</button></div> : null}
         {status.itinerary === 'loading' && !itinerary.length ? <LoadingSchedule /> : null}
         <div className="day-list">
           {day?.items.map((item) => (
-            <div className="schedule-row" key={item.id}><time>{item.time}</time><span className="route-dot" /><div className="schedule-copy"><h3>{item.title}</h3><p>{item.description || item.location}</p><small>{[item.duration, item.moveTime ? `이동 ${item.moveTime}` : '', item.aiReason].filter(Boolean).join(' · ')}</small></div></div>
+            <div className="schedule-row" key={item.id}><time>{item.time}</time><span className="route-dot" /><div className="schedule-copy"><h3>{item.title}</h3><p>{item.description || item.location}</p><small>{[item.duration, item.moveTime ? `이동 ${item.moveTime}` : '', item.aiReason].filter(Boolean).join(' · ')}</small><button type="button" className="text-btn accent schedule-detail-link" onClick={() => setSelectedItem(item)}>항목 검토 →</button></div></div>
           ))}
         </div>
         {status.itinerary === 'success' && !itinerary.length ? <div className="empty-state"><strong>생성된 일정이 없습니다.</strong><p>여행지 탭에서 장소를 확인한 뒤 일정을 만들어 주세요.</p><button className="solid-btn" onClick={() => navigate('/trip/places')}>여행지로 이동</button></div> : null}
@@ -356,6 +446,41 @@ function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
         </div>
       </aside>
     </div>
+    {selectedItem ? <ScheduleItemDrawer item={selectedItem} onClose={() => setSelectedItem(null)} /> : null}
+    </>
+  );
+}
+
+function ScheduleItemDrawer({ item, onClose }: { item: ItineraryItem; onClose: () => void }) {
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const [request, setRequest] = useState('');
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [onClose]);
+
+  const submit = () => {
+    onClose();
+    showComingSoon('일정 항목 수정 요청', '시간·장소 수정 요청 API가 준비되기 전까지 작성한 요청은 서버에 저장되지 않고 일정도 변경되지 않습니다.');
+  };
+
+  return (
+    <>
+      <button type="button" className="scrim" aria-label="일정 항목 닫기" onClick={onClose} />
+      <aside className="drawer schedule-item-drawer" role="dialog" aria-modal="true" aria-labelledby="schedule-item-title">
+        <div className="drawer-head"><h2 id="schedule-item-title">일정 항목 검토</h2><button type="button" aria-label="닫기" onClick={onClose}>×</button></div>
+        <div className="schedule-item-cover"><span className="eyebrow">SCHEDULE ITEM</span><strong>{item.time}</strong><p>{item.type.toUpperCase()}</p></div>
+        <div className="schedule-item-body">
+          <h3>{item.title}</h3>
+          <p>{item.description || '설명 미제공'}</p>
+          <dl><div><dt>장소</dt><dd>{item.location || '위치 미제공'}</dd></div><div><dt>소요시간</dt><dd>{item.duration || '미제공'}</dd></div><div><dt>이동</dt><dd>{item.moveTime || '미제공'}</dd></div><div><dt>추천 근거</dt><dd>{item.aiReason || '미제공'}</dd></div></dl>
+          <label className="document-field"><span>수정 요청 메모</span><textarea value={request} onChange={(event) => setRequest(event.target.value)} maxLength={1000} placeholder="바꾸고 싶은 시간·장소와 이유를 적어주세요." /></label>
+          <button type="button" className="solid-btn" onClick={submit}>수정 요청 보내기</button>
+        </div>
+      </aside>
+    </>
   );
 }
 
@@ -400,8 +525,13 @@ function score(value?: number | null) {
   return value == null ? '—' : Math.round(value);
 }
 
+function stablePlaceImageIndex(id: string) {
+  const hash = [...id].reduce((sum, character) => ((sum * 31) + character.charCodeAt(0)) >>> 0, 0);
+  return hash % PLACE_IMAGE_FALLBACKS.length;
+}
+
 function isDemoSource(source?: string | null) {
-  return Boolean(source && /(?:^|[-_\s])(demo|mock|fallback|static)(?:$|[-_\s])/i.test(source));
+  return Boolean(source && /(?:^|[-_\s])(demo|mock|fallback|fixture|static)(?:$|[-_\s])/i.test(source));
 }
 
 function hasPreferenceInput(preferences: ReturnType<typeof useTripStore.getState>['preferences']) {

@@ -19,8 +19,9 @@ export function MyTripsPage() {
     <main className="page">
       <div className="container">
         <header className="page-heading">
-          <h1>내 여행</h1>
+          <div><span className="eyebrow">TRIP ARCHIVE</span><h1>내 여행</h1></div>
           <p>진행 중인 여행과 지난 여행만 모아봅니다.</p>
+          <button type="button" className="solid-btn page-heading-action" onClick={() => navigate('/trips/new')}>새 여행 설계</button>
         </header>
         {error && status.tripHistory === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadTripHistory()}>다시 시도</button></div> : null}
         <section className="trip-list">

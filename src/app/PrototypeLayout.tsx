@@ -5,6 +5,7 @@ import { useTripStore } from '../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../features/prototype/designContent';
 import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
 import { NotificationTray } from '../widgets/notification/NotificationTray';
+import { BottomTabs } from '../widgets/navigation/BottomTabs';
 
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
@@ -24,7 +25,6 @@ export function PrototypeLayout() {
   const loadUnreadCount = useChatStore((state) => state.loadUnreadCount);
   const connectSocket = useChatStore((state) => state.connectSocket);
   const disconnectSocket = useChatStore((state) => state.disconnectSocket);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
   const showInfo = useUiNoticeStore((state) => state.showInfo);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function PrototypeLayout() {
         <div className="utility-bar">
           <div className="utility-inner">
             <Link className="intro-return" to="/about">OddTrip 소개</Link>
-            <button type="button" className="intro-return" onClick={() => showComingSoon('도움말')}>도움말</button>
+            <Link className="intro-return" to="/help">도움말</Link>
             <button type="button" className="intro-return" onClick={signOut}>로그아웃</button>
           </div>
         </div>
@@ -121,10 +121,12 @@ export function PrototypeLayout() {
         </div>
         <div className="footer-bottom">© 2026 OddTrip. All rights reserved.</div>
       </footer>
+      <BottomTabs />
 
       <div className={profileOpen ? 'profile-menu' : 'profile-menu hidden'} onClick={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => navigate('/my')}>내 여행</button>
         <button type="button" onClick={() => navigate('/survey/tti')}>여행 성향 다시 진단</button>
+        <button type="button" onClick={() => navigate('/settings/notifications')}>알림 설정</button>
         <button type="button" onClick={() => navigate('/settings')}>계정 설정</button>
         <button type="button" onClick={signOut}>로그아웃</button>
       </div>

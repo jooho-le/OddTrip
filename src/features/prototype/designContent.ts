@@ -29,7 +29,7 @@ export const TRIP_IMAGE_FALLBACKS = [
 ] as const;
 
 export const PLACE_IMAGE_FALLBACKS = [
-  'photo-1538485399081-7c89757c343f',
+  'photo-1528127269322-539801943592',
   'photo-1504674900247-0877df9cc836',
   'photo-1544550285-f813152fb2fd',
 ] as const;

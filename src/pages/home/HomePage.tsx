@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useMatchRequestStore } from '../../entities/match-request/model/matchRequestStore';
 import { useNotificationStore } from '../../entities/notification/model/notificationStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import {
@@ -7,15 +8,18 @@ import {
   imageUrl,
   PROFILE_FALLBACKS,
 } from '../../features/prototype/designContent';
-import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { formatRelativeTime } from '../../shared/lib/formatDate';
+import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { subscribeRealtime } from '../../shared/realtime/socketBus';
 import type { MatchCandidate, TripSummary } from '../../types';
+import { selectScheduleRequests, sortTripsByRecent, type DatedMatchRequest, type HomeFeedTab } from './homeFeed';
 
 const coverImage = imageUrl('photo-1507525428034-b723cf961d3e', 1600, 90);
 
 export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [feedTab, setFeedTab] = useState<HomeFeedTab>('recommended');
   const {
     user,
     activeTripId,
@@ -34,17 +38,28 @@ export function HomePage() {
   const notificationUnread = useNotificationStore((state) => state.unreadCount);
   const loadNotifications = useNotificationStore((state) => state.load);
   const markNotificationRead = useNotificationStore((state) => state.markRead);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const receivedRequests = useMatchRequestStore((state) => state.received);
+  const sentRequests = useMatchRequestStore((state) => state.sent);
+  const requestStatus = useMatchRequestStore((state) => state.status);
+  const requestError = useMatchRequestStore((state) => state.error);
+  const loadRequests = useMatchRequestStore((state) => state.load);
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   useEffect(() => {
     void loadTripHistory();
     void loadNotifications();
+    void loadRequests();
     if (user?.ttiCode) void loadMatches();
     if (location.pathname === '/home') {
       showDemoOnce('home-fallback-images', '프로필이나 여행 이미지가 등록되지 않은 경우 디자인 원본의 대체 이미지를 사용합니다. 동행·여행·알림 정보는 서버 응답을 사용합니다.');
     }
-  }, [loadTripHistory, loadNotifications, loadMatches, showDemoOnce, user?.ttiCode, location.pathname]);
+  }, [loadTripHistory, loadNotifications, loadRequests, loadMatches, showDemoOnce, user?.ttiCode, location.pathname]);
+
+  useEffect(() => subscribeRealtime((event) => {
+    if (event.event === 'match_request.created' || event.event === 'match_request.updated' || event.event === 'chat.room_created') {
+      void loadRequests();
+    }
+  }), [loadRequests]);
 
   const activeTrip = tripHistory.find((trip) => !['completed', 'cancelled'].includes(trip.status));
 
@@ -57,6 +72,13 @@ export function HomePage() {
   const preferenceDone = hasPreferenceInput(preferences);
   const stage = activeTrip ? tripStage(activeTrip) : '동행 찾는 중';
   const pending = Number(!user?.ttiCode) + Number(Boolean(activeTrip && !preferenceDone));
+  const recentTrips = sortTripsByRecent(tripHistory);
+  const scheduleRequests = selectScheduleRequests(receivedRequests, sentRequests, activeTrip);
+  const feedHeading = {
+    recommended: ['새로운 동행 기록', '동행 전 상대의 여행 방식을 살펴보세요.', '/matches'],
+    recent: ['최근 여행 기록', '진행 중인 여행과 지난 여행을 최신 순서로 확인하세요.', '/my'],
+    schedule: ['일정이 겹치는 요청', activeTrip?.startDate && activeTrip?.endDate ? '현재 여행 기간과 겹치는 동행 요청입니다.' : '다가오는 동행 요청을 여행 날짜 순서로 확인하세요.', '/matches?tab=received'],
+  }[feedTab];
 
   const openActiveTrip = async () => {
     if (!activeTrip) {
@@ -88,34 +110,62 @@ export function HomePage() {
           <section>
             <div className="home-feed" style={{ marginTop: 0 }}>
               <div className="section-title">
-                <h2>새로운 동행 기록</h2>
-                <p>동행 전 상대의 여행 방식을 살펴보세요.</p>
-                <Link className="text-btn right" to="/matches">전체 보기 →</Link>
+                <h2>{feedHeading[0]}</h2>
+                <p>{feedHeading[1]}</p>
+                <Link className="text-btn right" to={feedHeading[2]}>전체 보기 →</Link>
               </div>
-              <div className="feed-tabs">
-                <button type="button" className="on">추천 기록</button>
-                <button type="button" onClick={() => showComingSoon('최근 기록 필터')}>최근 기록</button>
-                <button type="button" onClick={() => showComingSoon('일정 일치 필터')}>일정 일치</button>
+              <div className="feed-tabs" role="tablist" aria-label="홈 기록 필터">
+                <button type="button" role="tab" aria-selected={feedTab === 'recommended'} className={feedTab === 'recommended' ? 'on' : ''} onClick={() => setFeedTab('recommended')}>추천 기록</button>
+                <button type="button" role="tab" aria-selected={feedTab === 'recent'} className={feedTab === 'recent' ? 'on' : ''} onClick={() => setFeedTab('recent')}>최근 기록</button>
+                <button type="button" role="tab" aria-selected={feedTab === 'schedule'} className={feedTab === 'schedule' ? 'on' : ''} onClick={() => setFeedTab('schedule')}>일정 일치</button>
               </div>
               <div>
-                {status.matches === 'loading' && !matches.length ? <LoadingFeed /> : null}
-                {matches.slice(0, 3).map((candidate, index) => <CandidateRecord candidate={candidate} index={index} key={candidate.id} />)}
-                {matchesConsentRequired ? (
+                {feedTab === 'recommended' && status.matches === 'loading' && !matches.length ? <LoadingFeed label="동행 기록을 불러오는 중" /> : null}
+                {feedTab === 'recommended' ? matches.slice(0, 3).map((candidate, index) => <CandidateRecord candidate={candidate} index={index} key={candidate.id} />) : null}
+                {feedTab === 'recommended' && matchesConsentRequired ? (
                   <div className="empty-state">
                     <strong>동행 후보를 보려면 매칭 동의가 필요합니다.</strong>
                     <p>프로필 공개 범위와 안전 이용수칙을 확인하면 후보를 불러옵니다.</p>
                     <Link className="solid-btn" to="/matches">확인하고 시작하기</Link>
                   </div>
                 ) : null}
-                {!matchesConsentRequired && status.matches === 'success' && !matches.length ? (
+                {feedTab === 'recommended' && !matchesConsentRequired && status.matches === 'success' && !matches.length ? (
                   <div className="empty-state">
                     <strong>{user?.ttiCode ? '현재 추천할 동행 기록이 없습니다.' : '여행 성향 조사가 먼저 필요합니다.'}</strong>
                     <p>{user?.ttiCode ? '새로운 후보가 생기면 이곳에서 바로 확인할 수 있습니다.' : '조사 결과가 저장되면 실제 매칭 후보를 불러옵니다.'}</p>
                     <Link className="solid-btn" to={user?.ttiCode ? '/matches' : '/survey/tti'}>{user?.ttiCode ? '동행 찾기' : '조사서 작성'}</Link>
                   </div>
                 ) : null}
-                {error && status.matches === 'error' ? (
+                {feedTab === 'recommended' && error && status.matches === 'error' ? (
                   <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadMatches()}>다시 시도</button></div>
+                ) : null}
+
+                {feedTab === 'recent' && status.tripHistory === 'loading' && !tripHistory.length ? <LoadingFeed label="여행 기록을 불러오는 중" /> : null}
+                {feedTab === 'recent' ? recentTrips.slice(0, 4).map((trip, index) => (
+                  <TripHistoryRecord
+                    trip={trip}
+                    index={index}
+                    key={trip.tripId}
+                    onOpen={async () => {
+                      await openTrip(trip.tripId);
+                      navigate('/trip/overview');
+                    }}
+                  />
+                )) : null}
+                {feedTab === 'recent' && status.tripHistory === 'success' && !recentTrips.length ? (
+                  <div className="empty-state"><strong>아직 여행 기록이 없습니다.</strong><p>동행 요청이 수락되면 만들어지는 여행 공간을 이곳에서 바로 이어갈 수 있습니다.</p><Link className="solid-btn" to="/matches">동행 찾기</Link></div>
+                ) : null}
+                {feedTab === 'recent' && error && status.tripHistory === 'error' ? (
+                  <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadTripHistory()}>다시 시도</button></div>
+                ) : null}
+
+                {feedTab === 'schedule' && requestStatus === 'loading' && !receivedRequests.length && !sentRequests.length ? <LoadingFeed label="동행 요청 일정을 불러오는 중" /> : null}
+                {feedTab === 'schedule' ? scheduleRequests.slice(0, 4).map((item, index) => <ScheduleRequestRecord item={item} index={index} key={item.request.id} />) : null}
+                {feedTab === 'schedule' && requestStatus === 'success' && !scheduleRequests.length ? (
+                  <div className="empty-state"><strong>{activeTrip?.startDate && activeTrip?.endDate ? '현재 여행과 일정이 겹치는 요청이 없습니다.' : '다가오는 동행 요청이 없습니다.'}</strong><p>받거나 보낸 요청에 여행 날짜가 생기면 여기에서 겹치는 일정을 모아볼 수 있습니다.</p><Link className="solid-btn" to="/matches">동행 요청 확인</Link></div>
+                ) : null}
+                {feedTab === 'schedule' && requestStatus === 'error' ? (
+                  <div className="error-strip" role="alert"><span>{requestError ?? '동행 요청을 불러오지 못했습니다.'}</span><button onClick={() => void loadRequests()}>다시 시도</button></div>
                 ) : null}
               </div>
             </div>
@@ -192,10 +242,60 @@ function CandidateRecord({ candidate, index }: { candidate: MatchCandidate; inde
         <h3>{candidate.nickname}의 여행 방식</h3>
         <p>{candidate.summary}</p>
         <div className="feed-tags">{candidate.complements.slice(0, 3).map((tag) => <span className="tag" key={tag}>{tag}</span>)}</div>
-        <Link className="text-btn accent" to={`/matches/${candidate.id}`} style={{ marginTop: 11, display: 'inline-block' }}>여행 기록 더 보기 →</Link>
+        <Link className="text-btn accent" to={`/matches/${candidate.id}`} style={{ marginTop: 11, display: 'inline-block' }}>후보 자세히 보기 →</Link>
       </div>
       <div className="feed-thumbs" aria-hidden="true">
         {thumbs.map((photo) => <span key={photo} style={{ backgroundImage: `url('${imageUrl(photo, 220, 72)}')` }} />)}
+      </div>
+    </article>
+  );
+}
+
+function TripHistoryRecord({ trip, index, onOpen }: { trip: TripSummary; index: number; onOpen: () => Promise<void> }) {
+  const fallback = PROFILE_FALLBACKS[(index + 1) % PROFILE_FALLBACKS.length];
+  const thumbs = FEED_THUMB_FALLBACKS[index % FEED_THUMB_FALLBACKS.length];
+  return (
+    <article className="feed-row">
+      <div className="feed-person">
+        <img className="avatar" src={trip.partner?.avatarUrl ?? imageUrl(fallback, 120)} alt="" />
+        <b>{trip.partner?.nickname ?? '동행'}</b>
+        <span>{tripStatusLabel(trip)}</span>
+      </div>
+      <div className="feed-copy">
+        <small>{dateRange(trip.startDate, trip.endDate)} · {trip.region ?? '지역 미정'}</small>
+        <h3>{tripTitle(trip)}</h3>
+        <p>{trip.attractionCount}개 장소 · {trip.savedCount}개 저장 · {trip.itineraryDayCount}일 일정</p>
+        <button className="text-btn accent" type="button" style={{ marginTop: 11 }} onClick={() => void onOpen()}>{trip.status === 'completed' ? '기록 열어보기' : '여행 이어가기'} →</button>
+      </div>
+      <div className="feed-thumbs" aria-hidden="true">
+        {thumbs.map((photo) => <span key={photo} style={{ backgroundImage: `url('${imageUrl(photo, 220, 72)}')` }} />)}
+      </div>
+    </article>
+  );
+}
+
+function ScheduleRequestRecord({ item, index }: { item: DatedMatchRequest; index: number }) {
+  const { request, direction } = item;
+  const fallback = PROFILE_FALLBACKS[(index + 2) % PROFILE_FALLBACKS.length];
+  const counterpart = request.counterpart ?? (direction === 'received' ? request.requester : request.receiver);
+  return (
+    <article className="feed-row request-feed-row">
+      <div className="feed-person">
+        <img className="avatar" src={counterpart.avatarUrl ?? imageUrl(fallback, 120)} alt="" />
+        <b>{counterpart.nickname}</b>
+        <span>{direction === 'received' ? '받은 요청' : '보낸 요청'}</span>
+      </div>
+      <div className="feed-copy">
+        <small>{request.region} · {dateRange(request.startDate, request.endDate)}</small>
+        <h3>{counterpart.nickname}님과 맞춰볼 여행</h3>
+        <p>{request.greetingMessage || '인사 메시지가 없습니다.'}</p>
+        <div className="trip-feed-facts"><span>{requestStatusLabel(request.status)}</span><span>{request.matchLevel} {request.recommendationScore}%</span></div>
+        <Link className="text-btn accent" to={`/matches?tab=${direction}`} style={{ marginTop: 11, display: 'inline-block' }}>요청 확인하기 →</Link>
+      </div>
+      <div className="request-feed-date" aria-label={`${request.startDate}부터 ${request.endDate}까지`}>
+        <small>{formatMonth(request.startDate)}</small>
+        <strong>{formatDay(request.startDate)}</strong>
+        <span>— {formatDay(request.endDate)}</span>
       </div>
     </article>
   );
@@ -220,8 +320,30 @@ function ProfileImage({ src, name, index }: { src?: string | null; name: string;
   return <img className="avatar" src={src ?? imageUrl(PROFILE_FALLBACKS[index % PROFILE_FALLBACKS.length], 120)} alt={`${name} 프로필`} />;
 }
 
-function LoadingFeed() {
-  return <div className="skeleton-stack" role="status" aria-label="동행 기록을 불러오는 중">{[0, 1].map((item) => <div className="skeleton-row" key={item} />)}</div>;
+function LoadingFeed({ label }: { label: string }) {
+  return <div className="skeleton-stack" role="status" aria-label={label}>{[0, 1].map((item) => <div className="skeleton-row" key={item} />)}</div>;
+}
+
+function tripStatusLabel(trip: TripSummary) {
+  if (trip.status === 'completed') return '여행 완료';
+  if (trip.status === 'cancelled') return '취소됨';
+  if (trip.itineraryDayCount > 0) return '일정 확인';
+  if (trip.attractionCount > 0 || trip.savedCount > 0) return '여행지 선택';
+  return '조율 중';
+}
+
+function requestStatusLabel(status: DatedMatchRequest['request']['status']) {
+  return ({ pending: '응답 대기', accepted: '수락됨', rejected: '거절됨', cancelled: '취소됨', expired: '만료됨' } as const)[status];
+}
+
+function formatMonth(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '일정' : date.toLocaleDateString('ko-KR', { month: 'short' }).replace('.', '');
+}
+
+function formatDay(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : String(date.getDate()).padStart(2, '0');
 }
 
 function tripStage(trip: TripSummary) {

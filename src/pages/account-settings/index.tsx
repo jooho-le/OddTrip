@@ -109,6 +109,14 @@ export function AccountSettingsPage() {
 
         <ConsentSettings />
 
+        <section className="settings-links">
+          <div className="section-title"><h2>보안과 알림</h2><p>별도 절차가 필요한 계정 기능입니다.</p></div>
+          <div className="settings-link-grid">
+            <Link to="/verification"><span className="eyebrow">IDENTITY</span><b>휴대전화 본인확인</b><p>성인 여부와 본인 명의를 확인하는 절차를 봅니다.</p><em>화면 열기 →</em></Link>
+            <Link to="/settings/notifications"><span className="eyebrow">NOTIFICATIONS</span><b>알림 채널 설정</b><p>인앱 알림, 이메일, Push와 D-1 리마인더를 구분합니다.</p><em>설정 열기 →</em></Link>
+          </div>
+        </section>
+
         <WithdrawAccount />
       </div>
     </main>

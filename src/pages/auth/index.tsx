@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { registrationDecisions } from '../../entities/consent/api/consentService';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { landingPathForRole } from '../../app/roleRoutes';
 
 type Mode = 'login' | 'register';
 type ConsentKey = 'terms' | 'community' | 'adult' | 'privacy' | 'marketing';
@@ -59,7 +60,8 @@ export function AuthPage() {
         '동의 항목과 문서 버전, 동의 시각이 계정에 기록되었습니다. 수신 동의는 계정 설정에서 언제든지 철회할 수 있습니다.',
       );
     }
-    navigate(mode === 'register' ? '/tti/start' : '/');
+    const authenticatedUser = useTripStore.getState().user;
+    navigate(mode === 'register' ? '/tti/start' : landingPathForRole(authenticatedUser?.role));
   };
 
   const setConsent = (key: ConsentKey, checked: boolean) => {
