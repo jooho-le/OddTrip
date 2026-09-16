@@ -447,14 +447,14 @@ OddTrip/
 
 ## 📱 구현 — 프론트엔드 화면과 라우트
 
-`front`는 `0562bbe`의 문서형 설문, 여행 커버·탭, 우측 채팅 드로어를 디자인 기준으로 유지한다. 기능 계약은 `origin/dev@5739957`을 기준으로 프론트 코드만 선별 반영했다.
+`front`는 `0562bbe`의 문서형 설문, 여행 커버·탭, 우측 채팅 드로어를 디자인 기준으로 유지한다. 기능 계약은 `origin/dev@2f98373`을 기준으로 연결 상태를 검증한다.
 
 | 접근 | 라우트 | 현재 동작 |
 | :-- | :-- | :-- |
 | 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
 | 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈, 매칭 후보·요청, 여행 목록, 프로필·동의 조회/철회·회원 탈퇴. 홈의 `최근 기록`은 실제 여행 목록을 최신 순으로 보여주고, `일정 일치`는 현재 여행 기간과 받은/보낸 요청 기간을 프론트에서 비교한다. `/verification`, `/settings/notifications`, `/help`에서 본인확인 준비 상태, 인앱·마케팅 알림 설정, 이용 안내를 제공한다. |
-| 여행 | `/trip/:tab` | `overview`, `coordination`, `places`, `schedule` 탭. 개인 선호, 상대 제출 상태, 합의안 제안·응답, 장소 저장·제외, 일정 생성과 안전 정보 조회를 연결한다. 장소의 `내 성향`·`동행 성향`·`반대 성향 체험`은 서버가 제공한 TTI·개인 선호·추천 장소 속성 안에서만 필터링하며 별도 저장 상태를 만들지 않는다. `/trips/new`, `/trip/settings`는 직접 CRUD 계약 전까지 입력 검증과 준비 중 안내만 제공한다. |
-| 일정 | `/trip/schedule/map`, `/survey/approval` | 저장된 일정 순서·좌표 가용성을 경로 문서로 표시하고, 일정 버전·참여자별 승인 구조를 제공한다. 지도 렌더링과 승인/수정 요청은 서버 계약이 없어 준비 중 안내만 표시한다. |
+| 여행 | `/trip/:tab` | `overview`, `coordination`, `places`, `schedule` 탭. Trip 생성·수정·취소, 개인 선호, 상대 제출 상태, 합의안 제안·응답, 장소 저장·제외, 일정 생성과 안전 정보 조회를 연결한다. 장소의 `내 성향`·`동행 성향`·`반대 성향 체험`은 서버가 제공한 TTI·개인 선호·추천 장소 속성 안에서만 필터링한다. |
+| 일정 | `/trip/schedule/map`, `/survey/approval` | 저장된 일정 순서·좌표 가용성을 경로 문서로 표시한다. 일정 승인서는 현재 revision의 참여자별 상태를 읽고 승인 또는 수정 요청을 서버에 저장한다. 실제 Google 지도 렌더링은 후속 작업이다. |
 | 조사서 | `/survey/:key` | TTI와 독립 선호는 저장한다. 양보 범위·Odd Rule은 정보 구조만 제공하며 제출 시 준비 중 안내를 표시한다. |
 | 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
 | 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 운영자 로그인은 `/admin`으로 바로 이동하고 일반 회원용 보호 화면 접근도 관리 콘솔로 되돌린다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
@@ -475,7 +475,7 @@ OddTrip/
 | `/api/matches`, `/api/match-requests` | 후보 조회와 요청 생성·수락·거절·취소·종료·숨김 |
 | `/api/chat` | 방·메시지·읽음·신고·차단, 채팅/알림 WebSocket 이벤트 |
 | `/api/notifications` | 목록, 안 읽음 수, 개별·전체 읽음 처리 |
-| `/api/trips` | 여행 목록, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정, 안전 정보 |
+| `/api/trips` | 여행 CRUD, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정 revision·승인·수정 요청, 안전 정보 |
 | `/api/admin` | 통계, 회원·동의·제재, 여행, 신고 목록·상세·검토 |
 
-Trip 직접 생성·수정·삭제, SMS 본인인증, 일정 양쪽 승인, 실제 지도 렌더링, D-1·모바일 Push, 관광지·TTI 편집·운영 관리자 API는 대응 화면은 갖추었지만 성공 상태를 만들지 않는다. 상세 후속 계약과 검증 조건은 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
+양보 범위, Odd Rule, AI 조정안 확정, 장소 개인 투표, 일정 항목 개별 수정, SMS 본인인증, 실제 지도 렌더링, D-1·모바일 Push, 관광지·TTI 편집·운영 관리자 API는 성공 상태를 만들지 않는다. 상세 후속 계약과 검증 조건은 [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md)와 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
