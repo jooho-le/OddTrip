@@ -53,8 +53,8 @@ class PlaceInfoClient:
     """장소 운영 정보 조회 클라이언트."""
 
     def __init__(self) -> None:
-        self.api_key: str = settings.openai_api_key or ""
-        self.client = AsyncOpenAI(api_key=self.api_key) if self.api_key else None
+        self.api_key: str = settings.gemini_api_key or ""
+        self.client = AsyncOpenAI(api_key=self.api_key, base_url=settings.gemini_base_url) if self.api_key else None
 
     async def get_info(self, name: str, category: str) -> PlaceInfo:
         """장소명과 카테고리로 운영 정보 추론."""
