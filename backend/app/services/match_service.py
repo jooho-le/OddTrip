@@ -1,8 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import legal
 from ..models.match import Match
 from ..models.communication import Block
+from ..models.consent import UserConsent
 from ..models.tti import TravelType
 from ..models.user import User
 from ..schemas.match import MatchCandidateOut
@@ -56,6 +58,44 @@ def _calc_score(count: int, user_scores: list[dict], candidate_scores: list[dict
     return base + normalized
 
 
+def _matching_consented_ids():
+    """Users who currently allow their profile to be shown to candidates.
+
+    Consent is what makes the disclosure lawful, so a user without it is not
+    a candidate -- filtered in the query rather than after it, so they are
+    never loaded and cannot leak through a later code path.
+
+    Read from the newest row per user rather than "has an accepting row":
+    profile consent is not withdrawable today, but a ledger is append-only and
+    this should not quietly start showing withdrawn profiles if that changes.
+    """
+    current = legal.CURRENT_VERSIONS[legal.MATCHING_PROFILE]
+    newest = (
+        select(
+            UserConsent.user_id.label("user_id"),
+            func.max(UserConsent.accepted_at).label("accepted_at"),
+        )
+        .where(UserConsent.consent_type == legal.MATCHING_PROFILE)
+        .group_by(UserConsent.user_id)
+        .subquery()
+    )
+    return (
+        select(UserConsent.user_id)
+        .join(
+            newest,
+            and_(
+                UserConsent.user_id == newest.c.user_id,
+                UserConsent.accepted_at == newest.c.accepted_at,
+            ),
+        )
+        .where(
+            UserConsent.consent_type == legal.MATCHING_PROFILE,
+            UserConsent.accepted.is_(True),
+            UserConsent.version == current,
+        )
+    )
+
+
 async def find_matches(
     db: AsyncSession, user: User
 ) -> list[MatchCandidateOut]:
@@ -80,6 +120,7 @@ async def find_matches(
             User.tti_code.isnot(None),
             User.tti_scores_json.isnot(None),
             User.id.not_in(blocked_ids),
+            User.id.in_(_matching_consented_ids()),
         )
     )
     candidates = list(result.scalars().all())

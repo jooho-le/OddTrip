@@ -1,12 +1,21 @@
 """Seed TTI questions and travel types into the database."""
 import asyncio
+import logging
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import inspect as sa_inspect, select
 from sqlalchemy.engine import Connection
+from sqlalchemy.schema import CreateIndex
 
+logger = logging.getLogger(__name__)
+
+from . import legal
+from .config import settings
 from .database import async_session, engine, Base
+from .models.consent import UserConsent
 from .models.tti import TtiQuestion, TravelType
 from .models.user import User
+from .security import hash_password
 
 
 TTI_QUESTIONS = [
@@ -89,7 +98,7 @@ SAMPLE_USERS = [
 async def seed():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(_ensure_user_columns)
+        await conn.run_sync(_sync_schema)
 
     async with async_session() as session:
         # Seed questions
@@ -128,26 +137,164 @@ async def seed():
             else:
                 session.add(User(**user_data))
 
+            await _seed_sample_consents(session, user_data["id"])
+
+        await _seed_admin(session)
+
         await session.commit()
         print("Seed completed successfully!")
 
 
-def _ensure_user_columns(conn: Connection) -> None:
-    if conn.dialect.name != "sqlite":
+async def _seed_admin(session) -> None:
+    """ADMIN_EMAIL/ADMIN_PASSWORD가 채워져 있으면 관리자 계정을 준비합니다.
+
+    관리자를 만드는 HTTP 경로를 두지 않기로 했으므로(그 경로가 곧 권한 상승
+    통로가 됩니다) 팀이 관리자 화면을 열어보려면 시작점이 하나는 있어야
+    합니다. .env에 두 값을 넣고 서버를 켜면 됩니다.
+
+    이미 있는 계정의 비밀번호는 덮어쓰지 않고 권한만 올립니다. 서버를 켤
+    때마다 비밀번호가 .env 값으로 되돌아가면, 바꿔 쓴 사람이 다음 기동에
+    영문도 모르고 로그인하지 못합니다.
+    """
+    email = settings.admin_email.strip().lower()
+    if not email or not settings.admin_password:
         return
 
-    existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()}
-    column_sql = {
-        "email": "VARCHAR(255)",
-        "password_hash": "VARCHAR(255)",
-    }
-    for name, ddl in column_sql.items():
-        if name not in existing:
-            conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {name} {ddl}")
+    existing = (await session.execute(
+        select(User).where(User.email == email, User.deleted_at.is_(None))
+    )).scalar_one_or_none()
 
-    indexes = {row[1] for row in conn.exec_driver_sql("PRAGMA index_list(users)").fetchall()}
-    if "ix_users_email" not in indexes:
-        conn.exec_driver_sql("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email)")
+    if existing:
+        if existing.role != "admin":
+            existing.role = "admin"
+            logger.info("seed: promoted %s to admin", email)
+        return
+
+    session.add(User(
+        email=email,
+        password_hash=hash_password(settings.admin_password),
+        nickname="운영자",
+        role="admin",
+    ))
+    logger.info("seed: created admin %s", email)
+
+
+async def _seed_sample_consents(session, user_id: str) -> None:
+    """Give the demo users the consents a real signup would have produced.
+
+    Candidate listing filters on matching-profile consent, so without this the
+    seeded pool is invisible and matching looks broken on a fresh database.
+    These rows stand in for a signup that never happened; real users get theirs
+    from the registration and matching-gate flows.
+    """
+    now = datetime.utcnow()
+    for consent_type in legal.REGISTRATION_REQUIRED + legal.MATCHING_GATES:
+        existing = await session.execute(
+            select(UserConsent).where(
+                UserConsent.user_id == user_id,
+                UserConsent.consent_type == consent_type,
+                UserConsent.version == legal.CURRENT_VERSIONS[consent_type],
+            )
+        )
+        if existing.scalar_one_or_none():
+            continue
+        session.add(
+            UserConsent(
+                user_id=user_id,
+                consent_type=consent_type,
+                version=legal.CURRENT_VERSIONS[consent_type],
+                accepted=True,
+                source=legal.SOURCE_SIGNUP,
+                accepted_at=now,
+            )
+        )
+
+
+def _sync_schema(conn: Connection) -> None:
+    """Bring existing tables up to date with the models.
+
+    ``create_all()`` only ever creates missing tables. It does not touch a table
+    that already exists, so adding a column to a model works on a fresh database
+    and breaks every environment that already has the table -- the app fails at
+    startup with "column ... does not exist" and the fix used to be a manual
+    ALTER TABLE on each machine.
+
+    This closes that gap for the columns, foreign keys and indexes the models
+    declare. It is additive only: nothing is dropped, no type is changed and no
+    data is moved, so it cannot destroy a column that a colleague's branch still
+    writes to. Anything beyond adding (renames, type changes, backfills) still
+    needs a real migration.
+    """
+    inspector = sa_inspect(conn)
+    live_tables = set(inspector.get_table_names())
+
+    for table in Base.metadata.sorted_tables:
+        if table.name not in live_tables:
+            continue  # create_all() has just built it in full.
+
+        live_columns = {column["name"] for column in inspector.get_columns(table.name)}
+        added: list[str] = []
+        for column in table.columns:
+            if column.name in live_columns:
+                continue
+            conn.exec_driver_sql(
+                f"ALTER TABLE {_quote(conn, table.name)} ADD COLUMN {_column_ddl(conn, column)}"
+            )
+            added.append(column.name)
+
+        for column_name in added:
+            _add_foreign_keys(conn, table, table.columns[column_name])
+
+        if added:
+            logger.info("schema sync: %s += %s", table.name, ", ".join(added))
+
+        live_indexes = {index["name"] for index in inspector.get_indexes(table.name)}
+        for index in table.indexes:
+            if index.name and index.name not in live_indexes:
+                conn.execute(CreateIndex(index, if_not_exists=True))
+                logger.info("schema sync: %s += index %s", table.name, index.name)
+
+
+def _quote(conn: Connection, identifier: str) -> str:
+    return conn.dialect.identifier_preparer.quote(identifier)
+
+
+def _column_ddl(conn: Connection, column) -> str:
+    dialect = conn.dialect
+    parts = [_quote(conn, column.name), column.type.compile(dialect)]
+
+    default = getattr(column.server_default, "arg", None)
+    if default is not None:
+        if isinstance(default, str):
+            rendered = f"'{default}'"
+        else:
+            rendered = str(default.compile(dialect=dialect, compile_kwargs={"literal_binds": True}))
+        parts.append(f"DEFAULT {rendered}")
+        # NOT NULL is only safe alongside a default: existing rows have to get a
+        # value. Without one the column goes in nullable and the model's own
+        # default fills new rows.
+        if not column.nullable:
+            parts.append("NOT NULL")
+
+    return " ".join(parts)
+
+
+def _add_foreign_keys(conn: Connection, table, column) -> None:
+    live = {fk.get("name") for fk in sa_inspect(conn).get_foreign_keys(table.name)}
+    for position, key in enumerate(column.foreign_keys):
+        name = key.constraint.name or f"fk_{table.name}_{column.name}_{position}"
+        if name in live:
+            continue
+        target = key.column
+        clause = (
+            f"ALTER TABLE {_quote(conn, table.name)} ADD CONSTRAINT {_quote(conn, name)} "
+            f"FOREIGN KEY ({_quote(conn, column.name)}) "
+            f"REFERENCES {_quote(conn, target.table.name)} ({_quote(conn, target.name)})"
+        )
+        if key.ondelete:
+            clause += f" ON DELETE {key.ondelete}"
+        conn.exec_driver_sql(clause)
+        logger.info("schema sync: %s += fk %s", table.name, name)
 
 
 if __name__ == "__main__":

@@ -162,22 +162,35 @@ describe('frontend API contracts', () => {
 
   it('connects trip, shared preference, place, and itinerary APIs', async () => {
     await oddtripService.getTrips();
+    await oddtripService.getTrip('trip-1');
+    await oddtripService.createTrip({ matchId: 'match-1', region: '부산', startDate: '2026-09-20', endDate: '2026-09-22' });
+    await oddtripService.updateTrip('trip-1', { title: '부산 여행' });
+    await oddtripService.cancelTrip('trip-1');
     await oddtripService.getPreferences('trip-1');
     await oddtripService.savePreferences('trip-1', { places: [], activities: [], foods: [], pace: 50, budget: 50, indoorPreferred: false, hiddenSpots: false });
     await oddtripService.getAttractions('trip-1');
     await oddtripService.toggleAttraction('trip-1', 'place-1', { saved: true });
     await oddtripService.getItinerary('trip-1');
     await oddtripService.generateItinerary('trip-1');
+    await oddtripService.getApproval('trip-1');
+    await oddtripService.respondApproval('trip-1', 'change_request', '이동량을 줄여 주세요.');
 
     expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
       ['GET', '/api/trips'],
+      ['GET', '/api/trips/trip-1'],
+      ['POST', '/api/trips'],
+      ['PATCH', '/api/trips/trip-1'],
+      ['DELETE', '/api/trips/trip-1'],
       ['GET', '/api/trips/trip-1/preferences'],
       ['PUT', '/api/trips/trip-1/preferences'],
       ['GET', '/api/trips/trip-1/attractions'],
       ['PATCH', '/api/trips/trip-1/attractions/place-1'],
       ['GET', '/api/trips/trip-1/itinerary'],
       ['POST', '/api/trips/trip-1/itinerary/generate'],
+      ['GET', '/api/trips/trip-1/approval'],
+      ['PUT', '/api/trips/trip-1/approval/me'],
     ]);
+    expect(mocks.apiRequest.mock.calls[12][0].data).toEqual({ action: 'change_request', comment: '이동량을 줄여 주세요.' });
   });
 
   it('connects per-user preferences and the proposal lifecycle', async () => {

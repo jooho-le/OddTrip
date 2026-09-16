@@ -283,6 +283,53 @@ export interface TripSummary {
   savedCount: number;
   itineraryDayCount: number;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
+}
+
+export interface TripCreateInput {
+  matchId: string;
+  title?: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface TripUpdateInput {
+  title?: string | null;
+  region?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface TripCancelResult {
+  tripId: string;
+  status: 'cancelled';
+  cancelledAt: string;
+  cancelledBy: string;
+}
+
+export type TripApprovalStatus = 'pending' | 'approved' | 'change_requested';
+export type TripApprovalAction = 'approve' | 'change_request';
+
+export interface TripApprovalParticipant {
+  userId: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  status: TripApprovalStatus;
+  comment?: string | null;
+  approvedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface TripApprovalState {
+  tripId: string;
+  itineraryRevision: number;
+  tripStatus: string;
+  allApproved: boolean;
+  mine: TripApprovalParticipant;
+  counterpart: TripApprovalParticipant;
 }
 
 export interface ChatCounterpart {

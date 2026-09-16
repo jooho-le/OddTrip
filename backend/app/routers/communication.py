@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..dependencies import get_current_user, get_db
+from ..dependencies import get_current_user, get_db, require_matching_consent
 from ..models.user import User
 from ..realtime import chat_connection_manager
 from ..schemas.chat import ChatReportIn
@@ -14,13 +14,26 @@ user_router = APIRouter()
 me_router = APIRouter()
 
 
-@request_router.post("", response_model=dict)
-async def create_match_request(
-    body: MatchRequestCreate,
+@me_router.get("/blocks", response_model=dict)
+async def list_my_blocks(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    data = await communication_service.list_blocks(db, user.id)
+    return {"data": [item.model_dump(by_alias=True) for item in data], "error": None}
+
+
+@request_router.post("", response_model=dict)
+async def create_match_request(
+    body: MatchRequestCreate,
+    user: User = Depends(require_matching_consent),
+    db: AsyncSession = Depends(get_db),
+):
     data = await communication_service.create_match_request(db, user, body)
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.created", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 
@@ -63,7 +76,7 @@ async def get_match_request(
 @request_router.post("/{request_id}/accept", response_model=dict)
 async def accept_match_request(
     request_id: str,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_matching_consent),
     db: AsyncSession = Depends(get_db),
 ):
     data, match = await communication_service.accept_match_request(db, request_id, user)
@@ -81,6 +94,10 @@ async def reject_match_request(
     db: AsyncSession = Depends(get_db),
 ):
     data = await communication_service.respond_to_request(db, request_id, user, "reject")
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.updated", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 
@@ -91,6 +108,10 @@ async def cancel_match_request(
     db: AsyncSession = Depends(get_db),
 ):
     data = await communication_service.respond_to_request(db, request_id, user, "cancel")
+    await chat_connection_manager.send_to_users(
+        {data.requester_id, data.receiver_id},
+        {"event": "match_request.updated", "data": data.model_dump(by_alias=True, mode="json")},
+    )
     return {"data": data.model_dump(by_alias=True), "error": None}
 
 

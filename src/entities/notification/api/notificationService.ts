@@ -7,7 +7,13 @@ export type NotificationType =
   | 'match.ended'
   | 'report.reviewed'
   | 'account.sanctioned'
-  | 'sanction.released';
+  | 'sanction.released'
+  | 'trip.created'
+  | 'trip.updated'
+  | 'trip.cancelled'
+  | 'itinerary.approved'
+  | 'itinerary.change_requested'
+  | 'itinerary.confirmed';
 
 export interface AppNotification {
   id: string;

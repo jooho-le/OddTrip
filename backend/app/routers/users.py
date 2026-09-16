@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..dependencies import get_current_user, get_db
 from ..models.user import User
-from ..schemas.user import UserCreate, UserOut, UserUpdate
+from ..schemas.user import UserCreate, UserOut, UserUpdate, UserWithdrawIn
+from ..security import verify_password
+from ..services import account_service
 
 router = APIRouter()
 
@@ -45,3 +47,22 @@ async def update_me(
     await db.commit()
     await db.refresh(user)
     return {"data": UserOut.model_validate(user).model_dump(by_alias=True), "error": None}
+
+
+@router.post("/me/withdraw", response_model=dict)
+async def withdraw_me(
+    body: UserWithdrawIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """계정 삭제. 되돌릴 수 없습니다.
+
+    약관 제24조⑤에 따라 유예 기간이나 복구 경로를 두지 않습니다. 대신
+    실행 전에 비밀번호를 한 번 더 확인합니다.
+    """
+    if user.password_hash:
+        if not body.password or not verify_password(body.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+
+    await account_service.withdraw(db, user)
+    return {"data": {"success": True}, "error": None}

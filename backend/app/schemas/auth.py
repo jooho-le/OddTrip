@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
+from .consent import ConsentDecisionIn
 from .user import UserOut
 
 
@@ -10,6 +11,11 @@ class AuthRegisterIn(BaseModel):
     nickname: str
     home_region: str | None = None
     avatar_url: str | None = None
+    # The signup consents, carried on the registration call rather than sent
+    # afterwards: they are a condition of the contract being formed, so they
+    # have to commit with the account or not at all. The required set is
+    # enforced in the router against app.legal.REGISTRATION_REQUIRED.
+    consents: list[ConsentDecisionIn] = Field(default_factory=list, max_length=20)
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 

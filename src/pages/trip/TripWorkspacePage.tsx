@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { useCoordinationRealtime } from '../../entities/trip/model/useCoordinationRealtime';
+import { useApprovalRealtime, useCoordinationRealtime, useTripLifecycleRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import {
   imageUrl,
   PLACE_IMAGE_FALLBACKS,
@@ -23,9 +23,13 @@ export function TripWorkspacePage() {
   const { tab = 'overview' } = useParams();
   const navigate = useNavigate();
   const active = TABS.some(([key]) => key === tab) ? tab : 'overview';
-  const { user, activeTripId, tripHistory, status, error, ensureTrip } = useTripStore();
+  const { user, activeTripId, tripHistory, status, error, ensureTrip, openTrip, loadTripHistory } = useTripStore();
 
   useEffect(() => { void ensureTrip(); }, [ensureTrip]);
+  useTripLifecycleRealtime(activeTripId, async () => {
+    await loadTripHistory();
+    if (activeTripId) await openTrip(activeTripId);
+  });
 
   const trip = tripHistory.find((item) => item.tripId === activeTripId)
     ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
@@ -394,7 +398,7 @@ function PlaceVoteDialog({ place, onClose }: { place: Attraction; onClose: () =>
 }
 
 function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) {
-  const { itinerary, alerts, status, error, loadItinerary, loadAlerts } = useTripStore();
+  const { activeTripId, itinerary, approval, alerts, status, error, loadItinerary, loadApproval, loadAlerts } = useTripStore();
   const navigate = useNavigate();
   const [selectedDay, setSelectedDay] = useState(1);
   const [selectedItem, setSelectedItem] = useState<ItineraryItem | null>(null);
@@ -403,6 +407,7 @@ function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
     void loadItinerary();
     void loadAlerts();
   }, [loadItinerary, loadAlerts]);
+  useApprovalRealtime(activeTripId, loadApproval);
   useEffect(() => {
     if (itinerary.length && !itinerary.some((day) => day.day === selectedDay)) setSelectedDay(itinerary[0].day);
   }, [itinerary, selectedDay]);
@@ -429,10 +434,10 @@ function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
       </section>
       <aside>
         <div className="approval-box">
-          <div className="side-head">일정 승인 <span>{trip.status === 'completed' ? '완료' : itinerary.length ? '확인 대기' : '생성 전'}</span></div>
+          <div className="side-head">일정 승인 <span>{approval?.allApproved ? '승인 완료' : itinerary.length ? '확인 대기' : '생성 전'}</span></div>
           <div className="approval-body">
-            <div className="approval-person"><Avatar src={user?.avatarUrl} name={user?.nickname ?? '나'} fallback={0} /><b>{user?.nickname ?? '나'}</b><span style={{ color: trip.status === 'completed' ? 'var(--orange)' : '#999' }}>{trip.status === 'completed' ? '여행 완료' : '확인 필요'}</span></div>
-            <div className="approval-person"><Avatar src={trip.partner?.avatarUrl} name={trip.partner?.nickname ?? '동행'} fallback={1} /><b>{trip.partner?.nickname ?? '동행'}</b><span style={{ color: '#999' }}>연결 대기</span></div>
+            <div className="approval-person"><Avatar src={approval?.mine.avatarUrl ?? user?.avatarUrl} name={approval?.mine.nickname ?? user?.nickname ?? '나'} fallback={0} /><b>{approval?.mine.nickname ?? user?.nickname ?? '나'}</b><span style={{ color: approval?.mine.status === 'approved' ? 'var(--orange)' : '#999' }}>{approvalStatusLabel(approval?.mine.status)}</span></div>
+            <div className="approval-person"><Avatar src={approval?.counterpart.avatarUrl ?? trip.partner?.avatarUrl} name={approval?.counterpart.nickname ?? trip.partner?.nickname ?? '동행'} fallback={1} /><b>{approval?.counterpart.nickname ?? trip.partner?.nickname ?? '동행'}</b><span style={{ color: approval?.counterpart.status === 'approved' ? 'var(--orange)' : '#999' }}>{approvalStatusLabel(approval?.counterpart.status)}</span></div>
             <button type="button" className={itinerary.length ? 'solid-btn' : 'line-btn'} style={{ width: '100%', marginTop: 13 }} disabled={!itinerary.length} onClick={() => navigate('/survey/approval')}>{itinerary.length ? '일정 확인·승인' : '일정 생성 후 작성'}</button>
           </div>
         </div>
@@ -449,6 +454,12 @@ function ScheduleTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
     {selectedItem ? <ScheduleItemDrawer item={selectedItem} onClose={() => setSelectedItem(null)} /> : null}
     </>
   );
+}
+
+function approvalStatusLabel(status?: string) {
+  if (status === 'approved') return '승인 완료';
+  if (status === 'change_requested') return '수정 요청';
+  return '검토 전';
 }
 
 function ScheduleItemDrawer({ item, onClose }: { item: ItineraryItem; onClose: () => void }) {

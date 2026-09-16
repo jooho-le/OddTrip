@@ -1,35 +1,68 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { TripSummary } from '../../types';
 
 export type TripDraft = {
+  matchId?: string;
   title: string;
   region: string;
   startDate: string;
   endDate: string;
 };
 
-const EMPTY_DRAFT: TripDraft = { title: '', region: '', startDate: '', endDate: '' };
+const EMPTY_DRAFT: TripDraft = { matchId: '', title: '', region: '', startDate: '', endDate: '' };
 
 export function NewTripPage() {
   const navigate = useNavigate();
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
   const showInfo = useUiNoticeStore((state) => state.showInfo);
+  const { tripHistory, status, error, loadTripHistory, createTrip } = useTripStore();
   const [draft, setDraft] = useState<TripDraft>(EMPTY_DRAFT);
 
-  const submit = (event: FormEvent) => {
+  useEffect(() => { void loadTripHistory(); }, [loadTripHistory]);
+  const reusableTrips = useMemo(() => {
+    const activeMatchIds = new Set(tripHistory.filter((trip) => !['completed', 'cancelled'].includes(trip.status)).map((trip) => trip.matchId));
+    const seen = new Set<string>();
+    return tripHistory.filter((trip) => {
+      if (!['completed', 'cancelled'].includes(trip.status) || activeMatchIds.has(trip.matchId) || seen.has(trip.matchId)) return false;
+      seen.add(trip.matchId);
+      return true;
+    });
+  }, [tripHistory]);
+
+  useEffect(() => {
+    if (draft.matchId || !reusableTrips.length) return;
+    const source = reusableTrips[0];
+    setDraft((value) => ({ ...value, matchId: source.matchId, region: source.region ?? value.region }));
+  }, [draft.matchId, reusableTrips]);
+
+  if (status.tripHistory === 'loading' && !tripHistory.length) {
+    return <DocumentState title="새 여행을 만들 수 있는 동행을 확인하고 있습니다." loading />;
+  }
+  if (status.tripHistory === 'success' && !reusableTrips.length) {
+    return <DocumentState title="새 여행을 만들 수 있는 동행이 없습니다." copy="완료되거나 취소된 여행의 동행과 다시 여행을 만들 수 있습니다. 먼저 동행을 찾아주세요." action={() => navigate('/matches')} />;
+  }
+
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     const validation = validateTripDraft(draft);
     if (validation) {
       showInfo('여행 정보를 확인해 주세요.', validation);
       return;
     }
-    showComingSoon(
-      '새 여행 만들기',
-      '여행 생성 API가 준비되기 전까지 입력한 제목·지역·기간은 저장되지 않습니다. 현재는 동행 요청이 수락될 때 여행이 자동 생성됩니다.',
-    );
+    if (!draft.matchId) {
+      showInfo('동행을 선택해 주세요.', '새 여행을 함께할 기존 동행이 필요합니다.');
+      return;
+    }
+    const created = await createTrip({
+      matchId: draft.matchId,
+      title: draft.title.trim() || undefined,
+      region: draft.region.trim(),
+      startDate: draft.startDate,
+      endDate: draft.endDate,
+    });
+    if (created) navigate('/trip/overview');
   };
 
   return (
@@ -42,15 +75,17 @@ export function NewTripPage() {
       onSubmit={submit}
       primaryLabel="여행 만들기"
       secondary={<button type="button" className="line-btn" onClick={() => navigate('/my')}>취소</button>}
-      note="직접 여행 만들기는 준비 중입니다. 지금은 동행 요청이 수락되면 두 사람의 여행 공간이 자동으로 열립니다."
+      note="완료되거나 취소된 여행의 동행과 새 여행 공간을 만듭니다."
+      matchOptions={reusableTrips}
+      busy={status.tripMutation === 'loading'}
+      error={status.tripMutation === 'error' ? error : undefined}
     />
   );
 }
 
 export function TripSettingsPage() {
   const navigate = useNavigate();
-  const { activeTripId, tripHistory, ensureTrip, status } = useTripStore();
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const { activeTripId, tripHistory, ensureTrip, status, error, updateTrip, cancelTrip } = useTripStore();
   const showInfo = useUiNoticeStore((state) => state.showInfo);
   const trip = tripHistory.find((item) => item.tripId === activeTripId)
     ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
@@ -74,24 +109,26 @@ export function TripSettingsPage() {
     return <DocumentState title="관리할 여행이 없습니다." copy="동행과 매칭되면 여행 설정을 사용할 수 있습니다." action={() => navigate('/matches')} />;
   }
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     const validation = validateTripDraft(draft);
     if (validation) {
       showInfo('여행 정보를 확인해 주세요.', validation);
       return;
     }
-    showComingSoon(
-      '여행 정보 수정',
-      'Trip 수정 API가 준비되기 전까지 변경 내용은 서버에 저장되지 않습니다. 화면을 벗어나면 기존 여행 정보가 그대로 유지됩니다.',
-    );
+    const saved = await updateTrip(trip.tripId, {
+      title: draft.title.trim() || null,
+      region: draft.region.trim(),
+      startDate: draft.startDate,
+      endDate: draft.endDate,
+    });
+    if (saved) showInfo('여행 정보를 저장했습니다.', '지역이나 날짜가 변경된 경우 기존 일정과 일정 승인 상태는 초기화됩니다.');
   };
 
-  const requestDelete = () => {
-    showComingSoon(
-      '여행 삭제',
-      '두 참여자의 권한과 진행 중인 채팅·일정 처리 규칙이 포함된 Trip 삭제 API를 준비하고 있습니다. 현재 여행은 삭제되거나 종료되지 않았습니다.',
-    );
+  const requestDelete = async () => {
+    if (!window.confirm('이 여행을 취소할까요? 동행에게도 취소 알림이 전송되며 지금까지의 기록은 남습니다.')) return;
+    const cancelled = await cancelTrip(trip.tripId);
+    if (cancelled) navigate('/my');
   };
 
   return (
@@ -104,9 +141,11 @@ export function TripSettingsPage() {
       onSubmit={submit}
       primaryLabel="변경 내용 저장"
       secondary={<button type="button" className="line-btn" onClick={() => navigate('/trip/overview')}>여행으로 돌아가기</button>}
-      note="여행 정보 편집은 준비 중입니다. 변경 내용을 확인할 수 있지만 아직 기존 여행 기록에는 반영되지 않습니다."
+      note="변경 내용은 동행과 공유됩니다. 지역이나 날짜를 바꾸면 기존 일정과 승인 상태가 초기화됩니다."
       trip={trip}
-      destructiveAction={<button type="button" className="line-btn danger" onClick={requestDelete}>여행 삭제</button>}
+      destructiveAction={<button type="button" className="line-btn danger" onClick={() => void requestDelete()}>여행 취소</button>}
+      busy={status.tripMutation === 'loading'}
+      error={status.tripMutation === 'error' ? error : undefined}
     />
   );
 }
@@ -123,6 +162,9 @@ function TripDraftShell({
   note,
   trip,
   destructiveAction,
+  matchOptions,
+  busy = false,
+  error,
 }: {
   eyebrow: string;
   title: string;
@@ -135,6 +177,9 @@ function TripDraftShell({
   note: string;
   trip?: TripSummary;
   destructiveAction?: ReactNode;
+  matchOptions?: TripSummary[];
+  busy?: boolean;
+  error?: string;
 }) {
   const duration = useMemo(() => durationLabel(draft.startDate, draft.endDate), [draft.startDate, draft.endDate]);
   const update = (key: keyof TripDraft, value: string) => onChange({ ...draft, [key]: value });
@@ -155,6 +200,16 @@ function TripDraftShell({
             </div>
             <p className="paper-note">{note}</p>
 
+            {matchOptions ? <label className="document-field">
+              <span>함께할 동행</span>
+              <select required value={draft.matchId} onChange={(event) => {
+                const source = matchOptions.find((item) => item.matchId === event.target.value);
+                onChange({ ...draft, matchId: event.target.value, region: source?.region ?? draft.region });
+              }}>
+                {matchOptions.map((item) => <option key={item.matchId} value={item.matchId}>{item.partner?.nickname ?? '동행'} · {item.region ?? '지역 미정'}</option>)}
+              </select>
+            </label> : null}
+
             <label className="document-field">
               <span>여행 제목</span>
               <input required maxLength={100} value={draft.title} onChange={(event) => update('title', event.target.value)} placeholder="예: 은진과 지우의 부산 산책" />
@@ -170,19 +225,21 @@ function TripDraftShell({
               </label>
               <label className="document-field">
                 <span>종료일</span>
-                <input required type="date" min={draft.startDate || undefined} value={draft.endDate} onChange={(event) => update('endDate', event.target.value)} />
+                <input required type="date" min={draft.startDate || undefined} max={latestEndDate(draft.startDate)} value={draft.endDate} onChange={(event) => update('endDate', event.target.value)} />
               </label>
             </div>
 
             <div className="document-summary">
               <span>기간</span><b>{duration}</b>
-              <span>참여자</span><b>{trip?.partner?.nickname ? `나 · ${trip.partner.nickname}` : '동행 연결 전'}</b>
-              <span>저장 상태</span><b>준비 중</b>
+              <span>참여자</span><b>{trip?.partner?.nickname ? `나 · ${trip.partner.nickname}` : matchOptions?.find((item) => item.matchId === draft.matchId)?.partner?.nickname ?? '동행 선택 필요'}</b>
+              <span>저장 상태</span><b>{busy ? '저장 중' : '서버 연결'}</b>
             </div>
+
+            {error ? <p className="form-message" role="alert" style={{ color: '#b42318' }}>{error}</p> : null}
 
             <div className="planning-actions">
               {secondary}
-              <button type="submit" className="solid-btn">{primaryLabel}</button>
+              <button type="submit" className="solid-btn" disabled={busy}>{busy ? '저장 중…' : primaryLabel}</button>
             </div>
           </form>
 
@@ -195,7 +252,7 @@ function TripDraftShell({
               <li><b>03</b><span>30일 이내의 여행 기간</span></li>
               <li><b>04</b><span>수정과 삭제에 대한 두 사람의 권한</span></li>
             </ol>
-            {destructiveAction ? <div className="planning-danger"><p>여행 삭제는 일정과 채팅에 영향을 줍니다.</p>{destructiveAction}</div> : null}
+            {destructiveAction ? <div className="planning-danger"><p>여행 취소는 일정과 채팅에 영향을 줍니다.</p>{destructiveAction}</div> : null}
           </aside>
         </div>
       </div>
@@ -224,6 +281,13 @@ export function durationLabel(start: string, end: string) {
   if (to < from) return '날짜 확인 필요';
   const days = Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1;
   return `${days}일 · ${Math.max(0, days - 1)}박`;
+}
+
+function latestEndDate(start: string) {
+  if (!start) return undefined;
+  const date = new Date(`${start}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 29);
+  return date.toISOString().slice(0, 10);
 }
 
 function shortId(value: string) {

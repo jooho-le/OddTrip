@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { useTripListRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import type { TripSummary } from '../../types';
 
@@ -9,6 +10,7 @@ export function MyTripsPage() {
   const { tripHistory, status, error, loadTripHistory, openTrip } = useTripStore();
 
   useEffect(() => { void loadTripHistory(); }, [loadTripHistory]);
+  useTripListRealtime(loadTripHistory);
 
   const open = async (trip: TripSummary) => {
     await openTrip(trip.tripId);
@@ -66,6 +68,7 @@ function tripTitle(trip: TripSummary) {
 }
 
 function tripSummary(trip: TripSummary) {
+  if (trip.status === 'cancelled') return `저장한 장소 ${trip.savedCount}곳 · 취소된 여행`;
   if (trip.status === 'completed') return `저장한 장소 ${trip.savedCount}곳 · 일정 ${trip.itineraryDayCount}일`;
   if (trip.itineraryDayCount > 0) return `현재 해야 할 일: 공동 일정 확인`;
   if (trip.attractionCount > 0) return `현재 해야 할 일: 여행지 선택`;
