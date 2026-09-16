@@ -35,7 +35,6 @@ import { VerificationPage } from '../pages/verification';
 import { NotificationSettingsPage } from '../pages/notification-settings';
 import { HelpPage } from '../pages/help';
 import { ScheduleMapPage } from '../pages/schedule-map';
-import { ScheduleApprovalPage } from '../pages/schedule-approval';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 import { landingPathForRole } from './roleRoutes';
@@ -107,7 +106,6 @@ function AppRoutes() {
           <Route path="/trip/settings" element={<TripSettingsPage />} />
           <Route path="/trip/schedule/map" element={<ScheduleMapPage />} />
           <Route path="/trip/:tab" element={<TripWorkspacePage />} />
-          <Route path="/survey/approval" element={<ScheduleApprovalPage />} />
           <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage />} />

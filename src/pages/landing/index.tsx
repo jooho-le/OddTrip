@@ -139,7 +139,7 @@ function IntroLanding() {
             <article className="intro-card" data-reveal>
               <div className="intro-card-body">
                 <span className="step">STEP 02 · PRIVATE FORM</span><h3>상대의 답을 보기 전에 각자 씁니다</h3>
-                <p style={{ marginBottom: 24 }}>원하는 것과 양보할 수 있는 범위를 따로 작성합니다. 공동 선호는 저장되며, 개인별 제출과 합의 기능은 다음 백엔드 계약에서 연결됩니다.</p>
+                <p style={{ marginBottom: 24 }}>원하는 여행을 각자 제출한 뒤 공통점과 차이를 비교하고 합의안을 주고받습니다. 양보 범위와 Odd Rule은 다음 백엔드 계약에서 연결됩니다.</p>
                 <div className="intro-docs">
                   <div className="intro-doc-row done"><span className="mark">✓</span><b>공동 선호 조사서</b><em>API 연결</em></div>
                   <div className="intro-doc-row"><span className="mark">3</span><b>개인 양보 범위</b><em>연결 대기</em></div>
@@ -150,7 +150,7 @@ function IntroLanding() {
             <article className="intro-card" data-reveal>
               <div className="intro-card-body" style={{ paddingBottom: 26 }}>
                 <span className="step">STEP 03 · SHARED PLAN</span><h3>두 취향이 남은 하나의 일정</h3>
-                <p>저장한 장소와 공동 선호를 이용해 일정을 생성합니다. 양쪽 승인과 수정 요청은 지원 API가 준비되기 전까지 완료로 표시하지 않습니다.</p>
+                <p>저장한 장소와 공동 선호를 이용해 일정을 생성합니다. 두 사람의 승인과 수정 요청은 최신 일정 버전에 연결되어 서버에 기록됩니다.</p>
               </div>
               <div className="intro-photo-grid"><span style={{ backgroundImage: `url('${demoPhotos.recordB}')` }} /><span style={{ backgroundImage: `url('${demoPhotos.recordA}')` }} /><span style={{ backgroundImage: `url('${demoPhotos.hero}')` }} /></div>
               <div className="intro-score-grid"><div><b>82</b><span>은진 반영</span></div><div><b>91</b><span>지우 반영</span></div><div><b>86</b><span>공통</span></div></div>
