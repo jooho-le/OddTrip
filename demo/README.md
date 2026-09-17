@@ -22,7 +22,7 @@ pip install -r demo/requirements.txt
 # 예시 파일을 .env로 복사
 cp demo/.env.example demo/.env
 
-# .env 열어서 OPENAI_API_KEY 채우기
+# .env 열어서 GEMINI_API_KEY 채우기
 # (다른 키는 비워두면 mock 모드로 동작)
 ```
 
@@ -98,7 +98,7 @@ python demo/run_demo.py jeju       # 제주 3일
 → 프로젝트 루트(`oddtrip-itinerary-feature/`)에서 실행하세요. 데모 스크립트가 자동으로 `sys.path`를 조정합니다.
 
 **Q. `openai.AuthenticationError`**
-→ `demo/.env`의 `OPENAI_API_KEY`가 올바른지 확인하세요. 비워두면 템플릿 fallback으로 동작합니다.
+→ `demo/.env`의 `GEMINI_API_KEY`가 올바른지 확인하세요. 비워두면 템플릿 fallback으로 동작합니다.
 
 **Q. 결과가 비어있음**
 → `sample_data.py`의 InputPlace 리스트가 비어있지 않은지, 날짜 범위가 유효한지 확인하세요.

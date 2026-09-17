@@ -8,7 +8,7 @@
 
     # 2. .env 파일 만들기 (demo/.env.example 복사 후 키 입력)
     cp demo/.env.example demo/.env
-    # 그 다음 OPENAI_API_KEY 채우기
+    # 그 다음 GEMINI_API_KEY 채우기
 
     # 3. 실행
     python demo/run_demo.py

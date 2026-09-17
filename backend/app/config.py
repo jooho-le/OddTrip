@@ -11,8 +11,11 @@ class Settings(BaseSettings):
     # missing in a deployed container the app would silently connect to the
     # wrong database instead of refusing to start.
     database_url: str
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    # LLM은 OpenAI 호환 엔드포인트로 호출합니다. 공급자를 바꿀 때 코드가 아니라
+    # base_url만 갈아끼우면 되도록 SDK는 openai를 그대로 씁니다.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.1-flash-lite"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     auth_secret_key: str = "change-this-secret-before-deploy"
     # Access tokens cannot be revoked, so keep them short and let the client
     # exchange a refresh token for a new one.
