@@ -35,12 +35,12 @@ export const PLACE_IMAGE_FALLBACKS = [
 ] as const;
 
 export const PROPOSAL_DEMOS = [
-  ['균형형', '공통 선호를 중심으로 차이를 반씩 반영', 86, 82, 84],
-  ['도전형', '서로의 반대 성향을 한 번씩 경험', 74, 91, 88],
-  ['안정형', '각자의 핵심 선호를 우선 보장', 91, 76, 79],
+  ['균형안', '공통 선호를 중심으로 차이를 반씩 반영', 86, 82, 84],
+  ['도전안', '서로의 반대 성향을 한 번씩 경험', 74, 91, 88],
+  ['안정안', '각자의 핵심 선호를 우선 보장', 91, 76, 79],
 ] as const;
 
-export type SurveyKey = 'tti' | 'preference' | 'concession' | 'rule' | 'approval';
+export type SurveyKey = 'tti' | 'preference';
 
 export type SurveyDesignSpec = {
   title: string;
@@ -54,9 +54,9 @@ export type SurveyDesignSpec = {
 
 export const SURVEY_DESIGNS: Record<Exclude<SurveyKey, 'tti'>, SurveyDesignSpec> = {
   preference: {
-    title: '독립 선택 조사서',
+    title: '공동 선호 조사서',
     code: 'ODDTRIP FORM 02 · PRIVATE PREFERENCE',
-    note: 'HTML의 독립 선택 문서 구조를 유지합니다. 현재 저장 범위는 백엔드가 지원하는 여행 공동 선호입니다.',
+    note: '각자의 답은 따로 저장됩니다. 두 사람 모두 제출하면 AI가 공통점과 차이를 함께 반영해 여행 장소와 이동 순서를 포함한 일정표를 자동으로 만듭니다.',
     kind: 'choice',
     questions: [
       '이번 여행에서 가장 원하는 장소 분위기는?',
@@ -65,43 +65,12 @@ export const SURVEY_DESIGNS: Record<Exclude<SurveyKey, 'tti'>, SurveyDesignSpec>
       '반드시 포함하고 싶은 활동은?',
     ],
     options: [
-      ['자연·해안', '도시·전시', '음식·시장', '체험·활동'],
+      ['자연·해안', '전시·도시', '로컬·시장', '체험·활동'],
       ['1~2곳', '3곳', '4곳', '5곳 이상'],
-      ['현지성', '가격', '분위기', '익숙함'],
+      ['메뉴', '가격', '분위기', '접근성'],
       ['산책', '전시', '미식', '액티비티'],
     ],
     returnTo: '/trip/coordination',
-  },
-  concession: {
-    title: '양보 범위 조사서',
-    code: 'ODDTRIP FORM 03 · PRIVATE CONCESSION',
-    note: '각 항목이 나에게 얼마나 중요한지 표시해 주세요. 이 화면의 응답은 아직 서버에 저장되지 않습니다.',
-    kind: 'scale',
-    questions: [
-      '아침 시작 시간을 늦게 잡는 것은 괜찮다.',
-      '상대가 고른 장소를 하루 한 곳 포함할 수 있다.',
-      '예산이 10% 늘어나는 것을 허용할 수 있다.',
-      '이동 시간이 길어져도 꼭 가고 싶은 곳을 우선한다.',
-    ],
-    returnTo: '/trip/coordination',
-  },
-  rule: {
-    title: 'Odd Rule 선택서',
-    code: 'ODDTRIP FORM 04 · AGREEMENT RULE',
-    note: '차이가 생겼을 때 적용할 둘만의 규칙을 비교합니다. 실제 합의 저장 기능은 아직 준비 중입니다.',
-    kind: 'choice',
-    questions: ['우리 여행에 적용할 조율 방식은?'],
-    options: [['반반 혼합', '오전·오후 분할', '하루씩 번갈아 선택', '각자 핵심 1개 보장']],
-    returnTo: '/trip/coordination',
-  },
-  approval: {
-    title: '일정 확인·승인서',
-    code: 'ODDTRIP FORM 05 · FINAL APPROVAL',
-    note: '최종 일정의 이동량, 예산, 장소 구성을 확인합니다. 두 사람 모두 승인하면 일정이 최종 확정됩니다.',
-    kind: 'choice',
-    questions: ['현재 공동 일정을 어떻게 처리할까요?'],
-    options: [['이 일정 승인', '활동량 수정 요청', '이동량 수정 요청', '장소 변경 요청']],
-    returnTo: '/trip/schedule',
   },
 };
 

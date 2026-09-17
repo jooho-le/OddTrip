@@ -13,13 +13,15 @@ import { PrototypeChatDrawer, PrototypeLayout } from './PrototypeLayout';
 import { IntroCurtain } from '../features/intro-transition/IntroCurtain';
 import { IntroLandingPage } from '../pages/intro/IntroLandingPage';
 import { HomePage } from '../pages/home/HomePage';
+import { CommunityLayout } from '../pages/community/CommunityContext';
+import { CommunityListPage, CommunityDetailPage, CommunityWritePage, CommunityDraftsPage } from '../pages/community/CommunityPages';
 import { MatesPage, MateDetailPage } from '../pages/matches/MatesPage';
 import { MyTripsPage } from '../pages/my-trip/MyTripsPage';
 import { TripWorkspacePage } from '../pages/trip/TripWorkspacePage';
 import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
 import { AuthPage } from '../pages/auth';
 import { LegalPage, MatchingProfileConsentGate } from '../pages/legal';
-import { AccountSettingsPage } from '../pages/account-settings';
+import { AccountSettingsPage, PrivacySettingsPage } from '../pages/account-settings';
 import { ChatListPage } from '../pages/chat';
 import { AdminLayout } from '../admin/AdminLayout';
 import { DashboardPage } from '../admin/pages/DashboardPage';
@@ -97,6 +99,13 @@ function AppRoutes() {
 
         <Route element={<RequireAuth><PrototypeLayout /></RequireAuth>}>
           <Route path="/home" element={<HomePage />} />
+          <Route path="/community" element={<CommunityLayout />}>
+            <Route index element={<CommunityListPage />} />
+            <Route path="write" element={<CommunityWritePage />} />
+            <Route path="drafts" element={<CommunityDraftsPage />} />
+            <Route path=":postId" element={<CommunityDetailPage />} />
+            <Route path=":postId/edit" element={<CommunityWritePage />} />
+          </Route>
           <Route path="/matches" element={<MatchingProfileConsentGate><MatesPage /></MatchingProfileConsentGate>} />
           <Route path="/matches/:id" element={<MatchingProfileConsentGate><MateDetailPage /></MatchingProfileConsentGate>} />
           <Route path="/my" element={<MyTripsPage />} />
@@ -105,9 +114,14 @@ function AppRoutes() {
           <Route path="/trip" element={<Navigate to="/trip/overview" replace />} />
           <Route path="/trip/settings" element={<TripSettingsPage />} />
           <Route path="/trip/schedule/map" element={<ScheduleMapPage />} />
+          <Route path="/trip/places" element={<Navigate to="/trip/schedule" replace />} />
           <Route path="/trip/:tab" element={<TripWorkspacePage />} />
+          <Route path="/survey/concession" element={<Navigate to="/trip/coordination" replace />} />
+          <Route path="/survey/rule" element={<Navigate to="/trip/coordination" replace />} />
+          <Route path="/survey/approval" element={<Navigate to="/trip/schedule" replace />} />
           <Route path="/survey/:key" element={<SurveyFormPage />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
+          <Route path="/settings/privacy" element={<PrivacySettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
           <Route path="/verification" element={<VerificationPage />} />
           <Route path="/help" element={<HelpPage />} />
@@ -121,13 +135,13 @@ function AppRoutes() {
         <Route path="/tti/questions" element={<Navigate to="/survey/tti" replace />} />
         <Route path="/tti/result" element={<Navigate to="/home" replace />} />
         <Route path="/decision/select" element={<Navigate to="/survey/preference" replace />} />
-        <Route path="/decision/concession" element={<Navigate to="/survey/concession" replace />} />
-        <Route path="/decision/odd-rule" element={<Navigate to="/survey/rule" replace />} />
+        <Route path="/decision/concession" element={<Navigate to="/trip/coordination" replace />} />
+        <Route path="/decision/odd-rule" element={<Navigate to="/trip/coordination" replace />} />
         <Route path="/decision/*" element={<Navigate to="/trip/coordination" replace />} />
         <Route path="/proposal/*" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/attractions/*" element={<Navigate to="/trip/places" replace />} />
+        <Route path="/attractions/*" element={<Navigate to="/trip/schedule" replace />} />
         <Route path="/itinerary/*" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/approval" element={<Navigate to="/survey/approval" replace />} />
+        <Route path="/approval" element={<Navigate to="/trip/schedule" replace />} />
         <Route path="/safety" element={<Navigate to="/trip/schedule" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

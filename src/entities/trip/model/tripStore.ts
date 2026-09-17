@@ -5,6 +5,7 @@ import { ApiError } from '../../../shared/api/client';
 import { useNotificationStore } from '../../notification/model/notificationStore';
 import { useConsentStore } from '../../consent/model/consentStore';
 import type { ConsentDecision } from '../../consent/api/consentService';
+import { mergePairPreferences, tourAreaCode, tripDurationDays } from './aiJourney';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -55,6 +56,7 @@ interface TripState {
   resolveDecisionConflict: (conflicts: string[]) => Promise<void>;
   loadAttractions: () => Promise<void>;
   runTravelAgent: () => Promise<void>;
+  generateAiItinerary: () => Promise<boolean>;
   toggleAttraction: (id: string, key: 'saved' | 'excluded') => Promise<void>;
   loadItinerary: () => Promise<void>;
   regenerateItinerary: () => Promise<void>;
@@ -292,23 +294,22 @@ export const useTripStore = create<TripState>((set, get) => ({
       status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
     }));
     try {
-      const [attractions, itinerary, preferences, pair, proposals, approval] = await Promise.all([
+      const [attractions, itinerary, preferences, pair] = await Promise.all([
         oddtripService.getAttractions(tripId),
         oddtripService.getItinerary(tripId),
         oddtripService.getPreferences(tripId),
         oddtripService.getPairPreferences(tripId),
-        oddtripService.getPreferenceProposals(tripId),
-        oddtripService.getApproval(tripId),
       ]);
       set((state) => ({
         attractions: attractions.data,
         itinerary: itinerary.data,
         preferences: pair.data.mine?.preferences ?? preferences.data,
         pairPreferences: pair.data,
-        preferenceProposals: proposals.data,
-        approval: approval.data,
+        preferenceProposals: [],
+        approval: undefined,
         status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
       }));
+      if (pair.data.bothSubmitted && !itinerary.data.length) void get().generateAiItinerary();
     } catch {
       set({ error: '여행을 여는 데 실패했습니다.' });
     }
@@ -434,17 +435,16 @@ export const useTripStore = create<TripState>((set, get) => ({
         }));
         return undefined;
       }
-      const [preferences, pair, proposals] = await Promise.all([
+      const [preferences, pair] = await Promise.all([
         oddtripService.getPreferences(tripId).catch(() => undefined),
         oddtripService.getPairPreferences(tripId).catch(() => undefined),
-        oddtripService.getPreferenceProposals(tripId).catch(() => undefined),
       ]);
       set((state) => ({
         activeTripId: tripId,
         tripHistory: response.data,
         preferences: pair?.data.mine?.preferences ?? preferences?.data ?? state.preferences,
         pairPreferences: pair?.data,
-        preferenceProposals: proposals?.data ?? [],
+        preferenceProposals: [],
         status: { ...state.status, trip: 'success', preferences: preferences ? 'success' : state.status.preferences },
       }));
       return tripId;
@@ -469,6 +469,9 @@ export const useTripStore = create<TripState>((set, get) => ({
       await oddtripService.saveMyPreferences(tripId, draft);
       const pair = await oddtripService.getPairPreferences(tripId);
       set((state) => ({ preferences: draft, pairPreferences: pair.data, status: { ...state.status, preferences: 'success' } }));
+      if (pair.data.bothSubmitted && !get().itinerary.length) {
+        await get().generateAiItinerary();
+      }
     } catch {
       set((state) => ({ error: '내 선호를 저장하지 못했습니다.', status: { ...state.status, preferences: 'error' } }));
     }
@@ -478,16 +481,14 @@ export const useTripStore = create<TripState>((set, get) => ({
     if (!tripId) return;
     set((state) => ({ status: { ...state.status, coordination: 'loading' } }));
     try {
-      const [pair, proposals] = await Promise.all([
-        oddtripService.getPairPreferences(tripId),
-        oddtripService.getPreferenceProposals(tripId),
-      ]);
+      const pair = await oddtripService.getPairPreferences(tripId);
       set((state) => ({
         pairPreferences: pair.data,
-        preferenceProposals: proposals.data,
+        preferenceProposals: [],
         preferences: pair.data.mine?.preferences ?? state.preferences,
         status: { ...state.status, coordination: 'success' },
       }));
+      if (pair.data.bothSubmitted && !get().itinerary.length) void get().generateAiItinerary();
     } catch (error) {
       set((state) => ({ error: error instanceof Error ? error.message : '조율 정보를 불러오지 못했습니다.', status: { ...state.status, coordination: 'error' } }));
     }
@@ -599,35 +600,137 @@ export const useTripStore = create<TripState>((set, get) => ({
       }));
     }
   },
+  async generateAiItinerary() {
+    const current = get();
+    if (current.status.aiItinerary === 'loading') return false;
+    if (current.itinerary.length) return true;
+
+    const tripId = current.activeTripId ?? await get().ensureTrip();
+    if (!tripId) return false;
+    set((state) => ({ status: { ...state.status, aiItinerary: 'loading', itinerary: 'loading' }, error: undefined }));
+
+    try {
+      const pairResponse = await oddtripService.getPairPreferences(tripId);
+      const combined = mergePairPreferences(pairResponse.data);
+      if (!pairResponse.data.bothSubmitted || !combined) {
+        set((state) => ({
+          pairPreferences: pairResponse.data,
+          error: '두 사람의 선호가 모두 제출된 뒤 AI 일정을 만들 수 있습니다.',
+          status: { ...state.status, aiItinerary: 'error', itinerary: 'idle' },
+        }));
+        return false;
+      }
+
+      const storedItinerary = await oddtripService.getItinerary(tripId);
+      if (storedItinerary.data.length) {
+        const storedAttractions = await oddtripService.getAttractions(tripId);
+        set((state) => ({
+          pairPreferences: pairResponse.data,
+          attractions: storedAttractions.data,
+          itinerary: storedItinerary.data,
+          tripHistory: state.tripHistory.map((item) => item.tripId === tripId ? {
+            ...item,
+            attractionCount: storedAttractions.data.length,
+            itineraryDayCount: storedItinerary.data.length,
+          } : item),
+          status: {
+            ...state.status,
+            aiItinerary: 'success',
+            attractions: 'success',
+            itinerary: 'success',
+          },
+        }));
+        return true;
+      }
+
+      const trip = get().tripHistory.find((item) => item.tripId === tripId);
+      const attractionRequest = buildAttractionRequest(get(), combined);
+      let agentRun: AgentRunResponse | undefined;
+      try {
+        const response = await oddtripService.runTravelAgent(tripId, {
+          areaCode: tourAreaCode(trip?.region),
+          keywords: attractionRequest.keywords,
+          contentTypeIds: attractionRequest.contentTypeIds,
+          days: tripDurationDays(trip),
+          budget: combined.budget,
+          pace: combined.pace,
+          generateItinerary: true,
+        });
+        agentRun = response.data;
+      } catch {
+        // The deterministic API path below still creates a usable itinerary
+        // when the tool-calling layer is temporarily unavailable.
+      }
+
+      let attractionsResponse = await oddtripService.getAttractions(tripId);
+      if (!attractionsResponse.data.length) {
+        attractionsResponse = await oddtripService.generatePublicAttractions(tripId, {
+          ...attractionRequest,
+          areaCode: tourAreaCode(trip?.region),
+        });
+      }
+
+      let itineraryResponse = await oddtripService.getItinerary(tripId);
+      if (!itineraryResponse.data.length) {
+        itineraryResponse = await oddtripService.generateItinerary(tripId);
+      }
+      if (!itineraryResponse.data.length) throw new Error('AI 일정 결과가 비어 있습니다. 잠시 후 다시 시도해 주세요.');
+
+      set((state) => ({
+        pairPreferences: pairResponse.data,
+        attractions: attractionsResponse.data,
+        itinerary: itineraryResponse.data,
+        agentRun: agentRun ?? state.agentRun,
+        tripHistory: state.tripHistory.map((item) => item.tripId === tripId ? {
+          ...item,
+          attractionCount: attractionsResponse.data.length,
+          itineraryDayCount: itineraryResponse.data.length,
+        } : item),
+        status: {
+          ...state.status,
+          aiItinerary: 'success',
+          attractions: 'success',
+          itinerary: 'success',
+        },
+      }));
+      return true;
+    } catch (error) {
+      set((state) => ({
+        error: error instanceof Error ? error.message : 'AI가 일정을 만들지 못했습니다.',
+        status: { ...state.status, aiItinerary: 'error', itinerary: 'error' },
+      }));
+      return false;
+    }
+  },
   async toggleAttraction(id, key) {
     const tripId = get().activeTripId;
     const current = get().attractions.find((item) => item.id === id);
     if (!tripId || !current) return;
 
     const nextValue = !current[key];
+    const patch = key === 'saved'
+      ? { saved: nextValue, ...(nextValue ? { excluded: false } : {}) }
+      : { excluded: nextValue, ...(nextValue ? { saved: false } : {}) };
     set((state) => ({
-      attractions: state.attractions.map((item) => (item.id === id ? { ...item, [key]: nextValue } : item))
+      attractions: state.attractions.map((item) => (item.id === id ? { ...item, ...patch } : item))
     }));
 
     try {
-      const response = await oddtripService.toggleAttraction(tripId, id, { [key]: nextValue });
+      const response = await oddtripService.toggleAttraction(tripId, id, patch);
       set((state) => ({
         attractions: state.attractions.map((item) => (item.id === id ? response.data : item))
       }));
     } catch {
       set((state) => ({
         error: '관광지 상태를 저장하지 못했습니다.',
-        attractions: state.attractions.map((item) => (item.id === id ? { ...item, [key]: current[key] } : item))
+        attractions: state.attractions.map((item) => (item.id === id ? { ...item, saved: current.saved, excluded: current.excluded } : item))
       }));
     }
   },
   async loadItinerary() {
     const current = get();
     if (current.status.itinerary === 'loading') return;
-    if (current.itinerary.length) {
-      if (!current.approval) await get().loadApproval();
-      return;
-    }
+    if (current.itinerary.length) return;
 
     set((state) => ({ status: { ...state.status, itinerary: 'loading' } }));
     try {
@@ -636,12 +739,8 @@ export const useTripStore = create<TripState>((set, get) => ({
         set((state) => ({ status: { ...state.status, itinerary: 'error' } }));
         return;
       }
-      let response = await oddtripService.getItinerary(tripId);
-      if (!response.data.length) {
-        response = await oddtripService.generateItinerary(tripId);
-      }
-      const approval = await oddtripService.getApproval(tripId);
-      set((state) => ({ itinerary: response.data, approval: approval.data, status: { ...state.status, itinerary: 'success', approval: 'success' } }));
+      const response = await oddtripService.getItinerary(tripId);
+      set((state) => ({ itinerary: response.data, status: { ...state.status, itinerary: 'success' } }));
     } catch {
       set((state) => ({ error: '일정을 생성하지 못했습니다.', status: { ...state.status, itinerary: 'error' } }));
     }
@@ -713,12 +812,12 @@ export const useTripStore = create<TripState>((set, get) => ({
   }
 }));
 
-function buildAttractionRequest(state: TripState) {
+function buildAttractionRequest(state: TripState, preferences = state.preferences) {
   const code = state.result?.code ?? state.user?.ttiCode ?? '';
   const keywords = new Set<string>([
-    ...state.preferences.places,
-    ...state.preferences.activities,
-    ...state.preferences.foods,
+    ...preferences.places,
+    ...preferences.activities,
+    ...preferences.foods,
   ]);
   const contentTypeIds = new Set<string>(['12', '14', '15', '28', '32', '39']);
 

@@ -9,7 +9,6 @@ export function AttractionDetailPage() {
   const { id = '' } = useParams();
   const { attractions, loadAttractions, toggleAttraction, status, error } = useTripStore();
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
   useEffect(() => { if (!attractions.length) void loadAttractions(); }, [attractions.length, loadAttractions]);
 
@@ -60,7 +59,6 @@ export function AttractionDetailPage() {
             <Info label="위치 좌표" value={item.mapY && item.mapX ? item.mapY + ', ' + item.mapX : '정보 미제공'} />
           </div>
           {homepage ? <a className="line-btn accent" style={{ display: 'inline-block', marginTop: 18 }} href={homepage} target="_blank" rel="noreferrer">제공된 홈페이지 열기</a> : null}
-          <button className="line-btn" style={{ marginTop: 18 }} type="button" onClick={() => showComingSoon('장소 개인 투표', '장소 저장과 제외는 사용할 수 있지만, 여행자별 찬반 투표는 현재 준비 중인 기능입니다.')}>내 의견 남기기</button>
         </div>
       </section>
     </TripWorkspaceShell>

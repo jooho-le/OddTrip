@@ -122,7 +122,7 @@ export function TripSettingsPage() {
       startDate: draft.startDate,
       endDate: draft.endDate,
     });
-    if (saved) showInfo('여행 정보를 저장했습니다.', '지역이나 날짜가 변경된 경우 기존 일정과 일정 승인 상태는 초기화됩니다.');
+    if (saved) showInfo('여행 정보를 저장했습니다.', '지역이나 날짜가 변경된 경우 기존 AI 일정표는 초기화됩니다.');
   };
 
   const requestDelete = async () => {
@@ -141,7 +141,7 @@ export function TripSettingsPage() {
       onSubmit={submit}
       primaryLabel="변경 내용 저장"
       secondary={<button type="button" className="line-btn" onClick={() => navigate('/trip/overview')}>여행으로 돌아가기</button>}
-      note="변경 내용은 동행과 공유됩니다. 지역이나 날짜를 바꾸면 기존 일정과 승인 상태가 초기화됩니다."
+      note="변경 내용은 동행과 공유됩니다. 지역이나 날짜를 바꾸면 기존 AI 일정표가 초기화됩니다."
       trip={trip}
       destructiveAction={<button type="button" className="line-btn danger" onClick={() => void requestDelete()}>여행 취소</button>}
       busy={status.tripMutation === 'loading'}

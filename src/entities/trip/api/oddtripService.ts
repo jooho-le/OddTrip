@@ -1,5 +1,6 @@
 import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripApprovalAction, TripApprovalState, TripCancelResult, TripCreateInput, TripSummary, TripUpdateInput, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
+import { normalizeTripSummary } from '../../../shared/lib/displayText';
 import type { ConsentDecision } from '../../consent/api/consentService';
 
 function storeSession(data: AuthResponse) {
@@ -121,20 +122,24 @@ export const oddtripService: OddtripService = {
     return request<MatchCandidate[]>('/api/matches', { auth: true });
   },
 
-  getTrips() {
-    return request<TripSummary[]>('/api/trips', { auth: true });
+  async getTrips() {
+    const response = await request<TripSummary[]>('/api/trips', { auth: true });
+    return { ...response, data: response.data.map(normalizeTripSummary) };
   },
 
-  getTrip(tripId) {
-    return request<TripSummary>(`/api/trips/${tripId}`, { auth: true });
+  async getTrip(tripId) {
+    const response = await request<TripSummary>(`/api/trips/${tripId}`, { auth: true });
+    return { ...response, data: normalizeTripSummary(response.data) };
   },
 
-  createTrip(input) {
-    return request<TripSummary>('/api/trips', { method: 'POST', auth: true, body: input });
+  async createTrip(input) {
+    const response = await request<TripSummary>('/api/trips', { method: 'POST', auth: true, body: input });
+    return { ...response, data: normalizeTripSummary(response.data) };
   },
 
-  updateTrip(tripId, input) {
-    return request<TripSummary>(`/api/trips/${tripId}`, { method: 'PATCH', auth: true, body: input });
+  async updateTrip(tripId, input) {
+    const response = await request<TripSummary>(`/api/trips/${tripId}`, { method: 'PATCH', auth: true, body: input });
+    return { ...response, data: normalizeTripSummary(response.data) };
   },
 
   cancelTrip(tripId) {

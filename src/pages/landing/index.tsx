@@ -115,11 +115,11 @@ function IntroLanding() {
             <div className="intro-steps-side">
               <p className="eyebrow">HOW IT WORKS</p>
               <h2>OddTrip이<br />정해드립니다</h2>
-              <p>OddTrip은 대화 대신 세 개의 문서로 여행을 결정합니다. 각 단계는 상대의 답을 보기 전에 작성되고, 서버가 지원하는 범위만 실제 저장됩니다.</p>
+              <p>OddTrip은 세 단계로 여행을 정리합니다. 두 사람이 각자 선호를 제출하면 AI가 장소와 날짜별 동선을 포함한 일정표를 만듭니다.</p>
               <div className="intro-step-nav">
                 <div className="row active"><span className="dot">1</span><b>성향 조사서</b></div>
-                <div className="row"><span className="dot">2</span><b>독립 선택 · 양보 범위</b></div>
-                <div className="row"><span className="dot">3</span><b>공동 일정 확인</b></div>
+                <div className="row"><span className="dot">2</span><b>두 사람의 선호 제출</b></div>
+                <div className="row"><span className="dot">3</span><b>AI 공동 일정표</b></div>
               </div>
             </div>
           </div>
@@ -139,18 +139,18 @@ function IntroLanding() {
             <article className="intro-card" data-reveal>
               <div className="intro-card-body">
                 <span className="step">STEP 02 · PRIVATE FORM</span><h3>상대의 답을 보기 전에 각자 씁니다</h3>
-                <p style={{ marginBottom: 24 }}>원하는 여행을 각자 제출한 뒤 공통점과 차이를 비교하고 합의안을 주고받습니다. 양보 범위와 Odd Rule은 다음 백엔드 계약에서 연결됩니다.</p>
+                <p style={{ marginBottom: 24 }}>원하는 여행을 각자 제출하면 AI가 공통점과 차이를 함께 반영해 장소와 이동 순서를 포함한 일정표를 만듭니다.</p>
                 <div className="intro-docs">
-                  <div className="intro-doc-row done"><span className="mark">✓</span><b>공동 선호 조사서</b><em>API 연결</em></div>
-                  <div className="intro-doc-row"><span className="mark">3</span><b>개인 양보 범위</b><em>연결 대기</em></div>
-                  <div className="intro-doc-row locked"><span className="mark">4</span><b>Odd Rule 합의</b><em>연결 대기</em></div>
+                  <div className="intro-doc-row done"><span className="mark">✓</span><b>공동 선호 조사서</b><em>각자 제출</em></div>
+                  <div className="intro-doc-row"><span className="mark">2</span><b>AI가 차이 분석</b><em>자동 반영</em></div>
+                  <div className="intro-doc-row locked"><span className="mark">3</span><b>공동 일정표</b><em>자동 생성</em></div>
                 </div>
               </div>
             </article>
             <article className="intro-card" data-reveal>
               <div className="intro-card-body" style={{ paddingBottom: 26 }}>
                 <span className="step">STEP 03 · SHARED PLAN</span><h3>두 취향이 남은 하나의 일정</h3>
-                <p>저장한 장소와 공동 선호를 이용해 일정을 생성합니다. 두 사람의 승인과 수정 요청은 최신 일정 버전에 연결되어 서버에 기록됩니다.</p>
+                <p>AI가 공동 선호를 이용해 여행 장소와 날짜별 동선을 한 번에 생성합니다. 다른 의견은 동행과 채팅에서 이야기합니다.</p>
               </div>
               <div className="intro-photo-grid"><span style={{ backgroundImage: `url('${demoPhotos.recordB}')` }} /><span style={{ backgroundImage: `url('${demoPhotos.recordA}')` }} /><span style={{ backgroundImage: `url('${demoPhotos.hero}')` }} /></div>
               <div className="intro-score-grid"><div><b>82</b><span>은진 반영</span></div><div><b>91</b><span>지우 반영</span></div><div><b>86</b><span>공통</span></div></div>
@@ -231,7 +231,7 @@ function AuthenticatedHome() {
           <aside className="home-sidebar">
             <div className="side-box"><div className="my-summary"><div className="my-summary-row">{user?.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : <InitialAvatar name={user?.nickname ?? '여행자'} />}<div><b>{user?.nickname ?? '여행자'}님의 OddTrip</b><p>{user?.ttiCode ?? 'TTI 미완료'} · {user?.homeRegion ?? '지역 미설정'}</p></div></div><div className="summary-stats"><div><b>{activeTrip ? 1 : 0}</b><span>진행 중</span></div><div><b>{completed}</b><span>완료 여행</span></div><div><b>{savedCount}</b><span>저장 장소</span></div></div></div></div>
             <div className="side-box"><div className="side-head">최근 알림 <span>{unreadTotal ? `채팅 ${unreadTotal}` : '새 알림 없음'}</span></div><div className="notice-list">{unreadTotal ? <div className="notice-item">읽지 않은 채팅이 {unreadTotal}개 있습니다.<time>실시간 API</time></div> : <div className="notice-item">새 채팅이 없습니다.<time>실시간 API</time></div>}<div className="notice-item">여행 단계 알림은 아직 제공되지 않습니다.<time>서버 알림 API 연결 대기</time></div></div></div>
-            <div className="side-box"><div className="side-head">작성할 조사서 <span>{activeTrip ? '1건 저장 가능' : '여행 생성 후'}</span></div><div className="survey-hub"><Link className={`survey-row ${user?.ttiCode ? 'done' : ''}`} to="/tti/start"><span className="survey-no">{user?.ttiCode ? '✓' : '1'}</span><span className="survey-copy"><b>여행 성향 조사서</b><small>내 프로필 · TTI</small></span><span className="survey-state">{user?.ttiCode ? '완료 · 수정' : '작성 필요'}</span></Link><button className="survey-row" disabled={!activeTrip} onClick={() => void openActiveTrip('/decision/select')}><span className="survey-no">2</span><span className="survey-copy"><b>공동 선호 조사서</b><small>{activeTrip?.region ?? '여행 미정'}</small></span><span className="survey-state">{activeTrip ? 'API 저장' : '이전 단계 대기'}</span></button><button className="survey-row locked" disabled><span className="survey-no">3</span><span className="survey-copy"><b>개인 양보 범위</b><small>개인별 제출 계약 필요</small></span><span className="survey-state">연결 대기</span></button></div></div>
+            <div className="side-box"><div className="side-head">작성할 조사서 <span>{activeTrip ? '선호 제출 가능' : '여행 생성 후'}</span></div><div className="survey-hub"><Link className={`survey-row ${user?.ttiCode ? 'done' : ''}`} to="/tti/start"><span className="survey-no">{user?.ttiCode ? '✓' : '1'}</span><span className="survey-copy"><b>여행 성향 조사서</b><small>내 프로필 · TTI</small></span><span className="survey-state">{user?.ttiCode ? '완료 · 수정' : '작성 필요'}</span></Link><button className="survey-row" disabled={!activeTrip} onClick={() => void openActiveTrip('/decision/select')}><span className="survey-no">2</span><span className="survey-copy"><b>독립 선택 조사서</b><small>{activeTrip?.region ?? '여행 미정'}</small></span><span className="survey-state">{activeTrip ? '제출하기' : '이전 단계 대기'}</span></button></div></div>
           </aside>
         </div>
       </div>

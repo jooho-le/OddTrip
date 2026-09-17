@@ -15,6 +15,7 @@ type GoogleMapProps = {
   keyword?: string;
   label?: string;
   className?: string;
+  showSequence?: boolean;
 };
 
 type MapStatus = 'idle' | 'loading' | 'ready' | 'missing-key' | 'error';
@@ -25,6 +26,7 @@ declare global {
       maps: {
         Map: new (container: HTMLElement, options: GoogleMapOptions) => GoogleMapInstance;
         Marker: new (options: GoogleMarkerOptions) => GoogleMarkerInstance;
+        Polyline: new (options: GooglePolylineOptions) => unknown;
         InfoWindow: new (options: GoogleInfoWindowOptions) => GoogleInfoWindowInstance;
         LatLngBounds: new () => GoogleLatLngBounds;
         places?: {
@@ -60,9 +62,20 @@ interface GoogleMarkerOptions {
   map?: GoogleMapInstance;
   position: GoogleLatLngLiteral;
   title?: string;
+  label?: string | { text: string; color?: string; fontWeight?: string };
 }
 
-interface GoogleMarkerInstance {}
+interface GooglePolylineOptions {
+  map: GoogleMapInstance;
+  path: GoogleLatLngLiteral[];
+  strokeColor: string;
+  strokeOpacity: number;
+  strokeWeight: number;
+}
+
+interface GoogleMarkerInstance {
+  addListener: (eventName: string, handler: () => void) => void;
+}
 
 interface GoogleInfoWindowOptions {
   content: string;
@@ -96,7 +109,7 @@ interface GooglePlacesService {
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const DEFAULT_CENTER = { lat: 37.566826, lng: 126.9786567 };
 
-export function GoogleMap({ points = [], keyword, label = '지도 영역', className = '' }: GoogleMapProps) {
+export function GoogleMap({ points = [], keyword, label = '지도 영역', className = '', showSequence = false }: GoogleMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<MapStatus>('idle');
   const [message, setMessage] = useState('');
@@ -141,18 +154,29 @@ export function GoogleMap({ points = [], keyword, label = '지도 영역', class
 
         if (normalizedPoints.length) {
           const bounds = new maps.LatLngBounds();
-          normalizedPoints.forEach((point) => {
+          normalizedPoints.forEach((point, index) => {
             bounds.extend({ lat: point.lat, lng: point.lng });
             const marker = new maps.Marker({
               map,
               position: { lat: point.lat, lng: point.lng },
               title: point.name,
+              label: showSequence ? { text: String(index + 1), color: '#ffffff', fontWeight: '800' } : undefined,
             });
             const info = new maps.InfoWindow({
               content: `<div style="padding:8px 10px;font-size:12px;font-weight:700;white-space:nowrap;">${escapeHtml(point.name)}</div>`,
             });
-            info.open({ map, anchor: marker });
+            marker.addListener('click', () => info.open({ map, anchor: marker }));
           });
+          if (showSequence && normalizedPoints.length > 1) {
+            const accent = getComputedStyle(document.documentElement).getPropertyValue('--orange').trim() || '#ff5a36';
+            new maps.Polyline({
+              map,
+              path: normalizedPoints.map((point) => ({ lat: point.lat, lng: point.lng })),
+              strokeColor: accent,
+              strokeOpacity: 0.82,
+              strokeWeight: 4,
+            });
+          }
           if (normalizedPoints.length > 1) map.fitBounds(bounds);
           setStatus('ready');
           return;
@@ -180,7 +204,7 @@ export function GoogleMap({ points = [], keyword, label = '지도 영역', class
             const info = new window.google.maps.InfoWindow({
               content: `<div style="padding:8px 10px;font-size:12px;font-weight:700;white-space:nowrap;">${escapeHtml(place.name ?? keyword)}</div>`,
             });
-            info.open({ map, anchor: marker });
+            marker.addListener('click', () => info.open({ map, anchor: marker }));
             setStatus('ready');
           });
           return;
@@ -201,7 +225,7 @@ export function GoogleMap({ points = [], keyword, label = '지도 영역', class
     return () => {
       cancelled = true;
     };
-  }, [keyword, normalizedPoints]);
+  }, [keyword, normalizedPoints, showSequence]);
 
   if (status === 'missing-key') {
     return <MapPlaceholder label={`${label} · 지도 키 필요`} />;

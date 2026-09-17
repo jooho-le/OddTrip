@@ -5,6 +5,8 @@ import { useTripStore } from '../../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../../features/prototype/designContent';
 import { subscribeRealtime } from '../../shared/realtime/socketBus';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { safetyService } from '../../entities/chat/api/safetyService';
+import { ReportDialog } from '../../features/safety/ReportDialog';
 import type { MatchCandidate, MatchRequest, MatchRequestStatus } from '../../types';
 
 type Tab = 'candidates' | 'received' | 'sent';
@@ -102,6 +104,7 @@ export function MateDetailPage() {
   const requests = useMatchRequestStore();
   const showInfo = useUiNoticeStore((state) => state.showInfo);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     if (!matches.length) void loadMatches();
@@ -152,6 +155,7 @@ export function MateDetailPage() {
               >
                 {pending ? '요청 보냄 · 취소하기' : '동행 요청 보내기'}
               </button>
+              <button type="button" className="text-btn profile-report-btn" onClick={() => setReportOpen(true)}>이 사용자 신고</button>
             </div>
           </article>
           <div>
@@ -177,6 +181,18 @@ export function MateDetailPage() {
         </section>
       </div>
       {requestOpen ? <MatchRequestDialog candidate={candidate} onClose={() => setRequestOpen(false)} /> : null}
+      {reportOpen ? (
+        <ReportDialog
+          title={`${candidate.nickname}님을 신고할까요?`}
+          description="프로필에서 확인한 문제를 운영자가 검토할 수 있도록 신고 사유를 선택해주세요."
+          onClose={() => setReportOpen(false)}
+          onSubmit={async (reason, details) => {
+            await safetyService.reportUser(candidate.id, { reason, details });
+            setReportOpen(false);
+            showInfo('사용자 신고가 접수되었습니다.', '운영자가 검토한 뒤 처리 결과를 알림으로 알려드립니다.');
+          }}
+        />
+      ) : null}
     </main>
   );
 }

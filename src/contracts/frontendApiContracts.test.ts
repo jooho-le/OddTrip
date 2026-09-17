@@ -21,6 +21,7 @@ vi.mock('../shared/api/client', () => ({
 import { oddtripService } from '../entities/trip/api/oddtripService';
 import { matchRequestService } from '../entities/match-request/api/matchRequestService';
 import { chatService } from '../entities/chat/api/chatService';
+import { safetyService } from '../entities/chat/api/safetyService';
 import { notificationService } from '../entities/notification/api/notificationService';
 import { adminService } from '../admin/api/adminService';
 import { registrationDecisions } from '../entities/consent/api/consentService';
@@ -160,7 +161,18 @@ describe('frontend API contracts', () => {
     ]);
   });
 
+  it('connects message and user reports to their safety endpoints', async () => {
+    await chatService.reportMessage('room-1', 'message-1', { reason: 'harassment', details: '반복적인 욕설' });
+    await safetyService.reportUser('user-2', { reason: 'fraud', details: '송금을 요구함' });
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url, config.data])).toEqual([
+      ['POST', '/api/chat/rooms/room-1/messages/message-1/reports', { reason: 'harassment', details: '반복적인 욕설' }],
+      ['POST', '/api/users/user-2/reports', { reason: 'fraud', details: '송금을 요구함' }],
+    ]);
+  });
+
   it('connects trip, shared preference, place, and itinerary APIs', async () => {
+    mocks.apiRequest.mockResolvedValueOnce({ data: [] });
     await oddtripService.getTrips();
     await oddtripService.getTrip('trip-1');
     await oddtripService.createTrip({ matchId: 'match-1', region: '부산', startDate: '2026-09-20', endDate: '2026-09-22' });

@@ -1,4 +1,4 @@
-import type { BlockedUser } from '../../../types';
+import type { BlockedUser, ChatReportReason } from '../../../types';
 import { apiRequest } from '../../../shared/api/client';
 
 export const safetyService = {
@@ -7,5 +7,12 @@ export const safetyService = {
   },
   unblock(userId: string) {
     return apiRequest({ url: `/api/users/${userId}/block`, method: 'DELETE' });
+  },
+  reportUser(userId: string, body: { reason: ChatReportReason; details?: string }) {
+    return apiRequest<{ id: string; status: string }>({
+      url: `/api/users/${userId}/reports`,
+      method: 'POST',
+      data: body,
+    });
   },
 };

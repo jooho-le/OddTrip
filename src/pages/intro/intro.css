@@ -13,7 +13,7 @@
 
 .intro-fixed-nav{position:fixed;top:0;left:0;right:0;z-index:40;opacity:0;transform:translate3d(0,-100%,0);transition:opacity .32s cubic-bezier(.22,1,.36,1),transform .42s cubic-bezier(.22,1,.36,1),background .32s linear}
 .intro-fixed-nav.show{opacity:1;transform:none;background:rgba(20,17,16,.92);border-bottom:1px solid rgba(255,255,255,.1);backdrop-filter:blur(12px)}
-.intro-nav-inner{max-width:1160px;margin:auto;display:flex;align-items:center;gap:26px;padding:14px 24px}
+.intro-nav-inner{max-width:1280px;margin:auto;display:flex;align-items:center;gap:26px;padding:14px 24px}
 .intro-brand{font-size:20px;font-weight:900;letter-spacing:-.07em;color:#fff;transition:color .18s ease,transform .18s ease}
 .intro-brand i{font-style:normal;color:#ff5a36;transition:color .18s ease}
 .intro-brand:hover{color:#ff9b85;transform:translateY(-1px)}
@@ -56,7 +56,7 @@
 .intro-cue-inner span:last-child{width:1px;height:34px;background:linear-gradient(180deg,rgba(255,255,255,.7),transparent)}
 
 .intro-why{background:#141110;color:#fff;padding:150px 24px 160px}
-.intro-inner{max-width:1160px;margin:auto}
+.intro-inner{max-width:1280px;margin:auto}
 .intro-eyebrow{margin:0 0 34px;font-size:10px;font-weight:800;letter-spacing:.22em;color:#ff9b85}
 .intro-why h2{margin:0;max-width:900px;font-size:52px;font-weight:800;line-height:1.24;letter-spacing:-.055em}
 .intro-problem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:86px;background:rgba(255,255,255,.14)}
@@ -66,7 +66,7 @@
 .intro-problem p{margin:0;color:#a5a09c;font-size:13px;line-height:1.8}
 
 .intro-steps{background:#fff;border-top:1px solid #e7e1da;color:#202124}
-.intro-steps-grid{max-width:1160px;margin:auto;padding:0 24px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:70px}
+.intro-steps-grid{max-width:1280px;margin:auto;padding:0 24px;display:grid;grid-template-columns:360px minmax(0,1fr);gap:70px}
 .intro-steps-side{position:sticky;top:130px;padding:120px 0 0}
 .intro-steps-side .eyebrow{margin:0 0 22px;font-size:10px;font-weight:800;letter-spacing:.22em;color:#ff2d78}
 .intro-steps-side h2{margin:0 0 26px;font-size:40px;font-weight:800;line-height:1.24;letter-spacing:-.055em}
@@ -122,7 +122,7 @@
 .intro-final{position:relative;overflow:hidden;background:#0d0b0b;color:#fff;padding:150px 24px 160px}
 .intro-final-photo{position:absolute;inset:-12% 0;background:url('https://images.unsplash.com/photo-1542931287-023b922fa89b?auto=format&fit=crop&w=1800&q=82') center/cover}
 .intro-final-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,8,8,.86),rgba(10,8,8,.94))}
-.intro-final-inner{position:relative;max-width:1160px;margin:auto;text-align:center}
+.intro-final-inner{position:relative;max-width:1280px;margin:auto;text-align:center}
 .intro-final .eyebrow{margin:0 0 26px;font-size:10px;font-weight:800;letter-spacing:.22em;color:#ff9b85}
 .intro-final h2{margin:0 auto;max-width:760px;font-size:54px;font-weight:800;line-height:1.2;letter-spacing:-.06em}
 .intro-final .actions{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:44px}
@@ -140,14 +140,14 @@
 .curtain-line:last-child b{font-size:64px;font-weight:900;letter-spacing:-.07em}
 
 .site-footer{border-top:1px solid #2a2726;background:#0b0a0a;color:#8f8a87}
-.site-footer-inner{max-width:1160px;margin:auto;padding:42px 24px 34px;display:grid;grid-template-columns:1.2fr 1fr;gap:40px}
+.site-footer-inner{max-width:1280px;margin:auto;padding:42px 24px 34px;display:grid;grid-template-columns:1.2fr 1fr;gap:40px}
 .footer-brand{font-size:23px;font-weight:900;letter-spacing:-.06em;color:#fff}
 .footer-brand i{font-style:normal;color:#ff5a36}
 .footer-copy{margin-top:10px;font-size:11px;line-height:1.7;color:#7e7976}
 .footer-links{display:flex;justify-content:flex-end;gap:18px;flex-wrap:wrap;align-content:start}
 .footer-links a,.footer-links button{color:#aaa4a0;font-size:11px}
 .footer-links a:hover,.footer-links button:hover{color:#ff5a36}
-.footer-bottom{max-width:1160px;margin:auto;padding:16px 24px 24px;border-top:1px solid #1c1a19;font-size:10px;color:#66615f}
+.footer-bottom{max-width:1280px;margin:auto;padding:16px 24px 24px;border-top:1px solid #1c1a19;font-size:10px;color:#66615f}
 .app-footer{background:#161616}
 
 /* Hover retained on the app-shell logo */

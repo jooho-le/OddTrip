@@ -11,7 +11,6 @@ export function AttractionListPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>('전체');
   const { attractions, agentRun, activeTripId, loadAttractions, runTravelAgent, toggleAttraction, status, error } = useTripStore();
   const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
 
   useEffect(() => { void loadAttractions(); }, [loadAttractions]);
 
@@ -80,7 +79,6 @@ export function AttractionListPage() {
                 <button className="line-btn" onClick={() => void toggleAttraction(item.id, 'excluded')}>{item.excluded ? '제외 취소' : '제외'}</button>
                 <button className="line-btn accent" onClick={() => void toggleAttraction(item.id, 'saved')}>{item.saved ? '저장됨 · 취소' : '여행에 저장'}</button>
               </div>
-              <button className="line-btn" style={{ width: '100%', marginTop: 7 }} type="button" onClick={() => showComingSoon('장소 개인 투표', '장소 저장과 제외는 사용할 수 있지만, 여행자별 찬반 투표는 현재 준비 중인 기능입니다.')}>내 의견 남기기</button>
             </div>
           </article>
         ))}

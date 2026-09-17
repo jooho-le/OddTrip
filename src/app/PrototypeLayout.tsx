@@ -1,8 +1,11 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../entities/chat/model/chatStore';
+import { chatService } from '../entities/chat/api/chatService';
+import { safetyService } from '../entities/chat/api/safetyService';
 import { useTripStore } from '../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../features/prototype/designContent';
+import { ReportDialog } from '../features/safety/ReportDialog';
 import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
 import { NotificationTray } from '../widgets/notification/NotificationTray';
 import { BottomTabs } from '../widgets/navigation/BottomTabs';
@@ -11,6 +14,7 @@ const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
   { to: '/matches', label: '동행 찾기', match: ['/matches'] },
   { to: '/my', label: '내 여행', match: ['/my', '/trip', '/survey'] },
+  { to: '/community', label: '커뮤니티', match: ['/community'] },
 ];
 
 export function PrototypeLayout() {
@@ -127,6 +131,7 @@ export function PrototypeLayout() {
         <button type="button" onClick={() => navigate('/my')}>내 여행</button>
         <button type="button" onClick={() => navigate('/survey/tti')}>여행 성향 다시 진단</button>
         <button type="button" onClick={() => navigate('/settings/notifications')}>알림 설정</button>
+        <button type="button" onClick={() => navigate('/settings/privacy')}>개인정보 관리</button>
         <button type="button" onClick={() => navigate('/settings')}>계정 설정</button>
         <button type="button" onClick={signOut}>로그아웃</button>
       </div>
@@ -148,11 +153,17 @@ export function PrototypeChatDrawer({ roomId, closeTo }: { roomId: string; close
     loadRoom,
     loadMessages,
     sendMessage,
+    deleteMessage,
+    reportMessage,
     markRead,
+    loadRooms,
     setActiveRoom,
     clearError,
   } = useChatStore();
   const [content, setContent] = useState('');
+  const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
+  const [reportingUser, setReportingUser] = useState(false);
+  const showInfo = useUiNoticeStore((state) => state.showInfo);
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const room = rooms.find((item) => item.id === roomId);
@@ -189,6 +200,18 @@ export function PrototypeChatDrawer({ roomId, closeTo }: { roomId: string; close
     await sendMessage(roomId, value);
   };
 
+  const blockCounterpart = async () => {
+    if (!room || !window.confirm(`${room.counterpart.nickname}님을 차단할까요? 매칭과 채팅도 종료됩니다.`)) return;
+    try {
+      await chatService.blockCounterpart(room.counterpart.id);
+      await loadRooms('active');
+      showInfo('사용자를 차단했습니다.', '차단 목록은 개인정보 관리에서 확인하고 해제할 수 있습니다.');
+      close();
+    } catch (caught) {
+      showInfo('차단하지 못했습니다.', caught instanceof Error ? caught.message : '잠시 후 다시 시도해주세요.');
+    }
+  };
+
   return (
     <>
       <button className="scrim" aria-label="채팅 닫기" onClick={close} />
@@ -201,6 +224,12 @@ export function PrototypeChatDrawer({ roomId, closeTo }: { roomId: string; close
           <b>{room?.trip?.title ?? room?.trip?.region ?? '연결된 여행'}</b>
           <p>{room?.status === 'closed' ? '종료된 채팅 · 읽기 전용' : `현재 단계 · ${room?.currentStep ?? '함께 정하기'} · ${socketLabel(socketStatus)}`}</p>
         </div>
+        {room ? (
+          <div className="chat-safety-actions" aria-label="채팅 안전 도구">
+            <button type="button" className="text-btn" onClick={() => setReportingUser(true)}>사용자 신고</button>
+            <button type="button" className="text-btn" onClick={() => void blockCounterpart()}>사용자 차단</button>
+          </div>
+        ) : null}
         <div className="messages" ref={messagesRef}>
           {messagesNextBefore[roomId]
             ? <button className="chat-load-more" onClick={() => void loadMessages(roomId, { more: true })}>이전 메시지 더 보기</button>
@@ -215,6 +244,13 @@ export function PrototypeChatDrawer({ roomId, closeTo }: { roomId: string; close
               <div className={mine ? 'bubble me' : 'bubble'} key={message.id}>
                 {message.deleted ? '삭제된 메시지입니다.' : message.displayText ?? message.content}
                 <span className="message-meta">{formatTime(message.createdAt)}{message.pending ? ' · 전송 중' : read ? ' · 읽음' : ''}</span>
+                {!message.deleted && !message.pending ? (
+                  <span className="message-actions">
+                    {mine
+                      ? <button type="button" className="text-btn" onClick={() => { if (window.confirm('이 메시지를 삭제할까요?')) void deleteMessage(roomId, message.id); }}>삭제</button>
+                      : <button type="button" className="text-btn" onClick={() => setReportingMessageId(message.id)}>메시지 신고</button>}
+                  </span>
+                ) : null}
               </div>
             );
           })}
@@ -232,6 +268,30 @@ export function PrototypeChatDrawer({ roomId, closeTo }: { roomId: string; close
           <button type="submit" disabled={!content.trim() || room?.status === 'closed'}>전송</button>
         </form>
       </aside>
+      {reportingMessageId ? (
+        <ReportDialog
+          title="이 메시지를 신고할까요?"
+          onClose={() => setReportingMessageId(null)}
+          onSubmit={async (reason, details) => {
+            const ok = await reportMessage(roomId, reportingMessageId, reason, details);
+            if (!ok) throw new Error(useChatStore.getState().error ?? '신고를 접수하지 못했습니다.');
+            setReportingMessageId(null);
+            showInfo('메시지 신고가 접수되었습니다.', '운영자가 내용을 검토한 뒤 처리 결과를 알림으로 알려드립니다.');
+          }}
+        />
+      ) : null}
+      {reportingUser && room ? (
+        <ReportDialog
+          title={`${room.counterpart.nickname}님을 신고할까요?`}
+          description="프로필과 현재 상호작용을 기준으로 운영자가 검토합니다. 구체적인 상황을 추가 설명에 적어주세요."
+          onClose={() => setReportingUser(false)}
+          onSubmit={async (reason, details) => {
+            await safetyService.reportUser(room.counterpart.id, { reason, details });
+            setReportingUser(false);
+            showInfo('사용자 신고가 접수되었습니다.', '신고와 차단은 별개입니다. 더 이상 대화하고 싶지 않다면 사용자 차단도 이용해주세요.');
+          }}
+        />
+      ) : null}
     </>
   );
 }

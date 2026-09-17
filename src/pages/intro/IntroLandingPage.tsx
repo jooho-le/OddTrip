@@ -15,8 +15,8 @@ const PROBLEMS = [
 
 const STEP_ROWS = [
   { dot: '1', label: '성향 조사서' },
-  { dot: '2', label: '독립 선택 · 양보 범위' },
-  { dot: '3', label: '공동 일정 승인' }
+  { dot: '2', label: '두 사람의 선호 제출' },
+  { dot: '3', label: 'AI 공동 일정표' }
 ];
 
 const RECORDS = [
@@ -213,11 +213,11 @@ export function IntroLandingPage() {
               <div className="intro-card-body">
                 <span className="step">STEP 02 · PRIVATE FORM</span>
                 <h3>상대의 답을 보기 전에 각자 씁니다</h3>
-                <p style={{ marginBottom: 24 }}>원하는 것과 양보할 수 있는 범위를 따로 작성합니다. 두 사람이 모두 제출한 뒤에야 겹치는 부분과 충돌하는 부분이 공개됩니다.</p>
+                <p style={{ marginBottom: 24 }}>원하는 여행 기준을 각자 제출합니다. 두 답안이 모두 모이면 AI가 공통점과 차이를 함께 반영해 장소와 이동 순서를 정합니다.</p>
                 <div className="intro-docs">
-                  <div className="intro-doc-row done"><span className="mark">✓</span><b>독립 선택 조사서</b><em>양쪽 제출 완료</em></div>
-                  <div className="intro-doc-row"><span className="mark">3</span><b>양보 범위 조사서</b><em>작성 필요</em></div>
-                  <div className="intro-doc-row locked"><span className="mark">4</span><b>Odd Rule 선택서</b><em>이전 단계 대기</em></div>
+                  <div className="intro-doc-row done"><span className="mark">✓</span><b>공동 선호 조사서</b><em>각자 제출</em></div>
+                  <div className="intro-doc-row"><span className="mark">2</span><b>AI가 차이 분석</b><em>자동 반영</em></div>
+                  <div className="intro-doc-row locked"><span className="mark">3</span><b>공동 일정표</b><em>자동 생성</em></div>
                 </div>
               </div>
             </article>
@@ -226,7 +226,7 @@ export function IntroLandingPage() {
               <div className="intro-card-body" style={{ paddingBottom: 26 }}>
                 <span className="step">STEP 03 · SHARED PLAN</span>
                 <h3>두 취향이 남은 하나의 일정</h3>
-                <p>조율 결과로 만들어진 일정에는 각자의 반영 점수가 함께 표시됩니다. 승인 전까지 이동량과 장소를 수정 요청할 수 있습니다.</p>
+                <p>AI가 두 사람의 선호를 함께 읽고 여행 장소, 이동 순서, 날짜별 동선을 한 번에 정리합니다. 다른 의견은 동행과 채팅에서 이야기합니다.</p>
               </div>
               <div className="intro-photo-grid">
                 {['photo-1504674900247-0877df9cc836', 'photo-1534274867514-d5b47ef89ed7', 'photo-1528127269322-539801943592'].map((id) => (

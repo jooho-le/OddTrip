@@ -38,9 +38,6 @@ export function AccountSettingsPage() {
   const [nickname, setNickname] = useState(user?.nickname ?? '');
   const [homeRegion, setHomeRegion] = useState(user?.homeRegion ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
-  const [blocks, setBlocks] = useState<BlockedUser[]>([]);
-  const [blocksLoading, setBlocksLoading] = useState(true);
-  const [blockError, setBlockError] = useState('');
 
   useEffect(() => {
     setNickname(user?.nickname ?? '');
@@ -48,26 +45,9 @@ export function AccountSettingsPage() {
     setAvatarUrl(user?.avatarUrl ?? '');
   }, [user]);
 
-  useEffect(() => {
-    void safetyService.getBlocks()
-      .then((response) => setBlocks(response.data))
-      .catch((reason) => setBlockError(reason instanceof Error ? reason.message : '차단 목록을 불러오지 못했습니다.'))
-      .finally(() => setBlocksLoading(false));
-  }, []);
-
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     await updateProfile({ nickname, homeRegion: homeRegion || undefined, avatarUrl: avatarUrl || undefined });
-  };
-
-  const unblock = async (block: BlockedUser) => {
-    setBlockError('');
-    try {
-      await safetyService.unblock(block.blockedUserId);
-      setBlocks((items) => items.filter((item) => item.id !== block.id));
-    } catch (reason) {
-      setBlockError(reason instanceof Error ? reason.message : '차단 해제에 실패했습니다.');
-    }
   };
 
   return (
@@ -75,7 +55,7 @@ export function AccountSettingsPage() {
       <div className="container">
         <header className="page-heading">
           <div><Link className="text-btn" to="/my">‹ 내 여행</Link><h1 style={{ marginTop: 9 }}>계정 설정</h1></div>
-          <p>프로필, 동의 설정, 차단한 사용자를 관리합니다.</p>
+          <p>다른 사용자에게 보이는 프로필 정보를 수정합니다.</p>
         </header>
         <section className="match-detail">
           <aside className="match-profile">
@@ -92,34 +72,96 @@ export function AccountSettingsPage() {
               <label className="field full"><span>프로필 이미지 URL</span><input type="url" maxLength={500} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} /></label>
             </div>
             {error ? <div className="error-strip">{error}</div> : null}
-            <p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '비밀번호 변경은 아직 제공되지 않습니다.'}</p>
+            <p className={status.profile === 'success' ? 'form-message success' : 'form-message'}>{status.profile === 'success' ? '서버에 저장되었습니다.' : '닉네임과 여행 활동 지역은 매칭 프로필에도 반영됩니다.'}</p>
             <button className="solid-btn" style={{ marginTop: 14 }} disabled={status.profile === 'loading'}>{status.profile === 'loading' ? '저장 중…' : '프로필 저장'}</button>
           </form>
         </section>
 
-        <section style={{ marginTop: 40 }}>
-          <div className="section-title"><h2>차단한 사용자</h2><p>차단을 해제해도 종료된 매칭과 채팅방은 자동 복구되지 않습니다.</p></div>
-          {blockError ? <div className="error-strip" role="alert">{blockError}</div> : null}
-          {blocksLoading ? <div className="skeleton-stack"><div className="skeleton-row" /></div> : null}
-          {!blocksLoading && !blocks.length ? <div className="empty-state"><strong>차단한 사용자가 없습니다.</strong><p>채팅에서 차단한 사용자가 이곳에 표시됩니다.</p></div> : null}
-          <div className="request-list">
-            {blocks.map((block) => <article className="request-row" key={block.id}><div className="request-person"><div>{block.user.avatarUrl ? <img className="avatar" src={block.user.avatarUrl} alt="" /> : <span className="avatar" style={{ display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>{block.user.nickname.slice(0, 1)}</span>}</div><div><h3>{block.user.nickname}</h3><p>TTI {block.user.ttiCode ?? '미제공'}</p><small>{new Date(block.createdAt).toLocaleDateString('ko-KR')} 차단</small></div></div><button type="button" className="line-btn" onClick={() => void unblock(block)}>차단 해제</button></article>)}
-          </div>
-        </section>
-
-        <ConsentSettings />
-
         <section className="settings-links">
-          <div className="section-title"><h2>보안과 알림</h2><p>별도 절차가 필요한 계정 기능입니다.</p></div>
+          <div className="section-title"><h2>계정 관리</h2><p>개인정보, 보안, 알림 설정은 항목별로 관리합니다.</p></div>
           <div className="settings-link-grid">
+            <Link to="/settings/privacy"><span className="eyebrow">PRIVACY & SECURITY</span><b>개인정보 관리</b><p>이메일, 비밀번호, 동의 기록, 차단 사용자와 계정 삭제를 관리합니다.</p><em>관리 화면 열기 →</em></Link>
             <Link to="/verification"><span className="eyebrow">IDENTITY</span><b>휴대전화 본인확인</b><p>성인 여부와 본인 명의를 확인하는 절차를 봅니다.</p><em>화면 열기 →</em></Link>
             <Link to="/settings/notifications"><span className="eyebrow">NOTIFICATIONS</span><b>알림 채널 설정</b><p>인앱 알림, 이메일, Push와 D-1 리마인더를 구분합니다.</p><em>설정 열기 →</em></Link>
           </div>
         </section>
+      </div>
+    </main>
+  );
+}
 
+export function PrivacySettingsPage() {
+  const user = useTripStore((state) => state.user);
+
+  return (
+    <main className="page">
+      <div className="container privacy-settings-page">
+        <header className="page-heading">
+          <div><Link className="text-btn privacy-back" to="/my">‹ 마이페이지</Link><span className="eyebrow">PRIVACY & SECURITY</span><h1>개인정보 관리</h1></div>
+          <p>계정 정보와 동의 기록을 확인하고 보안 설정을 관리합니다.</p>
+        </header>
+
+        <section className="account-overview-card">
+          <div><span className="eyebrow">ACCOUNT</span><h2>{user?.nickname ?? '여행자'}</h2><p>{user?.email ?? '이메일 미제공'}</p></div>
+          <dl><div><dt>생활 지역</dt><dd>{user?.homeRegion ?? '미설정'}</dd></div><div><dt>여행 성향</dt><dd>{user?.ttiCode ?? '미완료'}</dd></div></dl>
+          <Link className="line-btn" to="/settings">프로필 수정</Link>
+        </section>
+
+        <PasswordChangePanel />
+        <ConsentSettings />
+        <BlockedUsers />
         <WithdrawAccount />
       </div>
     </main>
+  );
+}
+
+function PasswordChangePanel() {
+  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+
+  return (
+    <section className="security-panel">
+      <div className="section-title"><h2>비밀번호 변경</h2><p>현재 비밀번호 확인 후 새 비밀번호를 설정합니다.</p></div>
+      <div className="password-change-pending">
+        <div><strong>비밀번호 변경 API 연결 대기</strong><p>민감정보를 불필요하게 입력받지 않도록 서버 기능이 준비되기 전에는 비밀번호 입력란을 열지 않습니다.</p></div>
+        <button type="button" className="solid-btn" onClick={() => showComingSoon('비밀번호 변경', '현재 백엔드에 비밀번호 변경 API가 없어 계정 정보는 변경되지 않습니다.')}>비밀번호 변경 안내</button>
+      </div>
+    </section>
+  );
+}
+
+function BlockedUsers() {
+  const [blocks, setBlocks] = useState<BlockedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void safetyService.getBlocks()
+      .then((response) => setBlocks(response.data))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : '차단 목록을 불러오지 못했습니다.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const unblock = async (block: BlockedUser) => {
+    setError('');
+    try {
+      await safetyService.unblock(block.blockedUserId);
+      setBlocks((items) => items.filter((item) => item.id !== block.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '차단 해제에 실패했습니다.');
+    }
+  };
+
+  return (
+    <section className="blocked-users-panel">
+      <div className="section-title"><h2>차단한 사용자</h2><p>차단을 해제해도 종료된 매칭과 채팅방은 자동 복구되지 않습니다.</p></div>
+      {error ? <div className="error-strip" role="alert">{error}</div> : null}
+      {loading ? <div className="skeleton-stack"><div className="skeleton-row" /></div> : null}
+      {!loading && !blocks.length ? <div className="empty-state"><strong>차단한 사용자가 없습니다.</strong><p>채팅에서 차단한 사용자가 이곳에 표시됩니다.</p></div> : null}
+      <div className="request-list">
+        {blocks.map((block) => <article className="request-row" key={block.id}><div className="request-person"><div>{block.user.avatarUrl ? <img className="avatar" src={block.user.avatarUrl} alt="" /> : <span className="avatar" style={{ display: 'grid', placeItems: 'center', background: '#202124', color: '#fff' }}>{block.user.nickname.slice(0, 1)}</span>}</div><div><h3>{block.user.nickname}</h3><p>TTI {block.user.ttiCode ?? '미제공'}</p><small>{new Date(block.createdAt).toLocaleDateString('ko-KR')} 차단</small></div></div><button type="button" className="line-btn" onClick={() => void unblock(block)}>차단 해제</button></article>)}
+      </div>
+    </section>
   );
 }
 
@@ -190,9 +232,9 @@ function ConsentSettings() {
                       {documentPath ? <Link to={documentPath}>{CONSENT_LABELS[item.type]}</Link> : CONSENT_LABELS[item.type]}
                     </th>
                     <td>
-                      {item.accepted ? '동의함' : item.stale ? '재동의 필요' : '동의 안 함'}
+                      {consentStatusLabel(item.type, item.accepted, item.stale)}
                     </td>
-                    <td>{item.version ?? '—'}</td>
+                    <td>{formatConsentVersion(item.version)}</td>
                     <td>{formatMoment(item.acceptedAt)}</td>
                   </tr>
                 );
@@ -209,6 +251,18 @@ function ConsentSettings() {
       ) : null}
     </section>
   );
+}
+
+function consentStatusLabel(type: ConsentType, accepted: boolean, stale: boolean) {
+  if (stale) return '재확인 필요';
+  if (!accepted) return type === 'marketing' ? '수신 안 함' : '확인 안 함';
+  return type === 'privacy_notice' || type === 'adult' || type === 'safety_guide' ? '확인 완료' : '동의함';
+}
+
+function formatConsentVersion(version: string | null) {
+  if (!version) return '—';
+  const draft = version.match(/^draft-(\d{4})-(\d{2})-(\d{2})$/);
+  return draft ? `검토본 · ${draft[1]}.${draft[2]}.${draft[3]}` : version;
 }
 
 
