@@ -2,21 +2,15 @@ import { useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { sourceLabel } from '../../shared/lib/sourceLabel';
-import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { TripWorkspaceShell } from '../../widgets/trip/TripWorkspaceShell';
 
 export function AttractionDetailPage() {
   const { id = '' } = useParams();
   const { attractions, loadAttractions, toggleAttraction, status, error } = useTripStore();
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   useEffect(() => { if (!attractions.length) void loadAttractions(); }, [attractions.length, loadAttractions]);
 
   const item = attractions.find((attraction) => attraction.id === id);
-  useEffect(() => {
-    if (!item || !isStaticSource(item.source)) return;
-    showDemoOnce('attraction-fallback-' + item.id, '외부 관광 데이터 대신 준비된 예시 장소를 보여드리고 있습니다. 장소를 살펴보는 기능은 체험할 수 있지만 실제 추천 결과로 확정하지는 않습니다.');
-  }, [item, showDemoOnce]);
   if (!item) {
     return (
       <TripWorkspaceShell active="places">

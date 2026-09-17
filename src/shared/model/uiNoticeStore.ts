@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type UiNoticeKind = 'demo' | 'coming-soon' | 'info';
+export type UiNoticeKind = 'coming-soon' | 'info';
 
 export type UiNotice = {
   kind: UiNoticeKind;
@@ -10,25 +10,13 @@ export type UiNotice = {
 
 type UiNoticeState = {
   notice?: UiNotice;
-  showDemoOnce: (key: string, message: string) => void;
   showComingSoon: (feature: string, detail?: string) => void;
   showInfo: (title: string, message: string) => void;
   close: () => void;
 };
 
-const seenDemoNotices = new Set<string>();
-const sessionKey = (key: string) => 'oddtrip.ui-notice.' + key;
-
 export const useUiNoticeStore = create<UiNoticeState>((set) => ({
   notice: undefined,
-  showDemoOnce(key, message) {
-    const alreadySeen = seenDemoNotices.has(key)
-      || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey(key)) === '1');
-    if (alreadySeen) return;
-    seenDemoNotices.add(key);
-    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(sessionKey(key), '1');
-    set({ notice: { kind: 'demo', title: '체험 화면 안내', message } });
-  },
   showComingSoon(feature, detail) {
     set({
       notice: {

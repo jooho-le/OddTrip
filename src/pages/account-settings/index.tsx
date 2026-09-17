@@ -82,7 +82,7 @@ export function AccountSettingsPage() {
           <div className="settings-link-grid">
             <Link to="/settings/privacy"><span className="eyebrow">PRIVACY & SECURITY</span><b>개인정보 관리</b><p>이메일, 비밀번호, 동의 기록, 차단 사용자와 계정 삭제를 관리합니다.</p><em>관리 화면 열기 →</em></Link>
             <Link to="/verification"><span className="eyebrow">IDENTITY</span><b>휴대전화 본인확인</b><p>성인 여부와 본인 명의를 확인하는 절차를 봅니다.</p><em>화면 열기 →</em></Link>
-            <Link to="/settings/notifications"><span className="eyebrow">NOTIFICATIONS</span><b>알림 채널 설정</b><p>인앱 알림, 이메일, Push와 D-1 리마인더를 구분합니다.</p><em>설정 열기 →</em></Link>
+            <Link to="/settings/notifications"><span className="eyebrow">NOTIFICATIONS</span><b>알림 채널 설정</b><p>인앱 알림, 이메일과 Push 수신 상태를 구분합니다.</p><em>설정 열기 →</em></Link>
           </div>
         </section>
       </div>

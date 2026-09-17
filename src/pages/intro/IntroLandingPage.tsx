@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useIntroTransitionStore } from '../../features/intro-transition/introTransitionStore';
-import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import './intro.css';
 
 /** Where `OddTrip 시작하기` lands after the curtain. */
@@ -33,15 +32,10 @@ export function IntroLandingPage() {
   const navRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLElement>(null);
   const run = useIntroTransitionStore((state) => state.run);
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
 
   const start = useCallback(() => {
     run(() => navigate(START_ROUTE));
   }, [navigate, run]);
-
-  useEffect(() => {
-    showDemoOnce('intro-flow-demo', '소개 화면의 여행 기록과 조율 과정은 서비스 흐름을 보여주는 예시입니다. 로그인 후에는 계정에 연결된 여행과 동행 정보만 표시됩니다.');
-  }, [showDemoOnce]);
 
   // dark page background + smooth in-page anchors while the intro is mounted
   useEffect(() => {

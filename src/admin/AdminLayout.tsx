@@ -1,7 +1,5 @@
-import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../entities/trip/model/tripStore';
-import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
 
 const navigation = [
   { to: '/admin', label: '대시보드', end: true },
@@ -17,12 +15,6 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const user = useTripStore((state) => state.user);
   const logout = useTripStore((state) => state.logout);
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
-
-  useEffect(() => {
-    showDemoOnce('admin-demo', '회원·여행·신고와 TTI 질문 목록은 실제 데이터로 동작하며 제재는 즉시 적용됩니다. 관광지 목록, TTI 요약 수치와 운영 상태 화면은 아직 예시 데이터입니다.');
-  }, [showDemoOnce]);
-
   const signOut = () => {
     logout();
     navigate('/auth', { replace: true });

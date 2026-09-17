@@ -51,13 +51,6 @@ export function NotificationSettingsPage() {
             status="연결 전"
             action={() => showComingSoon('모바일 Push', '기기 토큰 등록·철회와 APNs/FCM 전송 결과 API가 준비되기 전에는 권한을 요청하지 않습니다.')}
           />
-          <ChannelRow
-            number="04"
-            title="여행 D-1 리마인더"
-            description="여행 시작 하루 전에 준비사항과 일정 확인을 안내합니다."
-            status="스케줄러 대기"
-            action={() => showComingSoon('여행 D-1 리마인더', '여행 시간대와 기간 변경을 반영하는 서버 예약 작업이 준비된 뒤 설정할 수 있습니다.')}
-          />
         </section>
 
         {error ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void load()}>다시 시도</button></div> : null}

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, Heart, MapPin, MessageCircle, Route, Users } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { createCommunityRepository, type CommunityData, type CommunityPost } from '../../features/community/communityModel';
 import { COMMUNITY_SAMPLES } from '../../features/community/communitySamples';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import { formatRelativeTime } from '../../shared/lib/formatDate';
-import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { TripSummary } from '../../types';
 import { selectCommunityHomePosts } from './homeFeed';
 
@@ -14,7 +13,6 @@ const coverImage = imageUrl('photo-1507525428034-b723cf961d3e', 1600, 90);
 
 export function HomePage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroDirection, setHeroDirection] = useState<'next' | 'prev'>('next');
   const {
@@ -27,7 +25,6 @@ export function HomePage() {
     loadTripHistory,
     openTrip,
   } = useTripStore();
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
   const communityRepository = useMemo(() => user
     ? createCommunityRepository(window.localStorage, { id: user.id, nickname: user.nickname }, COMMUNITY_SAMPLES)
     : undefined, [user?.id, user?.nickname]);
@@ -46,10 +43,7 @@ export function HomePage() {
 
   useEffect(() => {
     void loadTripHistory();
-    if (location.pathname === '/home') {
-      showDemoOnce('home-community-preview', '홈의 여행 이야기는 커뮤니티 체험 화면과 같은 예시 글 및 현재 브라우저에 저장한 글을 보여줍니다. 실제 회원 게시물 공유 기능은 준비 중입니다.');
-    }
-  }, [loadTripHistory, showDemoOnce, location.pathname]);
+  }, [loadTripHistory]);
 
   useEffect(() => {
     loadCommunity();

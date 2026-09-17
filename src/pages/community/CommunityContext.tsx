@@ -23,18 +23,16 @@ function CommunityProvider({ author, children }: { author: Author; children: Rea
   const [data, setData] = useState<CommunityData>();
   const [loadError, setLoadError] = useState('');
   const showInfo = useUiNoticeStore((state) => state.showInfo);
-  const showDemoOnce = useUiNoticeStore((state) => state.showDemoOnce);
   const load = () => {
     try { setData(repository.load()); setLoadError(''); }
     catch (error) { setLoadError(error instanceof Error ? error.message : '저장된 자료를 불러오지 못했어요.'); }
   };
   useEffect(() => {
     load();
-    showDemoOnce(`community-${author.id}`, '커뮤니티는 예시 글로 구성된 체험 화면입니다. 작성한 글·댓글·공감·저장은 이 브라우저의 현재 계정에만 저장되며 다른 회원에게 공개되지 않습니다. 사진은 분위기 참고용입니다. 실제 게시·공유·신고 기능은 준비 중입니다.');
     const onStorage = (event: StorageEvent) => { if (event.key === repository.key || event.key === null) load(); };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [repository, showDemoOnce, author.id]);
+  }, [repository]);
 
   if (loadError) return <main className="container community"><div className="community-empty" role="alert"><h1>기록을 불러오지 못했어요</h1><p>{loadError}</p><button className="line-btn" onClick={load}>다시 불러오기</button></div></main>;
   if (!data) return <main className="container community" aria-busy="true"><p role="status">여행 이야기를 불러오고 있어요.</p></main>;
