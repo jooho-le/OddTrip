@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import type { TripSummary } from '../../types';
 
@@ -11,7 +12,7 @@ export function MyTripPage() {
   useEffect(() => { void loadTripHistory(); void loadUnreadCount(); }, [loadTripHistory, loadUnreadCount]);
   const active = tripHistory.filter((trip) => !['completed', 'cancelled'].includes(trip.status));
   const completed = tripHistory.filter((trip) => trip.status === 'completed');
-  const open = async (trip: TripSummary) => { await openTrip(trip.tripId); navigate('/trip/overview'); };
+  const open = async (trip: TripSummary) => { if (await openTrip(trip.tripId)) navigate(tripWorkspacePath(trip.tripId)); };
 
   return <main className="page"><div className="container"><header className="page-heading"><div><h1>내 여행</h1><p>진행 중인 여행과 지난 여행을 한곳에서 확인합니다.</p></div><Link className="line-btn" to="/settings">계정 설정</Link></header>
     <section style={{ marginTop: 20 }}><div className="my-summary" style={{ border: '1px solid #e1e1e1' }}><div className="my-summary-row">{user?.avatarUrl ? <img className="avatar" src={user.avatarUrl} alt="" /> : <span className="avatar" style={{ width: 46, height: 46, display: 'grid', placeItems: 'center', background: '#202124', color: '#fff', fontWeight: 800 }}>{user?.nickname?.slice(0, 1) ?? '?'}</span>}<div><b>{user?.nickname ?? '여행자'}님의 OddTrip</b><p>{user?.ttiCode ?? 'TTI 미완료'} · {user?.homeRegion ?? '지역 미설정'}</p></div></div><div className="summary-stats"><div><b>{active.length}</b><span>진행 중</span></div><div><b>{completed.length}</b><span>완료 여행</span></div><div><b>{unreadTotal}</b><span>안읽은 채팅</span></div></div></div></section>

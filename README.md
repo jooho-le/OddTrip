@@ -453,9 +453,9 @@ OddTrip/
 | :-- | :-- | :-- |
 | 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
 | 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈은 진행 중인 여행·최근 알림·작성할 조사서를 유지하면서 커뮤니티의 추천·최신·현재 여행지 이야기를 요약한다. 매칭 후보·요청은 `/matches`, 실제 여행 목록은 `/my`에서 확인한다. 프로필·동의 조회/철회·회원 탈퇴와 `/verification`, `/settings/notifications`, `/help`의 본인확인 준비 상태·알림 설정·이용 안내를 제공한다. |
-| 여행 | `/trip/:tab` | `overview`, `coordination`, `schedule` 탭. 각자 공동 선호 제출 → AI 장소·동선 분석 → 공동 일정표 순으로 연결한다. 별도 합의안, 장소 투표, 일정 승인 단계는 제공하지 않는다. |
-| 일정 | `/trip/schedule/map` | AI가 만든 일정 중 장소 식별자 또는 좌표가 있는 항목을 Google 지도에 방문 순서대로 표시한다. 번호 마커와 연결선은 도로 길찾기 결과가 아니라 일정 순서를 뜻한다. 일정은 읽기 전용이며 다른 의견은 채팅에서 나눈다. |
-| 조사서 | `/survey/:key` | TTI와 각자의 공동 선호만 현재 흐름에서 제공한다. 양보 범위·Odd Rule·최종 승인 구형 URL은 각각 조율 또는 일정 탭으로 이동한다. |
+| 여행 | `/trips/:tripId/:tab` | `overview`, `coordination`, `schedule` 탭. URL의 여행 ID를 조회해 새로고침·직접 접근에도 같은 여행을 복구한다. 각자 공동 선호 제출 → AI 장소·동선 분석 → 공동 일정표 순으로 연결한다. |
+| 일정 | `/trips/:tripId/schedule/map` | AI가 만든 일정 중 장소 식별자 또는 좌표가 있는 항목을 Google 지도에 방문 순서대로 표시한다. 번호 마커와 연결선은 도로 길찾기 결과가 아니라 일정 순서를 뜻한다. 일정은 읽기 전용이며 다른 의견은 채팅에서 나눈다. |
+| 조사서 | `/survey/tti`, `/trips/:tripId/survey/preference` | TTI와 각자의 공동 선호만 현재 흐름에서 제공한다. 양보 범위·Odd Rule·최종 승인 구형 URL은 해당 여행의 조율 또는 일정 탭으로 이동한다. |
 | 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
 | 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 운영자 로그인은 `/admin`으로 바로 이동하고 일반 회원용 보호 화면 접근도 관리 콘솔로 되돌린다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
 | 관리자 준비 | `/admin/attractions`, `/admin/tti`, `/admin/operations` | 관광지 예시 목록은 검색·분류·상세 열람을 제공하고 TTI 질문 목록은 실제 질문 API를 읽어 축별로 필터링한다. 관광지 추가·편집, TTI 요약·버전·편집, 운영 상태는 진입 시 세션당 한 번 예시 데이터임을 알리며 미지원 조작은 준비 중 안내만 표시한다. |

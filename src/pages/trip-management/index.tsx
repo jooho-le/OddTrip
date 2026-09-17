@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from 're
 import { useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import type { TripSummary } from '../../types';
 
 export type TripDraft = {
@@ -62,7 +63,7 @@ export function NewTripPage() {
       startDate: draft.startDate,
       endDate: draft.endDate,
     });
-    if (created) navigate('/trip/overview');
+    if (created) navigate(tripWorkspacePath(created.tripId));
   };
 
   return (
@@ -85,13 +86,11 @@ export function NewTripPage() {
 
 export function TripSettingsPage() {
   const navigate = useNavigate();
-  const { activeTripId, tripHistory, ensureTrip, status, error, updateTrip, cancelTrip } = useTripStore();
+  const { activeTripId, tripHistory, status, error, updateTrip, cancelTrip } = useTripStore();
   const showInfo = useUiNoticeStore((state) => state.showInfo);
-  const trip = tripHistory.find((item) => item.tripId === activeTripId)
-    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const trip = tripHistory.find((item) => item.tripId === activeTripId);
   const [draft, setDraft] = useState<TripDraft>(EMPTY_DRAFT);
 
-  useEffect(() => { void ensureTrip(); }, [ensureTrip]);
   useEffect(() => {
     if (!trip) return;
     setDraft({
@@ -140,7 +139,7 @@ export function TripSettingsPage() {
       onChange={setDraft}
       onSubmit={submit}
       primaryLabel="변경 내용 저장"
-      secondary={<button type="button" className="line-btn" onClick={() => navigate('/trip/overview')}>여행으로 돌아가기</button>}
+      secondary={<button type="button" className="line-btn" onClick={() => navigate(tripWorkspacePath(trip.tripId))}>여행으로 돌아가기</button>}
       note="변경 내용은 동행과 공유됩니다. 지역이나 날짜를 바꾸면 기존 AI 일정표가 초기화됩니다."
       trip={trip}
       destructiveAction={<button type="button" className="line-btn danger" onClick={() => void requestDelete()}>여행 취소</button>}

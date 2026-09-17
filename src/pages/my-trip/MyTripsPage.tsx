@@ -3,6 +3,7 @@ import { MapPin, PenLine } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useTripListRealtime } from '../../entities/trip/model/useCoordinationRealtime';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import type { TripSummary } from '../../types';
 
@@ -14,8 +15,7 @@ export function MyTripsPage() {
   useTripListRealtime(loadTripHistory);
 
   const open = async (trip: TripSummary) => {
-    await openTrip(trip.tripId);
-    navigate('/trip/overview');
+    if (await openTrip(trip.tripId)) navigate(tripWorkspacePath(trip.tripId));
   };
 
   return (

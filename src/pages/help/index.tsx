@@ -1,11 +1,6 @@
 import { Link } from 'react-router-dom';
-
-const GUIDES = [
-  ['동행을 찾고 싶어요', '여행 성향을 작성한 뒤 동행 찾기에서 후보의 차이와 추천 이유를 확인하세요.', '/matches', '동행 찾기'],
-  ['둘의 취향을 조율하고 싶어요', '각자 공동 선호를 제출하면 AI가 두 답안을 함께 반영해 여행 장소와 일정표를 자동으로 만듭니다.', '/trip/coordination', '조율 열기'],
-  ['일정과 안전 정보를 보고 싶어요', 'AI가 만든 일정표에서 일자별 동선과 현재 제공된 안전 정보를 확인하세요.', '/trip/schedule', '일정 열기'],
-  ['알림과 차단을 관리하고 싶어요', '알림 수신 상태, 마케팅 동의와 차단한 사용자를 계정 설정에서 관리합니다.', '/settings', '설정 열기'],
-] as const;
+import { useTripStore } from '../../entities/trip/model/tripStore';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 
 const FAQ = [
   ['동행 요청을 바로 수락할 수 있나요?', '후보 상세에서 요청을 보내고 상대가 수락해야 매칭과 여행 공간이 생성됩니다. 요청 상태는 동행 찾기에서 확인할 수 있습니다.'],
@@ -15,6 +10,15 @@ const FAQ = [
 ] as const;
 
 export function HelpPage() {
+  const activeTripId = useTripStore((state) => state.activeTripId);
+  const tripFallback = '/my';
+  const guides = [
+    ['동행을 찾고 싶어요', '여행 성향을 작성한 뒤 동행 찾기에서 후보의 차이와 추천 이유를 확인하세요.', '/matches', '동행 찾기'],
+    ['둘의 취향을 조율하고 싶어요', '각자 공동 선호를 제출하면 AI가 두 답안을 함께 반영해 여행 장소와 일정표를 자동으로 만듭니다.', activeTripId ? tripWorkspacePath(activeTripId, 'coordination') : tripFallback, '조율 열기'],
+    ['일정과 안전 정보를 보고 싶어요', 'AI가 만든 일정표에서 일자별 동선과 현재 제공된 안전 정보를 확인하세요.', activeTripId ? tripWorkspacePath(activeTripId, 'schedule') : tripFallback, '일정 열기'],
+    ['알림과 차단을 관리하고 싶어요', '알림 수신 상태, 마케팅 동의와 차단한 사용자를 계정 설정에서 관리합니다.', '/settings', '설정 열기'],
+  ] as const;
+
   return (
     <main className="page help-page">
       <div className="container">
@@ -25,7 +29,7 @@ export function HelpPage() {
         </header>
 
         <section className="help-guide-grid" aria-label="주요 작업 안내">
-          {GUIDES.map(([title, copy, to, label], index) => (
+          {guides.map(([title, copy, to, label], index) => (
             <article className="help-guide" key={title}>
               <b>{String(index + 1).padStart(2, '0')}</b>
               <h2>{title}</h2>

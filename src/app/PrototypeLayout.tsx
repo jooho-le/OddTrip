@@ -13,7 +13,7 @@ import { BottomTabs } from '../widgets/navigation/BottomTabs';
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
   { to: '/matches', label: '동행 찾기', match: ['/matches'] },
-  { to: '/my', label: '내 여행', match: ['/my', '/trip', '/survey'] },
+  { to: '/my', label: '내 여행', match: ['/my', '/trip', '/survey', '/trips'] },
   { to: '/community', label: '커뮤니티', match: ['/community'] },
 ];
 

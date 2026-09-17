@@ -6,6 +6,7 @@ import { createCommunityRepository, type CommunityData, type CommunityPost } fro
 import { COMMUNITY_SAMPLES } from '../../features/community/communitySamples';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import { formatRelativeTime } from '../../shared/lib/formatDate';
+import { tripPreferencePath, tripWorkspacePath, type TripWorkspaceTab } from '../../shared/lib/tripRoutes';
 import type { TripSummary } from '../../types';
 import { selectCommunityHomePosts } from './homeFeed';
 
@@ -72,17 +73,15 @@ export function HomePage() {
       navigate(user?.ttiCode ? '/matches' : '/survey/tti');
       return;
     }
-    await openTrip(activeTrip.tripId);
-    navigate('/trip/overview');
+    if (await openTrip(activeTrip.tripId)) navigate(tripWorkspacePath(activeTrip.tripId));
   };
 
-  const openTripStep = async (path: string) => {
+  const openTripStep = async (tab: TripWorkspaceTab) => {
     if (!activeTrip) {
       navigate(user?.ttiCode ? '/matches' : '/survey/tti?from=home');
       return;
     }
-    await openTrip(activeTrip.tripId);
-    navigate(path);
+    if (await openTrip(activeTrip.tripId)) navigate(tripWorkspacePath(activeTrip.tripId, tab));
   };
 
   const nextStep = !user?.ttiCode
@@ -99,7 +98,7 @@ export function HomePage() {
           title: `${activeTrip.partner?.nickname ?? '동행'}님과 맞출 여행 기준이 남아 있어요`,
           detail: '두 사람이 각자 공동 선호를 제출하면 AI가 장소와 이동 순서를 포함한 일정을 만듭니다.',
           actionLabel: '공동 선호 작성하기',
-          action: () => navigate('/survey/preference?from=home'),
+          action: () => navigate(tripPreferencePath(activeTrip.tripId, true)),
         }
       : activeTrip?.itineraryDayCount
         ? {
@@ -107,7 +106,7 @@ export function HomePage() {
             title: 'AI가 정리한 여행 일정을 확인해 보세요',
             detail: '불편하거나 바꾸고 싶은 내용은 동행과 채팅으로 이야기할 수 있어요.',
             actionLabel: '일정표 확인하기',
-            action: () => void openTripStep('/trip/schedule'),
+            action: () => void openTripStep('schedule'),
           }
         : activeTrip
           ? {
@@ -115,7 +114,7 @@ export function HomePage() {
               title: '두 사람의 선호가 모이면 일정이 시작됩니다',
               detail: '상대의 제출 상태와 AI 일정 생성 과정을 조율 화면에서 확인하세요.',
               actionLabel: '조율 상태 확인하기',
-              action: () => void openTripStep('/trip/coordination'),
+              action: () => void openTripStep('coordination'),
             }
           : {
               status: '새로운 출발',

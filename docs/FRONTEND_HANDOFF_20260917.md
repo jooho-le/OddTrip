@@ -26,16 +26,16 @@
 
 ### 여행 조율·일정
 
-- `/trip/overview`, `/trip/coordination`, `/trip/schedule`에서 동일한 3단계 진행 안내를 사용한다.
+- `/trips/:tripId/overview`, `/trips/:tripId/coordination`, `/trips/:tripId/schedule`에서 동일한 3단계 진행 안내를 사용한다.
 - 각 사용자가 공동 선호를 제출하면 양쪽 제출 상태를 확인하고 AI 일정 생성으로 이어진다.
 - AI 제안은 별도 확정안이 아니라 두 답안을 반영해 장소와 일정을 만드는 입력으로 처리한다.
-- `/trip/places`는 `/trip/schedule`로 이동한다. 구형 decision, proposal, approval, itinerary 화면은 제거하거나 현재 흐름으로 리디렉션한다.
+- `/trip/places`는 현재 여행의 `/trips/:tripId/schedule`로 이동한다. 구형 decision, proposal, approval, itinerary 화면은 현재 여행의 새 경로로 리디렉션한다.
 - 일정은 읽기 전용이다. `항목 자세히 보기`만 제공하고 승인·수정 요청 버튼은 제공하지 않는다.
 - `/my`의 여행 카드에서 해당 여행 정보를 채운 커뮤니티 글쓰기로 바로 이동할 수 있다.
 
 ### 일정 지도
 
-- `/trip/schedule/map`에 Google Maps JavaScript API 지도를 연결했다.
+- `/trips/:tripId/schedule/map`에 Google Maps JavaScript API 지도를 연결했다.
 - 일정 항목 중 `placeId` 또는 좌표가 있는 모든 항목을 유형과 관계없이 수집한다. 관광지뿐 아니라 실제 장소가 있는 식사·숙박 항목도 포함한다.
 - 번호 마커, 방문 순서 목록과 산호색 연결선을 같은 순서로 표시한다.
 - 연결선은 실제 도로 경로가 아니라 방문 순서임을 화면에 명시했다.
@@ -78,10 +78,10 @@
 | 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 |
 | 홈 | `/home` | 현재 여행·다음 행동·커뮤니티 요약 |
 | 매칭 | `/matches`, `/matches/:id` | 후보, 요청, 프로필 동의 게이트 |
-| 내 여행 | `/my`, `/trips/new`, `/trip/settings` | 여행 목록·생성·설정, 여행 기반 글쓰기 |
-| 여행 | `/trip/overview`, `/trip/coordination`, `/trip/schedule` | 3단계 여행 계획 흐름 |
-| 지도 | `/trip/schedule/map` | 실제 Google 지도, 좌표 기반 일정 순서 |
-| 설문 | `/survey/tti`, `/survey/preference` | TTI와 공동 선호 |
+| 내 여행 | `/my`, `/trips/new`, `/trips/:tripId/settings` | 여행 목록·생성·설정, 여행 기반 글쓰기 |
+| 여행 | `/trips/:tripId/overview`, `/trips/:tripId/coordination`, `/trips/:tripId/schedule` | 여행 ID가 고정된 3단계 여행 계획 흐름 |
+| 지도 | `/trips/:tripId/schedule/map` | 실제 Google 지도, 좌표 기반 일정 순서 |
+| 설문 | `/survey/tti`, `/trips/:tripId/survey/preference` | TTI와 여행별 공동 선호 |
 | 커뮤니티 | `/community/*` | 브라우저 저장 기반 게시판 체험 |
 | 채팅 | `/chat`, `/chat/:roomId` | 방 목록, 우측 드로어 |
 | 계정 | `/settings`, `/settings/privacy`, `/settings/notifications`, `/verification`, `/help` | 개인정보·동의·알림·준비 기능 |
@@ -132,18 +132,17 @@ VITE_GOOGLE_MAPS_API_KEY=
 
 ## 7. 검증 결과
 
-- `npm test -- --run`: 14개 파일, 59개 테스트 통과
+- `npm test -- --run`: 15개 파일, 61개 테스트 통과
 - `npm run build`: 통과. 약 526 kB JavaScript chunk 크기 경고는 남아 있다.
 - `git diff --check`: 오류 없음. Windows의 LF→CRLF 경고만 확인했다.
 - 지도 스모크 테스트: 테스트 일정 18개 행 중 실제 장소 정보가 있는 8개 항목을 마커와 순서 목록에 표시했고 좌표 누락은 0개였다.
-- `/trip/schedule/map`: 1024px와 390px에서 수평 오버플로 0을 확인했다.
+- `/trips/:tripId/schedule/map`: 기존 지도 레이아웃을 유지하고 여행 ID 기반 복구 경계를 추가했다.
 - 커뮤니티, 여행 개요, 내 여행, 설정 화면은 브라우저에서 주요 상태와 레이아웃을 확인했다.
 
 ## 8. 후속 우선순위
 
 ### P0
 
-- 여행 URL에 `tripId`를 포함해 새로고침·공유 시 같은 여행을 복구한다.
 - 커뮤니티 게시글·초안·댓글·공감·저장·신고 서버 API와 운영자 검토를 추가한다.
 - 매칭에 실제 성인·본인인증 상태와 나이대를 연결한다.
 

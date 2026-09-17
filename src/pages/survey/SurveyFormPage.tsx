@@ -8,6 +8,7 @@ import {
   type SurveyKey,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import type { JointPreference, TtiQuestion } from '../../types';
 import { TripFlowGuide } from '../../widgets/trip/TripFlowGuide';
 import { coordinationFlowState, isTripPlanningReadOnly } from '../../widgets/trip/coordinationFlow';
@@ -34,7 +35,6 @@ export function SurveyFormPage() {
     loadQuestions,
     setAnswer,
     calculateResult,
-    ensureTrip,
     updatePreferences,
     savePreferences,
   } = useTripStore();
@@ -47,15 +47,14 @@ export function SurveyFormPage() {
     if (formKey === 'tti') return ttiDesign(questions);
     return SURVEY_DESIGNS[formKey];
   }, [formKey, questions]);
-  const trip = tripHistory.find((item) => item.tripId === activeTripId)
-    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const trip = tripHistory.find((item) => item.tripId === activeTripId);
   const itineraryReady = Boolean(itinerary.length || trip?.itineraryDayCount);
   const planningReadOnly = isTripPlanningReadOnly(trip?.status, itineraryReady);
   const readOnlyForm = planningReadOnly && formKey === 'preference';
   const fromHome = search.get('from') === 'home';
   const back = fromHome || formKey === 'tti'
     ? { label: '‹ 홈으로 돌아가기', to: '/home' }
-    : { label: '‹ 조율로 돌아가기', to: spec?.returnTo ?? '/home' };
+    : { label: '‹ 조율로 돌아가기', to: trip ? tripWorkspacePath(trip.tripId, 'coordination') : '/my' };
   const flow = coordinationFlowState({
     mineSubmitted: Boolean(pairPreferences?.mine),
     counterpartSubmitted: Boolean(pairPreferences?.counterpart),
@@ -70,8 +69,7 @@ export function SurveyFormPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
     if (formKey === 'tti') void loadQuestions();
-    if (formKey === 'preference') void ensureTrip();
-  }, [formKey, loadQuestions, ensureTrip]);
+  }, [formKey, loadQuestions]);
 
   useEffect(() => {
     if (formKey === 'preference' && status.preferences === 'success') {
@@ -132,11 +130,11 @@ export function SurveyFormPage() {
     }
     if (current.status.aiItinerary === 'success' && current.itinerary.length) {
       showInfo('AI가 공동 일정표를 만들었습니다.', '별도 장소 선택이나 승인 없이 일정표에서 결과를 확인할 수 있습니다.');
-      navigate('/trip/schedule');
+      navigate(trip ? tripWorkspacePath(trip.tripId, 'schedule') : '/my');
       return;
     }
     showInfo('선호는 저장됐지만 일정 생성이 완료되지 않았습니다.', '조율 화면에서 다시 시도할 수 있습니다.');
-    navigate('/trip/coordination');
+    navigate(trip ? tripWorkspacePath(trip.tripId, 'coordination') : '/my');
   };
 
   const leaveWithDraft = () => {

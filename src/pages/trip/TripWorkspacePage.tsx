@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Settings2 } from 'lucide-react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useCoordinationRealtime, useTripLifecycleRealtime } from '../../entities/trip/model/useCoordinationRealtime';
@@ -9,6 +9,7 @@ import {
   PROFILE_FALLBACKS,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { tripPreferencePath, tripScheduleMapPath, tripSettingsPath, tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import type { ItineraryItem, TripSummary, UserProfile } from '../../types';
 import { TripFlowGuide } from '../../widgets/trip/TripFlowGuide';
 import { coordinationFlowState, isTripPlanningReadOnly } from '../../widgets/trip/coordinationFlow';
@@ -22,17 +23,16 @@ const TABS = [
 export function TripWorkspacePage() {
   const { tab = 'overview' } = useParams();
   const navigate = useNavigate();
-  const active = TABS.some(([key]) => key === tab) ? tab : 'overview';
-  const { user, activeTripId, tripHistory, itinerary, status, error, ensureTrip, openTrip, loadTripHistory } = useTripStore();
+  const isKnownTab = TABS.some(([key]) => key === tab);
+  const active = isKnownTab ? tab : 'overview';
+  const { user, activeTripId, tripHistory, itinerary, status, error, openTrip, loadTripHistory } = useTripStore();
 
-  useEffect(() => { void ensureTrip(); }, [ensureTrip]);
   useTripLifecycleRealtime(activeTripId, async () => {
     await loadTripHistory();
     if (activeTripId) await openTrip(activeTripId);
   });
 
-  const trip = tripHistory.find((item) => item.tripId === activeTripId)
-    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const trip = tripHistory.find((item) => item.tripId === activeTripId);
 
   if (!trip && (status.trip === 'loading' || status.trip === undefined)) {
     return <WorkspaceState title="여행 공간을 불러오고 있습니다." loading />;
@@ -40,13 +40,14 @@ export function TripWorkspacePage() {
   if (!trip) {
     return <WorkspaceState title="진행 중인 여행이 없습니다." message={error ?? '먼저 동행 요청을 주고받아 여행 공간을 만들어 주세요.'} action={() => navigate('/matches')} />;
   }
+  if (!isKnownTab) return <Navigate to={tripWorkspacePath(trip.tripId)} replace />;
   const planningReadOnly = isTripPlanningReadOnly(trip.status, Boolean(itinerary.length || trip.itineraryDayCount));
 
   return (
     <main className="page">
       <div className="container">
         <section className="trip-cover">
-          <button type="button" className="trip-settings-link" onClick={() => navigate('/trip/settings')}>
+          <button type="button" className="trip-settings-link" onClick={() => navigate(tripSettingsPath(trip.tripId))}>
             <Settings2 aria-hidden="true" size={15} />
             <span>여행 설정</span>
           </button>
@@ -63,7 +64,7 @@ export function TripWorkspacePage() {
         </section>
         <nav className="local-nav" aria-label="개별 여행 메뉴">
           {TABS.map(([key, label]) => (
-            <button type="button" key={key} className={key === active ? 'active' : ''} onClick={() => navigate(`/trip/${key}`)}>{label}</button>
+            <button type="button" key={key} className={key === active ? 'active' : ''} onClick={() => navigate(tripWorkspacePath(trip.tripId, key))}>{label}</button>
           ))}
         </nav>
         <div className="workspace">
@@ -102,10 +103,10 @@ function OverviewTab({ trip, user }: { trip: TripSummary; user?: UserProfile }) 
   }, [user?.ttiCode, matches.length, loadMatches]);
 
   const nextTask = !preferenceDone
-    ? { title: '공동 선호를 작성해 주세요.', to: '/survey/preference' }
+    ? { title: '공동 선호를 작성해 주세요.', to: tripPreferencePath(trip.tripId) }
     : itineraryReady
-      ? { title: 'AI가 완성한 일정을 확인해 주세요.', to: '/trip/schedule' }
-      : { title: '동행의 선호 제출을 기다리고 있습니다.', to: '/trip/coordination' };
+      ? { title: 'AI가 완성한 일정을 확인해 주세요.', to: tripWorkspacePath(trip.tripId, 'schedule') }
+      : { title: '동행의 선호 제출을 기다리고 있습니다.', to: tripWorkspacePath(trip.tripId, 'coordination') };
 
   const openChat = () => {
     const room = rooms.find((item) => item.trip?.id === trip.tripId || item.matchId === trip.matchId);
@@ -209,12 +210,12 @@ function CoordinationTab({ trip, user, readOnly }: { trip: TripSummary; user?: U
             <article className={mineDone ? 'coord-item done' : 'coord-item'}>
               <span className="coord-no">{mineDone ? '✓' : '1'}</span>
               <div className="coord-copy"><h3>각자 공동 선호 제출</h3><p>상대의 답을 보기 전에 각자의 여행 기준을 별도로 저장합니다.</p></div>
-              <div className="coord-action"><small>{mineDone ? '내 선호 제출 완료' : `${user?.nickname ?? '나'} 작성 필요`}</small><button type="button" className={mineDone ? 'line-btn' : 'solid-btn'} onClick={() => navigate('/survey/preference')}>{readOnly ? '제출 내용 보기' : mineDone ? '작성 내용 확인' : '선호 제출'}</button></div>
+              <div className="coord-action"><small>{mineDone ? '내 선호 제출 완료' : `${user?.nickname ?? '나'} 작성 필요`}</small><button type="button" className={mineDone ? 'line-btn' : 'solid-btn'} onClick={() => navigate(tripPreferencePath(trip.tripId))}>{readOnly ? '제출 내용 보기' : mineDone ? '작성 내용 확인' : '선호 제출'}</button></div>
             </article>
             <article className={itineraryReady ? 'coord-item done' : 'coord-item'}>
               <span className="coord-no">{itineraryReady ? '✓' : '2'}</span>
               <div className="coord-copy"><h3>AI 여행 생성</h3><p>{comparison ? `공통 장소 선호 ${comparison.places.common.length}개 · 공통 활동 ${comparison.activities.common.length}개` : '동행의 선호 제출을 기다리고 있습니다.'} 별도 합의안과 장소 투표 없이 두 답안을 함께 반영합니다.</p></div>
-              <div className="coord-action"><small>{itineraryReady ? '일정 생성 완료' : status.aiItinerary === 'loading' ? '장소·동선 분석 중' : pairPreferences?.bothSubmitted ? '생성 준비 완료' : '양쪽 제출 대기'}</small>{itineraryReady ? <button type="button" className="solid-btn" onClick={() => navigate('/trip/schedule')}>일정표 보기</button> : pairPreferences?.bothSubmitted && status.aiItinerary !== 'loading' ? <button type="button" className="solid-btn" onClick={() => void generateAiItinerary()}>{status.aiItinerary === 'error' ? '다시 만들기' : 'AI 일정 만들기'}</button> : <span className="record-label">자동 시작</span>}</div>
+              <div className="coord-action"><small>{itineraryReady ? '일정 생성 완료' : status.aiItinerary === 'loading' ? '장소·동선 분석 중' : pairPreferences?.bothSubmitted ? '생성 준비 완료' : '양쪽 제출 대기'}</small>{itineraryReady ? <button type="button" className="solid-btn" onClick={() => navigate(tripWorkspacePath(trip.tripId, 'schedule'))}>일정표 보기</button> : pairPreferences?.bothSubmitted && status.aiItinerary !== 'loading' ? <button type="button" className="solid-btn" onClick={() => void generateAiItinerary()}>{status.aiItinerary === 'error' ? '다시 만들기' : 'AI 일정 만들기'}</button> : <span className="record-label">자동 시작</span>}</div>
             </article>
           </div>
         </section>
@@ -280,7 +281,7 @@ function ScheduleTab({ trip }: { trip: TripSummary }) {
         <div className="section-title"><h2>공동 일정표</h2><p>{itinerary.length ? 'AI가 두 사람의 선호와 여행 지역을 바탕으로 만든 최종 계획입니다.' : '양쪽 선호가 제출되면 AI가 장소와 동선을 한 번에 정리합니다.'}</p></div>
         <div className="day-tabs">
           {itinerary.map((item) => <button type="button" className={item.day === selectedDay ? 'on' : ''} onClick={() => setSelectedDay(item.day)} key={item.day}>{item.day}일차</button>)}
-          <button type="button" onClick={() => navigate('/trip/schedule/map')}>지도·동선</button>
+          <button type="button" onClick={() => navigate(tripScheduleMapPath(trip.tripId))}>지도·동선</button>
         </div>
         {error && status.itinerary === 'error' ? <div className="error-strip" role="alert"><span>{error}</span><button onClick={() => void loadItinerary()}>다시 시도</button></div> : null}
         {status.itinerary === 'loading' && !itinerary.length ? <LoadingSchedule /> : null}
@@ -289,7 +290,7 @@ function ScheduleTab({ trip }: { trip: TripSummary }) {
             <div className="schedule-row" key={item.id}><time>{item.time}</time><span className="route-dot" /><div className="schedule-copy"><h3>{item.title}</h3><p>{item.description || item.location}</p><small>{[item.duration, item.moveTime ? `이동 ${item.moveTime}` : '', item.aiReason].filter(Boolean).join(' · ')}</small><button type="button" className="text-btn accent schedule-detail-link" onClick={() => setSelectedItem(item)}>항목 자세히 보기 →</button></div></div>
           ))}
         </div>
-        {status.itinerary === 'success' && !itinerary.length ? <div className="empty-state"><strong>아직 생성된 일정이 없습니다.</strong><p>{pairPreferences?.bothSubmitted ? 'AI 일정 생성이 중단됐다면 다시 시도해 주세요.' : '두 사람의 선호 제출이 모두 끝나면 AI 일정 생성이 자동으로 시작됩니다.'}</p><button className="solid-btn" onClick={() => pairPreferences?.bothSubmitted ? void generateAiItinerary() : navigate('/trip/coordination')}>{pairPreferences?.bothSubmitted ? 'AI 일정 다시 만들기' : '선호 제출 상태 보기'}</button></div> : null}
+        {status.itinerary === 'success' && !itinerary.length ? <div className="empty-state"><strong>아직 생성된 일정이 없습니다.</strong><p>{pairPreferences?.bothSubmitted ? 'AI 일정 생성이 중단됐다면 다시 시도해 주세요.' : '두 사람의 선호 제출이 모두 끝나면 AI 일정 생성이 자동으로 시작됩니다.'}</p><button className="solid-btn" onClick={() => pairPreferences?.bothSubmitted ? void generateAiItinerary() : navigate(tripWorkspacePath(trip.tripId, 'coordination'))}>{pairPreferences?.bothSubmitted ? 'AI 일정 다시 만들기' : '선호 제출 상태 보기'}</button></div> : null}
       </section>
       <aside>
         <div className="approval-box">

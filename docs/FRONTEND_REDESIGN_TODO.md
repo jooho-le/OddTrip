@@ -49,7 +49,7 @@
 
 ### 개인 선호·양쪽 제출 상태·AI 일정 생성
 
-- 영향 화면: `/survey/preference`, `/trip/coordination`
+- 영향 화면: `/trips/:tripId/survey/preference`, `/trips/:tripId/coordination`
 - 반영 내용: 내 선호 저장과 양쪽 제출 상태를 연결했다. 두 사람의 제출이 끝나면 구조화된 합의안이나 별도 장소 투표 없이 AI 에이전트를 실행하고, 장소 후보와 일정표가 비어 있으면 기존 생성 API로 이어서 보완한다.
 - 서버 계약: `/api/trips/{tripId}/preferences/me`, `/preferences/pair`, `/agent/run`, `/attractions/generate-public`, `/itinerary/generate`
 - 우선순위: 완료
@@ -57,7 +57,7 @@
 
 ### Trip 생성·수정·취소
 
-- 영향 화면: `/my`, `/trips/new`, `/trip/settings`, 여행 개요
+- 영향 화면: `/my`, `/trips/new`, `/trips/:tripId/settings`, 여행 개요
 - 반영 내용: 완료되거나 취소된 여행의 동행과 새 여행을 만들고, 진행 중 여행의 제목·지역·기간을 수정하거나 취소한다. 지역·기간 변경으로 일정이 무효화되는 상태를 서버 응답에 맞춰 초기화한다.
 - 서버 계약: `POST /api/trips`, `GET /api/trips/{tripId}`, `PATCH /api/trips/{tripId}`, `DELETE /api/trips/{tripId}`
 - 우선순위: 완료
@@ -143,7 +143,7 @@
 
 ### P2 · 지도 경로·접근성 완성
 
-- 영향 화면: `/trip/schedule/map`, 일정 항목 자세히 보기 드로어
+- 영향 화면: `/trips/:tripId/schedule/map`, 일정 항목 자세히 보기 드로어
 - 현재 제한: Google Maps JavaScript API로 장소 식별자 또는 좌표가 있는 일정 항목을 번호 마커와 순서 연결선으로 표시한다. 연결선은 도로 길찾기 결과가 아니며, 장소 정보가 없는 이동·대기·일반 식사 슬롯은 지도에서 제외한다. 다이얼로그/드로어의 기본 키보드 닫기는 제공하되 실제 기기 스크린리더 검증은 남아 있다.
 - 필요한 작업: 실제 도로 경로와 구간별 이동시간 연결, 경로 응답의 `source` 표시, 좌표 없는 장소 fallback, API 실패·쿼터 초과 상태, 초점 고정과 복귀, 스크린리더 레이블·실기기 테스트.
 - 우선순위: P2

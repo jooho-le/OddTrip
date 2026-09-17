@@ -40,6 +40,7 @@ import { ScheduleMapPage } from '../pages/schedule-map';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 import { landingPathForRole } from './roleRoutes';
+import { ActiveTripRedirect, TripRouteBoundary } from './TripRouteBoundary';
 
 type RouteState = { backgroundLocation?: Location };
 
@@ -111,15 +112,23 @@ function AppRoutes() {
           <Route path="/my" element={<MyTripsPage />} />
           <Route path="/my/*" element={<Navigate to="/my" replace />} />
           <Route path="/trips/new" element={<NewTripPage />} />
-          <Route path="/trip" element={<Navigate to="/trip/overview" replace />} />
-          <Route path="/trip/settings" element={<TripSettingsPage />} />
-          <Route path="/trip/schedule/map" element={<ScheduleMapPage />} />
-          <Route path="/trip/places" element={<Navigate to="/trip/schedule" replace />} />
-          <Route path="/trip/:tab" element={<TripWorkspacePage />} />
-          <Route path="/survey/concession" element={<Navigate to="/trip/coordination" replace />} />
-          <Route path="/survey/rule" element={<Navigate to="/trip/coordination" replace />} />
-          <Route path="/survey/approval" element={<Navigate to="/trip/schedule" replace />} />
-          <Route path="/survey/:key" element={<SurveyFormPage />} />
+          <Route path="/trips/:tripId/settings" element={<TripRouteBoundary><TripSettingsPage /></TripRouteBoundary>} />
+          <Route path="/trips/:tripId/schedule/map" element={<TripRouteBoundary><ScheduleMapPage /></TripRouteBoundary>} />
+          <Route path="/trips/:tripId/survey/:key" element={<TripRouteBoundary><SurveyFormPage /></TripRouteBoundary>} />
+          <Route path="/trips/:tripId/:tab" element={<TripRouteBoundary><TripWorkspacePage /></TripRouteBoundary>} />
+
+          <Route path="/trip" element={<ActiveTripRedirect target="overview" />} />
+          <Route path="/trip/settings" element={<ActiveTripRedirect target="settings" />} />
+          <Route path="/trip/schedule/map" element={<ActiveTripRedirect target="schedule-map" />} />
+          <Route path="/trip/overview" element={<ActiveTripRedirect target="overview" />} />
+          <Route path="/trip/coordination" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/trip/schedule" element={<ActiveTripRedirect target="schedule" />} />
+          <Route path="/trip/places" element={<ActiveTripRedirect target="schedule" />} />
+          <Route path="/survey/tti" element={<SurveyFormPage />} />
+          <Route path="/survey/preference" element={<ActiveTripRedirect target="preference" />} />
+          <Route path="/survey/concession" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/survey/rule" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/survey/approval" element={<ActiveTripRedirect target="schedule" />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
           <Route path="/settings/privacy" element={<PrivacySettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
@@ -128,21 +137,22 @@ function AppRoutes() {
 
           <Route path="/chat" element={<ChatListPage />} />
           <Route path="/chat/:roomId" element={<HomePage />} />
+
+          <Route path="/decision/select" element={<ActiveTripRedirect target="preference" />} />
+          <Route path="/decision/concession" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/decision/odd-rule" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/decision/*" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/proposal/*" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/attractions/*" element={<ActiveTripRedirect target="schedule" />} />
+          <Route path="/itinerary/*" element={<ActiveTripRedirect target="schedule" />} />
+          <Route path="/approval" element={<ActiveTripRedirect target="schedule" />} />
+          <Route path="/safety" element={<ActiveTripRedirect target="schedule" />} />
         </Route>
 
         {/* 기존 URL은 0562bbe의 문서형 화면으로 모읍니다. */}
         <Route path="/tti/start" element={<Navigate to="/survey/tti" replace />} />
         <Route path="/tti/questions" element={<Navigate to="/survey/tti" replace />} />
         <Route path="/tti/result" element={<Navigate to="/home" replace />} />
-        <Route path="/decision/select" element={<Navigate to="/survey/preference" replace />} />
-        <Route path="/decision/concession" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/decision/odd-rule" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/decision/*" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/proposal/*" element={<Navigate to="/trip/coordination" replace />} />
-        <Route path="/attractions/*" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/itinerary/*" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/approval" element={<Navigate to="/trip/schedule" replace />} />
-        <Route path="/safety" element={<Navigate to="/trip/schedule" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 

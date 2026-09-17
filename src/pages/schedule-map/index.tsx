@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { GoogleMap } from '../../features/map/GoogleMap';
 import { displayText } from '../../shared/lib/displayText';
+import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import { collectScheduleMapStops } from './scheduleMapStops';
 
 export function ScheduleMapPage() {
   const { itinerary, status, error, loadItinerary, tripHistory, activeTripId } = useTripStore();
-  const trip = tripHistory.find((item) => item.tripId === activeTripId)
-    ?? tripHistory.find((item) => !['completed', 'cancelled'].includes(item.status));
+  const trip = tripHistory.find((item) => item.tripId === activeTripId);
   const places = collectScheduleMapStops(itinerary);
   const region = displayText(trip?.region, '현재 여행');
   const mapPoints = places.map((place) => ({
@@ -28,7 +28,7 @@ export function ScheduleMapPage() {
     <main className="page">
       <div className="container">
         <header className="page-heading">
-          <div><Link className="text-btn" to="/trip/schedule">‹ 공동 일정</Link><h1 style={{ marginTop: 9 }}>지도·이동 동선</h1></div>
+          <div><Link className="text-btn" to={trip ? tripWorkspacePath(trip.tripId, 'schedule') : '/my'}>‹ 공동 일정</Link><h1 style={{ marginTop: 9 }}>지도·이동 동선</h1></div>
           <p>{region} 일정의 장소 위치와 방문 순서를 실제 지도에서 확인합니다.</p>
         </header>
 

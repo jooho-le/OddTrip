@@ -19,6 +19,7 @@ interface TripState {
   matchesConsentRequired: boolean;
   selectedMatch?: MatchCandidate;
   activeTripId?: string;
+  hydratedTripId?: string;
   tripHistory: TripSummary[];
   preferences: JointPreference;
   pairPreferences?: PairPreferences;
@@ -41,7 +42,7 @@ interface TripState {
   calculateResult: () => Promise<TtiResult | undefined>;
   loadResult: () => Promise<void>;
   loadTripHistory: () => Promise<void>;
-  openTrip: (tripId: string) => Promise<void>;
+  openTrip: (tripId: string) => Promise<boolean>;
   createTrip: (input: TripCreateInput) => Promise<TripSummary | undefined>;
   updateTrip: (tripId: string, input: TripUpdateInput) => Promise<boolean>;
   cancelTrip: (tripId: string) => Promise<boolean>;
@@ -88,6 +89,7 @@ function clearedSession(): Partial<TripState> {
       matchesConsentRequired: false,
       selectedMatch: undefined,
       activeTripId: undefined,
+      hydratedTripId: undefined,
       preferences: initialPreferences,
       pairPreferences: undefined,
       preferenceProposals: [],
@@ -231,6 +233,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         matches: [],
         selectedMatch: undefined,
         activeTripId: undefined,
+        hydratedTripId: undefined,
         pairPreferences: undefined,
         preferenceProposals: [],
         attractions: [],
@@ -279,10 +282,10 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
   },
   async openTrip(tripId) {
-    // Reopening a past trip: point the working state at it and pull that
-    // trip's data, replacing whatever the current session had loaded.
     set((state) => ({
       activeTripId: tripId,
+      hydratedTripId: undefined,
+      preferences: initialPreferences,
       attractions: [],
       itinerary: [],
       approval: undefined,
@@ -291,27 +294,45 @@ export const useTripStore = create<TripState>((set, get) => ({
       decisionSuggestion: undefined,
       pairPreferences: undefined,
       preferenceProposals: [],
-      status: { ...state.status, attractions: 'idle', itinerary: 'idle', alerts: 'idle', trip: 'success' },
+      error: undefined,
+      status: { ...state.status, attractions: 'loading', itinerary: 'loading', preferences: 'loading', alerts: 'idle', trip: 'loading' },
     }));
     try {
+      const trip = await oddtripService.getTrip(tripId);
       const [attractions, itinerary, preferences, pair] = await Promise.all([
-        oddtripService.getAttractions(tripId),
-        oddtripService.getItinerary(tripId),
-        oddtripService.getPreferences(tripId),
-        oddtripService.getPairPreferences(tripId),
+        oddtripService.getAttractions(tripId).catch(() => undefined),
+        oddtripService.getItinerary(tripId).catch(() => undefined),
+        oddtripService.getPreferences(tripId).catch(() => undefined),
+        oddtripService.getPairPreferences(tripId).catch(() => undefined),
       ]);
+      if (get().activeTripId !== tripId) return false;
       set((state) => ({
-        attractions: attractions.data,
-        itinerary: itinerary.data,
-        preferences: pair.data.mine?.preferences ?? preferences.data,
-        pairPreferences: pair.data,
+        hydratedTripId: tripId,
+        tripHistory: [trip.data, ...state.tripHistory.filter((item) => item.tripId !== tripId)],
+        attractions: attractions?.data ?? [],
+        itinerary: itinerary?.data ?? [],
+        preferences: pair?.data.mine?.preferences ?? preferences?.data ?? state.preferences,
+        pairPreferences: pair?.data,
         preferenceProposals: [],
         approval: undefined,
-        status: { ...state.status, attractions: 'success', itinerary: 'success', preferences: 'success' },
+        status: {
+          ...state.status,
+          trip: 'success',
+          attractions: attractions ? 'success' : 'error',
+          itinerary: itinerary ? 'success' : 'error',
+          preferences: preferences || pair ? 'success' : 'error',
+        },
       }));
-      if (pair.data.bothSubmitted && !itinerary.data.length) void get().generateAiItinerary();
-    } catch {
-      set({ error: '여행을 여는 데 실패했습니다.' });
+      if (pair?.data.bothSubmitted && itinerary && !itinerary.data.length) void get().generateAiItinerary();
+      return true;
+    } catch (error) {
+      if (get().activeTripId !== tripId) return false;
+      set((state) => ({
+        hydratedTripId: undefined,
+        error: error instanceof Error ? error.message : '여행을 여는 데 실패했습니다.',
+        status: { ...state.status, trip: 'error' },
+      }));
+      return false;
     }
   },
   async createTrip(input) {
@@ -320,6 +341,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const response = await oddtripService.createTrip(input);
       set((state) => ({
         activeTripId: response.data.tripId,
+        hydratedTripId: undefined,
         tripHistory: [response.data, ...state.tripHistory.filter((trip) => trip.tripId !== response.data.tripId)],
         preferences: initialPreferences,
         pairPreferences: undefined,
@@ -373,6 +395,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const response = await oddtripService.cancelTrip(tripId);
       set((state) => ({
         activeTripId: state.activeTripId === tripId ? undefined : state.activeTripId,
+        hydratedTripId: state.activeTripId === tripId ? undefined : state.hydratedTripId,
         tripHistory: state.tripHistory.map((trip) => trip.tripId === tripId ? {
           ...trip,
           status: response.data.status,
