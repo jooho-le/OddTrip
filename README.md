@@ -479,7 +479,7 @@ OddTrip/
 | `/api/trips` | 여행 CRUD, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정 revision·승인·수정 요청, 안전 정보 |
 | `/api/admin` | 통계, 회원·동의·제재, 여행, 신고 목록·상세·검토 |
 
-현재 MVP 흐름은 별도 장소 투표 대신 AI가 두 사람의 공동 선호를 반영해 일정까지 생성한다. 일정 항목 개별 수정, 실제 도로 경로 계산, SMS 본인인증, 모바일 Push, 관광지·TTI 편집·운영 관리자 API는 성공 상태를 만들지 않는다. 여행 시작 하루 전 리마인더는 서버 스케줄러가 한국 시간 기준으로 보내며 알림함에 남는다. 상세 후속 계약과 검증 조건은 [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md)와 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
+현재 MVP 흐름은 별도 장소 투표 대신 AI가 두 사람의 공동 선호를 반영해 일정까지 생성한다. 일정 항목 개별 수정, 실제 도로 경로 계산, SMS 본인인증, 모바일 Push, 관광지·TTI 편집·운영 관리자 API는 성공 상태를 만들지 않는다. 여행 시작 하루 전의 준비 안내와 여행이 끝난 다음 날의 후기 작성 권유는 서버 스케줄러가 한국 시간 기준으로 보내며 알림함에 남는다. 상세 후속 계약과 검증 조건은 [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md)와 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
 
 ## 여행 커뮤니티
 

@@ -24,6 +24,7 @@ TRIP_CREATED = "trip.created"
 TRIP_UPDATED = "trip.updated"
 TRIP_CANCELLED = "trip.cancelled"
 TRIP_REMINDER_D1 = "trip.reminder_d1"
+TRIP_REVIEW_REMINDER = "trip.review_reminder"
 
 
 def _now() -> datetime:

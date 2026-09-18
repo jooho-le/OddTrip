@@ -12,6 +12,7 @@ export type NotificationType =
   | 'trip.updated'
   | 'trip.cancelled'
   | 'trip.reminder_d1'
+  | 'trip.review_reminder'
   | 'itinerary.approved'
   | 'itinerary.change_requested'
   | 'itinerary.confirmed';

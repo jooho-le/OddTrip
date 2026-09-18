@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Bookmark, ChevronLeft, ChevronRight, Heart, ImagePlus, MapPin, MessageCircle, PenLine, Search, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { communityService } from '../../entities/community/api/communityService';
+import { oddtripService } from '../../entities/trip/api/oddtripService';
 import { CATEGORIES, emptyInput, parseTags, toPostInput, validatePost, type Category, type CommunityPost, type Draft, type PostInput } from '../../features/community/communityModel';
+import { isTripWritingSeed, toTripWritingSeed, tripSeedDate, tripSeedInput, type TripWritingSeed } from '../../features/community/tripSeed';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { useToast } from '../../shared/ui/Toast';
 import { useCommunity, useCommunityResource } from './CommunityContext';
@@ -198,29 +200,44 @@ export function CommunityDraftsPage() {
 export function CommunityWritePage() {
   const { postId } = useParams();
   const [params] = useSearchParams();
+  const location = useLocation();
   // 수정 화면은 원본 글을, 새 글 화면은 이어 쓸 초안을 먼저 읽어야 편집기를 연다.
   const post = useCommunityResource(() => postId ? communityService.getPost(postId) : Promise.resolve(undefined), [postId]);
   const drafts = useCommunityResource(() => communityService.listDrafts(), []);
 
-  if (post.loading || drafts.loading) return <main className="container community" aria-busy="true"><p role="status">작성 화면을 준비하고 있어요.</p></main>;
+  const draftKey = postId ?? validDraftKey(params.get('draft'));
+  const statedSeed = isTripWritingSeed((location.state as { tripSeed?: unknown } | null)?.tripSeed)
+    ? (location.state as { tripSeed: TripWritingSeed }).tripSeed
+    : undefined;
+  // 후기 리마인더 알림은 링크만 들고 온다. `/my`에서 들어올 때와 달리 라우터
+  // state가 없으므로 여행 정보를 서버에서 읽어 같은 화면을 만든다.
+  const tripId = !postId && !statedSeed && draftKey.startsWith('trip:') ? draftKey.slice('trip:'.length) : undefined;
+  const trip = useCommunityResource(
+    // 여행을 못 읽어도 글쓰기는 막지 않는다. 빈 편집기로 시작할 뿐이다.
+    () => tripId ? oddtripService.getTrip(tripId).then((response) => response.data).catch(() => undefined) : Promise.resolve(undefined),
+    [tripId],
+  );
+
+  if (post.loading || drafts.loading || trip.loading) return <main className="container community" aria-busy="true"><p role="status">작성 화면을 준비하고 있어요.</p></main>;
   if (postId && (!post.value || !post.value.mine)) return <main className="container community"><div className="community-empty"><h1>수정할 수 없는 글입니다</h1><p>{post.error || '현재 계정에서 작성한 글만 수정할 수 있어요.'}</p><Link to="/community" className="line-btn">목록으로</Link></div></main>;
 
-  const draftKey = postId ?? validDraftKey(params.get('draft'));
   return <CommunityEditor
     key={`${postId ?? 'new'}:${draftKey}`}
     post={post.value}
     requestedDraftKey={draftKey}
     drafts={drafts.value ?? []}
     onDraftsChanged={drafts.reload}
+    tripSeed={statedSeed ?? (trip.value ? toTripWritingSeed(trip.value) : undefined)}
   />;
 }
 
-function CommunityEditor({ post, requestedDraftKey, drafts, onDraftsChanged }: { post?: CommunityPost; requestedDraftKey: string; drafts: Draft[]; onDraftsChanged: () => void }) {
+
+function CommunityEditor({ post, requestedDraftKey, drafts, onDraftsChanged, tripSeed: seed }: { post?: CommunityPost; requestedDraftKey: string; drafts: Draft[]; onDraftsChanged: () => void; tripSeed?: TripWritingSeed }) {
   const { commit, reloadSummary, author } = useCommunity();
   const navigate = useNavigate();
   const location = useLocation();
-  const navigationState = location.state as { communityReturn?: string; tripSeed?: TripWritingSeed } | null;
-  const tripSeed = !post && isTripWritingSeed(navigationState?.tripSeed) ? navigationState.tripSeed : undefined;
+  const navigationState = location.state as { communityReturn?: string } | null;
+  const tripSeed = post ? undefined : seed;
   const returnTo = navigationState?.communityReturn === '/my' ? '/my' : post ? `/community/${post.id}` : '/community';
   const draftKey = post?.id ?? (tripSeed ? `trip:${tripSeed.tripId}` : requestedDraftKey);
   const draft = drafts.find((item) => item.draftKey === draftKey);
@@ -315,25 +332,6 @@ function CommunityEditor({ post, requestedDraftKey, drafts, onDraftsChanged }: {
       <div className="community-editor-actions"><button type="button" className="line-btn" onClick={() => setPreview(!preview)}>{preview ? '이어서 작성' : '미리보기'}</button><button type="button" className="line-btn" onClick={() => void saveDraft()} disabled={imageLoading || sending}>임시저장</button><button type="submit" className="solid-btn" disabled={imageLoading || sending}>{post ? '수정 완료' : '작성 완료'}</button></div>
     </form><aside className="community-writing-aside"><span className="community-overline">WRITE YOUR JOURNEY</span><h2>완벽한 여행보다,<br />나다운 이야기.</h2><p>꼭 멀리 떠나지 않아도 괜찮아요. 익숙한 동네에서 발견한 작은 장면도 누군가의 다음 여행이 됩니다.</p><ol><li><b>어떤 여행이었나요?</b><span>장소와 함께한 사람을 떠올려 보세요.</span></li><li><b>무엇이 기억에 남았나요?</b><span>나만의 시선과 솔직한 경험을 담아보세요.</span></li><li><b>사진 한 장을 더해 보세요.</b><span>직접 찍은 사진으로 이야기를 시작해도 좋아요.</span></li></ol>{drafts.length > 0 && <div className="community-draft-links"><h3>이어서 쓸 글</h3>{drafts.map((item) => <Link key={item.draftKey} to={draftPath(item.draftKey)}>{item.input.title || '제목 없는 글'}<small>{dateLabel(item.updatedAt)}</small></Link>)}</div>}<Link to="/legal/community" target="_blank" rel="noreferrer">커뮤니티 운영정책 확인 <ArrowRight size={14} /></Link></aside></div>
   </div>{confirmation && <ConfirmDialog title={confirmation === 'publish' ? (post ? '수정한 내용을 올릴까요?' : '이 이야기를 올릴까요?') : '작성 중인 페이지를 나갈까요?'} description={confirmation === 'publish' ? '올린 글은 다른 회원에게도 보입니다. 올린 뒤에도 수정하거나 삭제할 수 있어요.' : '임시저장하지 않은 변경 내용은 사라집니다.'} confirmLabel={confirmation === 'publish' ? '올리기' : '나가기'} onClose={() => setConfirmation(undefined)} onConfirm={confirmation === 'publish' ? () => void publish() : () => navigate(returnTo)} />}</main>;
-}
-
-type TripWritingSeed = { tripId: string; title: string; region: string; startDate: string; endDate: string; partner: string };
-
-function isTripWritingSeed(value: unknown): value is TripWritingSeed {
-  if (!value || typeof value !== 'object') return false;
-  const seed = value as Record<string, unknown>;
-  return ['tripId', 'title', 'region', 'startDate', 'endDate', 'partner'].every((key) => typeof seed[key] === 'string');
-}
-
-function tripSeedInput(seed: TripWritingSeed): PostInput {
-  const region = seed.region.trim();
-  const title = `${region || seed.title} 여행에서 남은 이야기`.slice(0, 80);
-  return { ...emptyInput(), title, region, tags: [region, '여행기'].filter(Boolean) };
-}
-
-function tripSeedDate(seed: TripWritingSeed) {
-  if (!seed.startDate && !seed.endDate) return seed.region || '날짜 미정';
-  return [seed.startDate, seed.endDate].filter(Boolean).join(' — ');
 }
 
 function validDraftKey(value: string | null) {

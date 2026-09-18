@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MapPin, PenLine } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toTripWritingSeed } from '../../features/community/tripSeed';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useTripListRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
@@ -98,15 +99,4 @@ function dateRange(start?: string | null, end?: string | null) {
 function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('ko-KR');
-}
-
-function toTripWritingSeed(trip: TripSummary) {
-  return {
-    tripId: trip.tripId,
-    title: tripTitle(trip),
-    region: trip.region ?? '',
-    startDate: trip.startDate ?? '',
-    endDate: trip.endDate ?? '',
-    partner: trip.partner?.nickname ?? '',
-  };
 }

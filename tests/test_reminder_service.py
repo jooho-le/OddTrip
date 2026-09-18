@@ -6,12 +6,13 @@ from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from backend.app.database import Base
-from backend.app.models import Match, Notification, Trip, TripReminder, User
+from backend.app.models import CommunityPost, Match, Notification, Trip, TripReminder, User
 from backend.app.services import reminder_service
 
 # 한국 시각 2026-09-18 10:00 = UTC 01:00. 발송 시각(오전 9시)을 지난 시점이다.
 MORNING = datetime(2026, 9, 18, 1, 0)
 TOMORROW = date(2026, 9, 19)
+YESTERDAY = date(2026, 9, 17)
 
 
 def _session_factory():
@@ -25,7 +26,14 @@ def _session_factory():
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def _trip(db, *, start: date | None = TOMORROW, status: str = "confirmed", region: str = "강릉"):
+async def _trip(
+    db,
+    *,
+    start: date | None = TOMORROW,
+    end: date | None = None,
+    status: str = "confirmed",
+    region: str = "강릉",
+):
     first = User(id=str(uuid.uuid4()), nickname="도윤", tti_code="WCAS")
     second = User(id=str(uuid.uuid4()), nickname="서아", tti_code="PNFH")
     match = Match(
@@ -35,7 +43,10 @@ async def _trip(db, *, start: date | None = TOMORROW, status: str = "confirmed",
         match_level="완전 반대",
         recommendation_score=95,
     )
-    trip = Trip(id=str(uuid.uuid4()), match_id=match.id, status=status, region=region, start_date=start)
+    trip = Trip(
+        id=str(uuid.uuid4()), match_id=match.id, status=status, region=region,
+        start_date=start, end_date=end,
+    )
     db.add_all([first, second, match, trip])
     await db.commit()
     return trip, first, second
@@ -185,5 +196,103 @@ async def _test_falls_back_to_the_trip_title_when_there_is_no_region() -> None:
 
         # 이름이 "여행"으로 끝나면 제목에 '여행'을 또 붙이지 않는다.
         assert (await reminder_service.send_due_reminders(db, now=MORNING))[0].title == "내일 둘만의 첫 여행이 시작돼요"
+
+    await engine.dispose()
+
+
+def test_asks_for_a_review_the_day_after_the_trip_ends() -> None:
+    asyncio.run(_test_asks_for_a_review_the_day_after_the_trip_ends())
+
+
+async def _test_asks_for_a_review_the_day_after_the_trip_ends() -> None:
+    engine, session_factory = _session_factory()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as db:
+        trip, first, second = await _trip(db, start=date(2026, 9, 15), end=YESTERDAY)
+
+        sent = await reminder_service.send_review_reminders(db, now=MORNING)
+
+        assert {notification.user_id for notification in sent} == {first.id, second.id}
+        assert sent[0].title == "강릉 여행은 어떠셨어요?"
+        assert sent[0].type == "trip.review_reminder"
+        # 여행 정보를 채운 글쓰기 화면으로 바로 들어간다.
+        assert sent[0].link == f"/community/write?draft=trip:{trip.id}"
+        assert sent[0].payload_json == {"tripId": trip.id, "endDate": "2026-09-17", "kind": "review"}
+
+        # 같은 날 몇 번을 돌아도 한 번만 간다.
+        assert await reminder_service.send_review_reminders(db, now=MORNING) == []
+        assert await _count(db, Notification) == 2
+
+    await engine.dispose()
+
+
+def test_leaves_out_travellers_who_already_wrote_about_the_trip() -> None:
+    asyncio.run(_test_leaves_out_travellers_who_already_wrote_about_the_trip())
+
+
+async def _test_leaves_out_travellers_who_already_wrote_about_the_trip() -> None:
+    engine, session_factory = _session_factory()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as db:
+        trip, first, second = await _trip(db, start=date(2026, 9, 15), end=YESTERDAY)
+        db.add(CommunityPost(
+            id=str(uuid.uuid4()), author_id=first.id, trip_id=trip.id, category="여행기",
+            title="강릉에서 보낸 이틀", body="바다를 따라 걷다가 들어간 책방이 좋았다.",
+        ))
+        await db.commit()
+
+        sent = await reminder_service.send_review_reminders(db, now=MORNING)
+
+        # 쓴 사람에게 또 쓰라고 하지 않는다. 아직 안 쓴 동행에게만 간다.
+        assert [notification.user_id for notification in sent] == [second.id]
+
+    await engine.dispose()
+
+
+def test_skips_review_reminders_for_trips_that_did_not_just_end() -> None:
+    asyncio.run(_test_skips_review_reminders_for_trips_that_did_not_just_end())
+
+
+async def _test_skips_review_reminders_for_trips_that_did_not_just_end() -> None:
+    engine, session_factory = _session_factory()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as db:
+        await _trip(db, start=date(2026, 9, 15), end=date(2026, 9, 18))   # 오늘 끝난다. 아직 여행 중이다.
+        await _trip(db, start=date(2026, 9, 10), end=date(2026, 9, 16))   # 그저께 끝났다. 이미 지난 알림이다.
+        await _trip(db, start=date(2026, 9, 15), end=None)                # 날짜가 없는 여행
+        await _trip(db, start=date(2026, 9, 15), end=YESTERDAY, status="cancelled")
+
+        assert await reminder_service.send_review_reminders(db, now=MORNING) == []
+        # 아직 발송 시각 전에는 보내지 않는다.
+        assert await reminder_service.send_review_reminders(db, now=datetime(2026, 9, 17, 23, 0)) == []
+
+    await engine.dispose()
+
+
+def test_one_run_sends_both_kinds_of_reminder() -> None:
+    asyncio.run(_test_one_run_sends_both_kinds_of_reminder())
+
+
+async def _test_one_run_sends_both_kinds_of_reminder() -> None:
+    engine, session_factory = _session_factory()
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+
+    async with session_factory() as db:
+        await _trip(db, start=TOMORROW)                                  # 내일 출발
+        await _trip(db, start=date(2026, 9, 15), end=YESTERDAY)          # 어제 종료
+
+        sent = await reminder_service.send_due_reminders(db, now=MORNING)
+
+        assert sorted(notification.type for notification in sent) == [
+            "trip.reminder_d1", "trip.reminder_d1", "trip.review_reminder", "trip.review_reminder",
+        ]
+        assert await reminder_service.send_due_reminders(db, now=MORNING) == []
 
     await engine.dispose()

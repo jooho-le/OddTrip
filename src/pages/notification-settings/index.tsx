@@ -46,11 +46,11 @@ export function NotificationSettingsPage() {
           />
           <ChannelRow
             number="03"
-            title="여행 D-1 리마인더"
-            description="여행 시작 하루 전 오전에 일정과 준비물 확인을 알림함으로 안내합니다."
+            title="여행 리마인더"
+            description="여행 시작 하루 전에는 일정과 준비물을, 여행이 끝난 다음 날에는 후기 작성을 알림함으로 안내합니다."
             status="사용 중"
             locked
-            action={() => showComingSoon('여행 D-1 리마인더 개별 설정', '알림 유형별 수신 설정 API가 준비되기 전까지 여행 리마인더는 알림함에 표시됩니다.')}
+            action={() => showComingSoon('여행 리마인더 개별 설정', '알림 유형별 수신 설정 API가 준비되기 전까지 여행 리마인더는 알림함에 표시됩니다.')}
           />
           <ChannelRow
             number="04"
