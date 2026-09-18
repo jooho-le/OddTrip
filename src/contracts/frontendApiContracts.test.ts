@@ -24,6 +24,7 @@ import { chatService } from '../entities/chat/api/chatService';
 import { safetyService } from '../entities/chat/api/safetyService';
 import { notificationService } from '../entities/notification/api/notificationService';
 import { communityService } from '../entities/community/api/communityService';
+import { locationShareService } from '../entities/location-share/api/locationShareService';
 import { adminService } from '../admin/api/adminService';
 import { registrationDecisions } from '../entities/consent/api/consentService';
 import { sourceLabel } from '../shared/lib/sourceLabel';
@@ -297,6 +298,30 @@ describe('frontend API contracts', () => {
     expect(page.items[0]).toMatchObject({ region: '', image: '', tags: [] });
     expect(page.items[0].comments).toBeNull();
     expect(page.totalPages).toBe(1);
+  });
+
+  it('connects outward location sharing to its endpoints', async () => {
+    mocks.apiRequest.mockResolvedValue({ data: { share: null, durationChoices: [6, 24, 72] } });
+
+    await locationShareService.getActive();
+    await locationShareService.start(6, 'trip-1');
+    await locationShareService.extend('share-1', 24);
+    await locationShareService.ping('share-1', { latitude: 37.5, longitude: 127.0, accuracy: 12 });
+    await locationShareService.view('tok3n');
+    await locationShareService.stop('share-1');
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
+      ['GET', '/api/me/location-share'],
+      ['POST', '/api/me/location-share'],
+      ['POST', '/api/me/location-share/share-1/extend'],
+      ['POST', '/api/me/location-share/share-1/ping'],
+      // 링크를 받은 사람이 여는 자리. 로그인 없이 열린다.
+      ['GET', '/api/share/tok3n'],
+      ['DELETE', '/api/me/location-share/share-1'],
+    ]);
+    // 동의 없이는 서버가 시작하지 않으므로 화면의 확인 절차를 그대로 실어 보낸다.
+    expect(mocks.apiRequest.mock.calls[1][0].data).toEqual({ durationHours: 6, consent: true, tripId: 'trip-1' });
+    expect(mocks.apiRequest.mock.calls[3][0].data).toEqual({ latitude: 37.5, longitude: 127.0, accuracy: 12 });
   });
 
   it('labels missing and static fallback sources without inventing provenance', () => {

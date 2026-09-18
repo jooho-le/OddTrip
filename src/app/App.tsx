@@ -21,6 +21,7 @@ import { TripWorkspacePage } from '../pages/trip/TripWorkspacePage';
 import { SurveyFormPage } from '../pages/survey/SurveyFormPage';
 import { AuthPage } from '../pages/auth';
 import { LegalPage, MatchingProfileConsentGate } from '../pages/legal';
+import { LocationViewPage } from '../pages/location-view';
 import { AccountSettingsPage, PrivacySettingsPage } from '../pages/account-settings';
 import { ChatListPage } from '../pages/chat';
 import { AdminLayout } from '../admin/AdminLayout';
@@ -97,6 +98,8 @@ function AppRoutes() {
         <Route path="/about" element={<IntroLandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/legal/:document" element={<LegalPage />} />
+        {/* 링크를 받은 사람이 여는 화면. 로그인하지 않는다. */}
+        <Route path="/s/:token" element={<LocationViewPage />} />
 
         <Route element={<RequireAuth><PrototypeLayout /></RequireAuth>}>
           <Route path="/home" element={<HomePage />} />

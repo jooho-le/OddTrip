@@ -1,4 +1,4 @@
-export type TripWorkspaceTab = 'overview' | 'coordination' | 'schedule';
+export type TripWorkspaceTab = 'overview' | 'coordination' | 'schedule' | 'location';
 
 function tripSegment(tripId: string) {
   return encodeURIComponent(tripId);

@@ -3,6 +3,7 @@ import { Settings2 } from 'lucide-react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useChatStore } from '../../entities/chat/model/chatStore';
 import { useTripStore } from '../../entities/trip/model/tripStore';
+import { LocationShareTab } from '../../features/location-share/LocationShareTab';
 import { useCoordinationRealtime, useTripLifecycleRealtime } from '../../entities/trip/model/useCoordinationRealtime';
 import {
   imageUrl,
@@ -13,11 +14,13 @@ import { tripPreferencePath, tripScheduleMapPath, tripSettingsPath, tripWorkspac
 import type { ItineraryItem, TripSummary, UserProfile } from '../../types';
 import { TripFlowGuide } from '../../widgets/trip/TripFlowGuide';
 import { coordinationFlowState, isTripPlanningReadOnly } from '../../widgets/trip/coordinationFlow';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 const TABS = [
   ['overview', '개요'],
   ['coordination', '조율'],
   ['schedule', '일정'],
+  ['location', '위치 공유'],
 ] as const;
 
 export function TripWorkspacePage() {
@@ -71,6 +74,7 @@ export function TripWorkspacePage() {
           {active === 'overview' ? <OverviewTab trip={trip} user={user} /> : null}
           {active === 'coordination' ? <CoordinationTab trip={trip} user={user} readOnly={planningReadOnly} /> : null}
           {active === 'schedule' ? <ScheduleTab trip={trip} /> : null}
+          {active === 'location' ? <LocationShareTab trip={trip} /> : null}
         </div>
       </div>
     </main>
@@ -370,7 +374,7 @@ function durationLabel(start?: string | null, end?: string | null) {
 }
 
 function formatDate(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
 }
 

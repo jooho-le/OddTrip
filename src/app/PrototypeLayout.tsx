@@ -1,14 +1,18 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useChatStore } from '../entities/chat/model/chatStore';
 import { chatService } from '../entities/chat/api/chatService';
 import { safetyService } from '../entities/chat/api/safetyService';
+import { useLocationShareStore } from '../entities/location-share/model/locationShareStore';
 import { useTripStore } from '../entities/trip/model/tripStore';
 import { imageUrl, PROFILE_FALLBACKS } from '../features/prototype/designContent';
 import { ReportDialog } from '../features/safety/ReportDialog';
+import { tripWorkspacePath } from '../shared/lib/tripRoutes';
 import { useUiNoticeStore } from '../shared/model/uiNoticeStore';
 import { NotificationTray } from '../widgets/notification/NotificationTray';
 import { BottomTabs } from '../widgets/navigation/BottomTabs';
+import { parseServerDate } from '../shared/lib/formatDate';
 
 const NAV = [
   { to: '/home', label: '홈', match: ['/home'] },
@@ -95,6 +99,7 @@ export function PrototypeLayout() {
               >
                 💬︎{unreadTotal > 0 ? <span className="tool-dot" /> : null}
               </button>
+              <LocationShareIndicator />
               <NotificationTray />
               <button type="button" className="profile-btn" aria-expanded={profileOpen} onClick={(event) => { event.stopPropagation(); setProfileOpen((open) => !open); }}>
                 {user?.avatarUrl
@@ -307,6 +312,32 @@ function socketLabel(status: ReturnType<typeof useChatStore.getState>['socketSta
 }
 
 function formatTime(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** 위치를 공유하는 동안 헤더에 켜져 있음을 표시한다.
+
+ 켜 둔 것을 잊는 것이 이 기능의 가장 큰 위험이라, 어느 화면에 있든 보여야 한다.
+ 새로고침으로 좌표 전송이 끊겼을 때 다시 잇는 자리이기도 하다. */
+function LocationShareIndicator() {
+  const navigate = useNavigate();
+  const user = useTripStore((state) => state.user);
+  const activeTripId = useTripStore((state) => state.activeTripId);
+  const share = useLocationShareStore((state) => state.share);
+  const load = useLocationShareStore((state) => state.load);
+
+  useEffect(() => { if (user) void load(); }, [user?.id, load]);
+
+  if (!share) return null;
+  return (
+    <button
+      type="button"
+      className="round-btn location-live-btn"
+      aria-label="위치 공유 중. 위치 공유 화면 열기"
+      onClick={() => navigate(activeTripId ? tripWorkspacePath(activeTripId, 'location') : '/my')}
+    >
+      <MapPin size={17} aria-hidden="true" /><span className="tool-dot is-live" />
+    </button>
+  );
 }

@@ -565,3 +565,66 @@ button[aria-busy="true"]{cursor:progress}
   .trip-settings-link{right:12px;top:12px}
   .trip-flow-guide{gap:12px;margin-bottom:24px;padding:0 0 16px}.trip-flow-copy>strong{font-size:16px}.trip-flow-partner{width:100%;white-space:normal}.trip-flow-steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:10px}.trip-flow-steps li{display:grid;justify-items:center;gap:5px;padding:0 2px;text-align:center}.trip-flow-steps li span{font-size:8px}.planning-lock{display:grid;gap:5px;margin-top:-8px}.form-flow-wrap{width:calc(100% - 28px);margin-top:18px}
 }
+
+/* 위치 공유 탭 --------------------------------------------------------- */
+.location-share{max-width:620px}
+.location-share-status{color:#888;font-size:12px}
+.location-share-card{padding:26px 24px;border:1px solid var(--line);background:#fff}
+.location-share-card>header{display:flex;align-items:flex-start;gap:12px;margin-bottom:20px}
+.location-share-card>header svg{flex:none;margin-top:2px;color:var(--orange)}
+.location-share-card h2{font-size:18px;letter-spacing:-.02em}
+.location-share-card>header p{margin-top:6px;color:#777;font-size:12px;line-height:1.6}
+.location-share-points{display:grid;gap:13px;padding:17px 16px;background:#fafafa}
+.location-share-points li{display:flex;align-items:flex-start;gap:10px;list-style:none}
+.location-share-points svg{flex:none;margin-top:1px;color:#999}
+.location-share-points b{display:block;font-size:12px}
+.location-share-points span{display:block;margin-top:3px;color:#888;font-size:11px;line-height:1.5}
+.location-share-duration{margin-top:22px}
+.location-share-duration>b{display:block;font-size:12px}
+.location-share-duration>div{display:flex;gap:8px;margin-top:11px}
+.location-share-duration button{flex:1;min-height:44px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.location-share-duration button.active{border-color:var(--orange);background:color-mix(in srgb,var(--orange) 8%,#fff);color:var(--orange)}
+.location-share-duration small{display:block;margin-top:10px;color:#999;font-size:11px;line-height:1.5}
+.location-share-start{width:100%;margin-top:22px}
+.location-share-card.is-live{border-top:3px solid #17a56a}
+.location-share-dot{flex:none;width:10px;height:10px;margin-top:6px;border-radius:50%;background:#17a56a;box-shadow:0 0 0 4px rgba(23,165,106,.16)}
+.location-share-link{display:grid;gap:11px;padding:15px 14px;border:1px solid var(--line);background:#fafafa}
+.location-share-link code{overflow-wrap:anywhere;font-size:12px;color:#444}
+.location-share-link>div{display:flex;gap:8px}
+.location-share-link button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.location-share-tip{display:grid;gap:4px;margin-top:14px;padding-left:11px;border-left:2px solid var(--line)}
+.location-share-tip b{font-size:12px;color:#333}
+.location-share-tip span{font-size:11.5px;line-height:1.5;color:#888}
+.location-share-tip.is-stalled{border-left-color:#c8823c}
+.location-share-tip.is-stalled b{color:#8a4b12}
+.location-share-meta{display:flex;gap:26px;margin-top:20px;padding-top:17px;border-top:1px solid var(--line)}
+.location-share-meta dt{display:flex;align-items:center;gap:5px;color:#999;font-size:10px;font-weight:700;letter-spacing:.04em}
+.location-share-meta dd{margin-top:5px;font-size:14px;font-weight:800}
+.location-share-actions{display:flex;gap:8px;margin-top:20px}
+.location-share-actions label,.location-share-actions select{flex:1}
+.location-share-actions select{width:100%;min-height:44px;padding:0 12px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:700}
+.location-share-actions button{flex:1}
+.location-consent-list{display:grid;gap:9px;margin:16px 0;padding:15px 14px;background:#fafafa;list-style:none}
+.location-consent-list li{font-size:12px;line-height:1.5;color:#555}
+.location-consent-list b{display:inline-block;min-width:66px;color:#111}
+.location-consent-check{display:flex;align-items:center;gap:9px;margin-bottom:18px;font-size:12px;font-weight:700}
+.location-consent-check input{width:17px;height:17px;accent-color:var(--orange)}
+
+/* 링크를 받은 사람이 보는 화면 ----------------------------------------- */
+.location-view{min-height:100dvh;display:grid;place-items:center;padding:24px 16px;background:#f5f5f5}
+.location-view-inner{width:min(560px,100%);padding:28px 24px;background:#fff;border:1px solid var(--line)}
+.location-view-inner h1{font-size:19px;letter-spacing:-.02em}
+.location-view-map{height:min(60dvh,420px);margin-top:18px}
+.location-view-empty{display:grid;gap:8px;place-items:center;height:220px;margin-top:18px;padding:0 20px;background:#fafafa;text-align:center}
+.location-view-empty strong{font-size:14px}
+.location-view-empty span{color:#888;font-size:12px;line-height:1.6}
+.location-view-hint{margin-top:14px;color:#6b6b6b;font-size:12px;line-height:1.55}
+.location-view-frame{position:relative;margin-top:18px}
+.location-view-frame.is-stalled .location-view-map{filter:grayscale(.5);opacity:.82}
+.location-view-frame.is-stalled:after{content:"마지막 위치";position:absolute;left:10px;top:10px;padding:5px 9px;background:rgba(0,0,0,.62);color:#fff;font-size:10px;font-weight:700}
+.location-view-frame .location-view-map{margin-top:0}
+.location-view-status{margin-top:14px;color:#666;font-size:12px}
+.location-view-note{margin-top:14px;color:#777;font-size:12px;line-height:1.6}
+.location-view-foot{margin-top:22px;padding-top:15px;border-top:1px solid var(--line);color:#aaa;font-size:10px;font-weight:700;letter-spacing:.08em}
+.location-live-btn{display:inline-grid;place-items:center;color:#222}
+.tool-dot.is-live{background:#17a56a}

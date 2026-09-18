@@ -2,6 +2,7 @@ from .chat import ChatMessage, ChatRoom, ChatRoomMember
 from .communication import Block, MatchRequest, MatchUserState, Report
 from .community import CommunityComment, CommunityDraft, CommunityPost, CommunityPostReaction
 from .consent import UserConsent
+from .location_share import LocationShare
 from .match import Match
 from .notification import Notification
 from .reminder import TripReminder
@@ -26,6 +27,7 @@ __all__ = [
     "CommunityDraft",
     "UserConsent",
     "Notification",
+    "LocationShare",
     "TripReminder",
     "Sanction",
     "RefreshToken",

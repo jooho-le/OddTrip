@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .scheduler import run_reminder_loop
-from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, decision, itinerary, matches, notifications, safety, trips, tti, users
+from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, decision, itinerary, location_shares, matches, notifications, safety, trips, tti, users
 from .seed import seed
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,9 @@ app.include_router(chat.match_router, prefix="/api/matches", tags=["chat"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(community.router, prefix="/api/community", tags=["community"])
+app.include_router(location_shares.router, prefix="/api/me/location-share", tags=["location-share"])
+# 링크를 받은 사람이 여는 자리. 로그인 없이 열리는 유일한 경로다.
+app.include_router(location_shares.public_router, prefix="/api/share", tags=["location-share"])
 app.include_router(consents.router, prefix="/api/me/consents", tags=["consents"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(trips.router, prefix="/api/trips", tags=["trips"])
