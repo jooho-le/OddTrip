@@ -8,8 +8,9 @@ import { isTripWritingSeed, toTripWritingSeed, tripSeedDate, tripSeedInput, type
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { useToast } from '../../shared/ui/Toast';
 import { useCommunity, useCommunityResource } from './CommunityContext';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
-const dateLabel = (date: string) => new Date(date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+const dateLabel = (date: string) => parseServerDate(date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 const PAGE_SIZE = 4;
 
 function CommunityImage({ src, alt, className = '', eager = false }: { src: string; alt: string; className?: string; eager?: boolean }) {

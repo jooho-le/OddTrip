@@ -8,6 +8,7 @@ import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { safetyService } from '../../entities/chat/api/safetyService';
 import { ReportDialog } from '../../features/safety/ReportDialog';
 import type { MatchCandidate, MatchRequest, MatchRequestStatus } from '../../types';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 type Tab = 'candidates' | 'received' | 'sent';
 
@@ -289,7 +290,7 @@ function requestStatusLabel(status: MatchRequestStatus) {
 }
 
 function formatDate(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
 }
 

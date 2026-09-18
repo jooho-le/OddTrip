@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../shared/lib/classNames';
+import { parseServerDate } from '../shared/lib/formatDate';
 
 export function PageHeading({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
   return <div className="mb-8 flex flex-col justify-between gap-4 border-b-2 border-[#202124] pb-4 sm:flex-row sm:items-end"><div><p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-[#ff2d78]">{eyebrow}</p><h1 className="text-3xl font-black tracking-[-.04em]">{title}</h1><p className="mt-2 max-w-2xl text-xs font-medium leading-6 text-slate-500">{description}</p></div>{action}</div>;
@@ -83,7 +84,7 @@ export function LoadState({ loading, error, empty, onRetry, emptyText }: {
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return '-';
-  const parsed = new Date(value);
+  const parsed = parseServerDate(value);
   if (Number.isNaN(parsed.getTime())) return '-';
   return parsed.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }

@@ -6,6 +6,7 @@ import { useConsentStore } from '../../entities/consent/model/consentStore';
 import { decision, type ConsentType } from '../../entities/consent/api/consentService';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import type { BlockedUser } from '../../types';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 const CONSENT_LABELS: Record<ConsentType, string> = {
   terms: '서비스 이용약관',
@@ -28,7 +29,7 @@ const CONSENT_DOCUMENTS: Partial<Record<ConsentType, string>> = {
 
 function formatMoment(value: string | null) {
   if (!value) return '기록 없음';
-  const parsed = new Date(value);
+  const parsed = parseServerDate(value);
   if (Number.isNaN(parsed.getTime())) return '기록 없음';
   return parsed.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
 }

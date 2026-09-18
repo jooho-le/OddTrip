@@ -7,6 +7,7 @@ import { useTripListRealtime } from '../../entities/trip/model/useCoordinationRe
 import { tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import type { TripSummary } from '../../types';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 export function MyTripsPage() {
   const navigate = useNavigate();
@@ -97,6 +98,6 @@ function dateRange(start?: string | null, end?: string | null) {
 }
 
 function formatDate(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('ko-KR');
 }

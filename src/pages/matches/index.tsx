@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useMatchRequestStore } from '../../entities/match-request/model/matchRequestStore';
 import type { MatchRequest, MatchRequestStatus } from '../../types';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 type Tab = 'candidates' | 'received' | 'sent';
 
@@ -68,6 +69,6 @@ function requestStatusLabel(status: MatchRequestStatus) {
 }
 
 function formatDate(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
 }

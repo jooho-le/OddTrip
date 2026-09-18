@@ -6,6 +6,7 @@ import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
 import { matchRequestService } from '../../entities/match-request/api/matchRequestService';
 import { useTripStore } from '../../entities/trip/model/tripStore';
 import { ReportDialog } from '../../features/safety/ReportDialog';
+import { parseServerDate } from '../../shared/lib/formatDate';
 
 export function ChatListPage() {
   return <ChatWorkspace />;
@@ -135,11 +136,11 @@ function socketLabel(status: ReturnType<typeof useChatStore.getState>['socketSta
 }
 
 function formatShort(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 }
 
 function formatTime(value: string) {
-  const date = new Date(value);
+  const date = parseServerDate(value);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 }
