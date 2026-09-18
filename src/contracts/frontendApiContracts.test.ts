@@ -23,6 +23,7 @@ import { matchRequestService } from '../entities/match-request/api/matchRequestS
 import { chatService } from '../entities/chat/api/chatService';
 import { safetyService } from '../entities/chat/api/safetyService';
 import { notificationService } from '../entities/notification/api/notificationService';
+import { communityService } from '../entities/community/api/communityService';
 import { adminService } from '../admin/api/adminService';
 import { registrationDecisions } from '../entities/consent/api/consentService';
 import { sourceLabel } from '../shared/lib/sourceLabel';
@@ -246,6 +247,56 @@ describe('frontend API contracts', () => {
       ['POST', '/api/admin/users/user-1/sanctions'],
       ['DELETE', '/api/admin/sanctions/sanction-1'],
     ]);
+  });
+
+  it('connects the travel review board to the community endpoints', async () => {
+    mocks.apiRequest.mockResolvedValue({ data: { items: [], page: 1, size: 4, total: 0, totalPages: 1 } });
+    const input = { title: '강릉에서 보낸 이틀', body: '바다를 따라 걷다가 들어간 책방이 좋았다.', category: '여행기' as const, region: '강릉', tags: ['바다'], image: '', imageCaption: '', allowComments: true };
+
+    await communityService.listPosts({ category: '여행 팁', q: '강릉', view: 'saved', sort: 'popular', page: 2, size: 4 });
+    await communityService.getPost('post-1');
+    await communityService.createPost(input, { draftKey: 'new', tripId: 'trip-1' });
+    await communityService.updatePost('post-1', input, { draftKey: 'post-1' });
+    await communityService.setReaction('post-1', 'like', true);
+    await communityService.createComment('post-1', '책방 이름이 궁금해요.');
+    await communityService.deleteComment('post-1', 'comment-1');
+    await communityService.saveDraft('trip:trip-1', input);
+    await communityService.deleteDraft('trip:trip-1');
+    await communityService.deletePost('post-1');
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
+      ['GET', '/api/community/posts'],
+      ['GET', '/api/community/posts/post-1'],
+      ['POST', '/api/community/posts'],
+      ['PUT', '/api/community/posts/post-1'],
+      ['PUT', '/api/community/posts/post-1/like'],
+      ['POST', '/api/community/posts/post-1/comments'],
+      ['DELETE', '/api/community/posts/post-1/comments/comment-1'],
+      ['PUT', '/api/community/drafts/trip%3Atrip-1'],
+      ['DELETE', '/api/community/drafts/trip%3Atrip-1'],
+      ['DELETE', '/api/community/posts/post-1'],
+    ]);
+    // 목록 조건은 질의 문자열로 나가고, 기본값(전체 보기)은 보내지 않는다.
+    expect(mocks.apiRequest.mock.calls[0][0].params).toEqual({ category: '여행 팁', q: '강릉', view: 'saved', sort: 'popular', page: 2, size: 4 });
+    // 작성은 초안 키를 함께 보내 같은 요청에서 임시저장을 정리하게 한다.
+    expect(mocks.apiRequest.mock.calls[2][0].params).toEqual({ draftKey: 'new' });
+    expect(mocks.apiRequest.mock.calls[2][0].data).toMatchObject({ title: '강릉에서 보낸 이틀', category: '여행기', region: '강릉', tags: ['바다'], allowComments: true, tripId: 'trip-1' });
+    // 비어 있는 사진·설명은 빈 문자열이 아니라 null로 보낸다.
+    expect(mocks.apiRequest.mock.calls[2][0].data.image).toBeNull();
+    // 공감은 토글이 아니라 원하는 상태를 보낸다.
+    expect(mocks.apiRequest.mock.calls[4][0].data).toEqual({ value: true });
+  });
+
+  it('reads community list defaults so the board never blanks on a partial response', async () => {
+    mocks.apiRequest.mockResolvedValue({ data: { items: [{ id: 'post-1', author: { id: 'u1', nickname: '여행자' }, category: '여행기', title: '제목', body: '본문', likeCount: 3, commentCount: 1, liked: true, region: null, image: null, tags: null }] } });
+
+    const page = await communityService.listPosts();
+
+    expect(page.items[0]).toMatchObject({ id: 'post-1', likeCount: 3, commentCount: 1, liked: true, saved: false, mine: false });
+    // 서버의 null은 화면이 다루는 빈 문자열·빈 배열로 바꾼다.
+    expect(page.items[0]).toMatchObject({ region: '', image: '', tags: [] });
+    expect(page.items[0].comments).toBeNull();
+    expect(page.totalPages).toBe(1);
   });
 
   it('labels missing and static fallback sources without inventing provenance', () => {

@@ -1,5 +1,6 @@
 from .chat import ChatMessage, ChatRoom, ChatRoomMember
 from .communication import Block, MatchRequest, MatchUserState, Report
+from .community import CommunityComment, CommunityDraft, CommunityPost, CommunityPostReaction
 from .consent import UserConsent
 from .match import Match
 from .notification import Notification
@@ -18,6 +19,10 @@ __all__ = [
     "MatchUserState",
     "Block",
     "Report",
+    "CommunityPost",
+    "CommunityComment",
+    "CommunityPostReaction",
+    "CommunityDraft",
     "UserConsent",
     "Notification",
     "Sanction",

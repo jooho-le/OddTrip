@@ -1,7 +1,5 @@
 import type { MatchRequest, TripSummary } from '../../types';
-import type { CommunityPost } from '../../features/community/communityModel';
 
-export type HomeFeedTab = 'recommended' | 'recent' | 'region';
 export type DatedMatchRequest = {
   request: MatchRequest;
   direction: 'received' | 'sent';
@@ -9,28 +7,6 @@ export type DatedMatchRequest = {
 
 export function sortTripsByRecent(trips: TripSummary[]) {
   return [...trips].sort((left, right) => recentTimestamp(right) - recentTimestamp(left));
-}
-
-export function selectCommunityHomePosts(
-  posts: CommunityPost[],
-  tab: HomeFeedTab,
-  region?: string | null,
-) {
-  const normalizedRegion = region?.trim().toLocaleLowerCase();
-  const visible = tab === 'region'
-    ? posts.filter((post) => normalizedRegion && [post.region, post.title, ...post.tags]
-      .join(' ')
-      .toLocaleLowerCase()
-      .includes(normalizedRegion))
-    : [...posts];
-
-  return visible.sort((left, right) => {
-    if (tab === 'recommended') {
-      const score = (post: CommunityPost) => post.likes + Number(post.liked) + post.comments.length * 2;
-      return score(right) - score(left) || dateTimestamp(right.createdAt) - dateTimestamp(left.createdAt);
-    }
-    return dateTimestamp(right.createdAt) - dateTimestamp(left.createdAt);
-  });
 }
 
 export function selectScheduleRequests(

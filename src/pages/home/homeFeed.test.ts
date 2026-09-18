@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchRequest, TripSummary } from '../../types';
-import { COMMUNITY_SAMPLES } from '../../features/community/communitySamples';
-import { selectCommunityHomePosts, selectScheduleRequests, sortTripsByRecent } from './homeFeed';
+import { selectScheduleRequests, sortTripsByRecent } from './homeFeed';
 
 const user = { id: 'u1', email: 'one@example.com', nickname: '하나', role: 'user' as const };
 const counterpart = { id: 'u2', email: 'two@example.com', nickname: '둘', role: 'user' as const };
@@ -40,17 +39,6 @@ function trip(tripId: string, createdAt?: string): TripSummary {
 }
 
 describe('home feed data', () => {
-  it('ranks community stories by reactions for the recommended tab', () => {
-    const posts = selectCommunityHomePosts(COMMUNITY_SAMPLES, 'recommended');
-    expect(posts.slice(0, 3).map((item) => item.id)).toEqual(['story-1', 'story-2', 'story-3']);
-  });
-
-  it('filters community stories by the active travel region', () => {
-    const posts = selectCommunityHomePosts(COMMUNITY_SAMPLES, 'region', '강릉');
-    expect(posts.map((item) => item.id)).toEqual(['story-1']);
-    expect(selectCommunityHomePosts(COMMUNITY_SAMPLES, 'region')).toEqual([]);
-  });
-
   it('sorts actual trips by their latest creation date', () => {
     expect(sortTripsByRecent([
       trip('old', '2026-08-01T00:00:00Z'),

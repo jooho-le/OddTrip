@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight, Heart, MapPin, MessageCircle, Route, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTripStore } from '../../entities/trip/model/tripStore';
-import { createCommunityRepository, type CommunityData, type CommunityPost } from '../../features/community/communityModel';
-import { COMMUNITY_SAMPLES } from '../../features/community/communitySamples';
+import { communityService } from '../../entities/community/api/communityService';
+import type { CommunityPost } from '../../features/community/communityModel';
 import { imageUrl, TRIP_IMAGE_FALLBACKS } from '../../features/prototype/designContent';
 import { formatRelativeTime } from '../../shared/lib/formatDate';
 import { tripPreferencePath, tripWorkspacePath, type TripWorkspaceTab } from '../../shared/lib/tripRoutes';
 import type { TripSummary } from '../../types';
-import { selectCommunityHomePosts } from './homeFeed';
 
 const coverImage = imageUrl('photo-1507525428034-b723cf961d3e', 1600, 90);
 
@@ -26,35 +25,26 @@ export function HomePage() {
     loadTripHistory,
     openTrip,
   } = useTripStore();
-  const communityRepository = useMemo(() => user
-    ? createCommunityRepository(window.localStorage, { id: user.id, nickname: user.nickname }, COMMUNITY_SAMPLES)
-    : undefined, [user?.id, user?.nickname]);
-  const [communityData, setCommunityData] = useState<CommunityData>();
+  const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>();
   const [communityError, setCommunityError] = useState('');
 
+  // 홈은 커뮤니티에서 공감이 많은 글 두 편만 보여 준다. 정렬은 서버가 한다.
   const loadCommunity = useCallback(() => {
-    if (!communityRepository) return;
-    try {
-      setCommunityData(communityRepository.load());
-      setCommunityError('');
-    } catch (communityLoadError) {
-      setCommunityError(communityLoadError instanceof Error ? communityLoadError.message : '여행 이야기를 불러오지 못했습니다.');
-    }
-  }, [communityRepository]);
+    if (!user) return;
+    setCommunityError('');
+    communityService.listPosts({ sort: 'popular', size: 2 })
+      .then((page) => setCommunityPosts(page.items))
+      .catch((communityLoadError) => {
+        setCommunityPosts(undefined);
+        setCommunityError(communityLoadError instanceof Error ? communityLoadError.message : '여행 이야기를 불러오지 못했습니다.');
+      });
+  }, [user?.id]);
 
   useEffect(() => {
     void loadTripHistory();
   }, [loadTripHistory]);
 
-  useEffect(() => {
-    loadCommunity();
-    if (!communityRepository) return;
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === communityRepository.key || event.key === null) loadCommunity();
-    };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, [communityRepository, loadCommunity]);
+  useEffect(loadCommunity, [loadCommunity]);
 
   const activeTrip = tripHistory.find((trip) => !['completed', 'cancelled'].includes(trip.status));
 
@@ -66,7 +56,6 @@ export function HomePage() {
   const savedPlaces = tripHistory.reduce((sum, trip) => sum + trip.savedCount, 0);
   const preferenceDone = hasPreferenceInput(preferences);
   const stage = activeTrip ? tripStage(activeTrip) : '동행 찾는 중';
-  const communityPosts = selectCommunityHomePosts(communityData?.posts ?? [], 'recommended').slice(0, 2);
 
   const openActiveTrip = async () => {
     if (!activeTrip) {
@@ -207,10 +196,10 @@ export function HomePage() {
 
         <section className="home-stories" aria-labelledby="home-stories-title">
           <div className="home-section-heading"><div><span className="eyebrow">WEEKLY STORIES</span><h2 id="home-stories-title">이번 주 여행 이야기</h2></div><Link className="text-btn" to="/community?sort=popular">커뮤니티 전체 보기 →</Link></div>
-          {!communityData && !communityError ? <LoadingFeed label="여행 이야기를 불러오는 중" /> : null}
+          {!communityPosts && !communityError ? <LoadingFeed label="여행 이야기를 불러오는 중" /> : null}
           {communityError ? <div className="error-strip" role="alert"><span>{communityError}</span><button onClick={loadCommunity}>다시 시도</button></div> : null}
-          {communityData && communityPosts.length ? <div className="home-story-grid">{communityPosts.map((post) => <HomeStoryCard post={post} key={post.id} />)}</div> : null}
-          {communityData && !communityPosts.length ? <div className="empty-state"><strong>아직 소개할 여행 이야기가 없습니다.</strong><p>커뮤니티에서 첫 여행 이야기를 남겨보세요.</p><Link className="solid-btn" to="/community/write">이야기 쓰기</Link></div> : null}
+          {communityPosts?.length ? <div className="home-story-grid">{communityPosts.map((post) => <HomeStoryCard post={post} key={post.id} />)}</div> : null}
+          {communityPosts && !communityPosts.length ? <div className="empty-state"><strong>아직 소개할 여행 이야기가 없습니다.</strong><p>커뮤니티에서 첫 여행 이야기를 남겨보세요.</p><Link className="solid-btn" to="/community/write">이야기 쓰기</Link></div> : null}
         </section>
       </div>
     </main>
@@ -219,7 +208,7 @@ export function HomePage() {
 
 function HomeStoryCard({ post }: { post: CommunityPost }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const reactionCount = post.likes + Number(post.liked);
+  const reactionCount = post.likeCount;
   return (
     <Link className="home-story-card" to={`/community/${post.id}`} state={{ communityReturn: '/home' }}>
       <div className="home-story-image">
@@ -231,7 +220,7 @@ function HomeStoryCard({ post }: { post: CommunityPost }) {
         <small><b>{post.category}</b>{post.region ? <><MapPin size={11} />{post.region}</> : null}</small>
         <h3><span>{post.title}</span><i aria-hidden="true">→</i></h3>
         <p>{post.body}</p>
-        <footer><span>{post.author.nickname} · {formatRelativeTime(post.createdAt)}</span><span><Heart size={13} />{reactionCount}<MessageCircle size={13} />{post.comments.length}</span></footer>
+        <footer><span>{post.author.nickname} · {formatRelativeTime(post.createdAt)}</span><span><Heart size={13} />{reactionCount}<MessageCircle size={13} />{post.commentCount}</span></footer>
       </div>
     </Link>
   );
