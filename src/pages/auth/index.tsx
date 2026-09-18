@@ -94,6 +94,7 @@ export function AuthPage() {
           <form className="auth-form" onSubmit={submit}>
             <label className="field"><span>이메일</span><input type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" /></label>
             <label className="field"><span>비밀번호</span><input type="password" required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="8자 이상" /></label>
+            {mode === 'login' ? <Link className="text-btn auth-reset-link" to="/password-reset">비밀번호를 잊으셨나요?</Link> : null}
             {mode === 'register' ? <><label className="field"><span>닉네임</span><input required maxLength={50} autoComplete="nickname" value={nickname} onChange={(event) => setNickname(event.target.value)} /></label><label className="field"><span>생활 지역 · 선택</span><input maxLength={100} value={homeRegion} onChange={(event) => setHomeRegion(event.target.value)} placeholder="예: 서울" /></label></> : null}
             {mode === 'register' ? (
               <section className="signup-consents" aria-labelledby="signup-consent-title">

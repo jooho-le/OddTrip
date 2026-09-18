@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  tripConcessionPath,
+  tripOddRulePath,
   tripPreferencePath,
   tripScheduleMapPath,
   tripSettingsPath,
@@ -16,9 +18,12 @@ describe('trip route helpers', () => {
     expect(tripSettingsPath('trip-1')).toBe('/trips/trip-1/settings');
     expect(tripScheduleMapPath('trip-1')).toBe('/trips/trip-1/schedule/map');
     expect(tripPreferencePath('trip-1', true)).toBe('/trips/trip-1/survey/preference?from=home');
+    expect(tripConcessionPath('trip-1')).toBe('/trips/trip-1/survey/concession');
+    expect(tripOddRulePath('trip-1')).toBe('/trips/trip-1/survey/rule');
   });
 
   it('encodes trip ids as one URL segment', () => {
     expect(tripWorkspacePath('trip / 1')).toBe('/trips/trip%20%2F%201/overview');
+    expect(tripConcessionPath('trip / 1')).toBe('/trips/trip%20%2F%201/survey/concession');
   });
 });

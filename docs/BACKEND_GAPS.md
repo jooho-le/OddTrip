@@ -1,7 +1,7 @@
 # OddTrip 백엔드 미지원 기능 목록
 
-- 확인 기준: `origin/dev@2f98373`
-- 확인일: 2026-09-16
+- 확인 기준: 현재 작업 트리
+- 확인일: 2026-09-19
 - 판정 범위: FastAPI 라우터, Pydantic 스키마, SQLAlchemy 모델, Alembic migration, 서비스와 테스트
 
 ## 기존 계약으로 프론트 연결이 가능한 기능
@@ -17,24 +17,12 @@
 | Trip 생성·수정·취소 | `POST/PATCH/DELETE /api/trips*` | 지역·기간 변경 시 일정과 현재 승인 상태가 무효화된다. |
 | 일정 승인·수정 요청 | `GET /approval`, `PUT /approval/me` | 현재 `itineraryRevision`에만 응답하고 두 사람 모두 승인해야 확정된다. |
 | 인앱 알림 | `/api/notifications`, WebSocket `notification.created` | 서버 ID로 중복을 제거하고 읽음 상태를 서버 기준으로 유지한다. |
+| 양보 범위 | `GET /concessions`, `PUT /concessions/me` | 사용자별 초안·제출을 분리하고 두 사람 모두 제출하기 전 상대 답안과 메모를 반환하지 않는다. |
+| Odd Rule | `GET /odd-rules`, `POST /odd-rules/proposals*` | 상대만 수락·거절할 수 있고 수락된 규칙은 증가하는 버전과 이력으로 보존된다. |
+| 비밀번호 변경 | `POST /api/auth/change-password` | 현재 비밀번호를 확인하고 성공 시 모든 refresh token을 폐기한다. |
+| 비밀번호 재설정 | `POST /api/auth/password-reset/request|confirm` | 해시로만 저장한 일회용 만료 토큰을 SMTP로 전달하며 계정 존재 여부를 같은 응답으로 감춘다. |
 
 ## 백엔드 계약 추가가 필요한 기능
-
-### P0 · 양보 범위
-
-- 영향 화면: `/survey/concession`, `/trip/coordination`
-- 현재 제한: 개인 선호는 장소·활동·음식·속도·예산·실내·숨은 명소만 저장한다. 양보 가능 정도와 비공개 메모 필드는 스키마 정규화 과정에서 보존되지 않는다.
-- 최소 계약: 기존 개인 선호 payload에 항목별 `concessions`와 제출 상태를 추가하거나 별도 endpoint를 제공한다.
-- DB 선택: 단순 구조라면 `trip_user_preferences.preferences_json` 확장으로 migration 없이 가능하지만 요청·응답 명세와 테스트는 변경해야 한다.
-- 검증 조건: 두 사용자의 원문 답안은 합의 규칙이 정한 시점 전까지 서로에게 노출되지 않는다.
-
-### P0 · Odd Rule 합의
-
-- 영향 화면: `/survey/rule`, `/trip/coordination`
-- 현재 제한: 규칙 선택, 상대 응답, 최종 합의 규칙을 저장하는 필드와 API가 없다.
-- 최소 계약: 규칙 후보 ID, 사용자별 선택, 합의 상태, 변경 이력을 제공한다. 기존 합의안 lifecycle을 재사용할 수 있다.
-- DB 선택: 공동 선호 JSON 확장 또는 별도 rule proposal 모델. 감사 이력이 필요하면 별도 모델을 권장한다.
-- 검증 조건: 한 사용자의 선택만으로 규칙을 확정하지 않으며 재선택 시 양쪽 화면이 같은 상태로 갱신된다.
 
 ### P0 · AI 조정안 확정
 

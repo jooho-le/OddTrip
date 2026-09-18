@@ -7,8 +7,8 @@ from .match import Match
 from .notification import Notification
 from .reminder import TripReminder
 from .sanction import Sanction
-from .token import RefreshToken
-from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripApproval, TripAttraction, TripPreferenceProposal, TripUserPreference
+from .token import PasswordResetToken, RefreshToken
+from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripApproval, TripAttraction, TripConcessionResponse, TripOddRuleProposal, TripPreferenceProposal, TripUserPreference
 from .tti import TravelType, TtiQuestion
 from .user import User
 
@@ -31,6 +31,7 @@ __all__ = [
     "TripReminder",
     "Sanction",
     "RefreshToken",
+    "PasswordResetToken",
     "TtiQuestion",
     "TravelType",
     "Match",
@@ -38,6 +39,8 @@ __all__ = [
     "TripApproval",
     "TripUserPreference",
     "TripPreferenceProposal",
+    "TripConcessionResponse",
+    "TripOddRuleProposal",
     "Place",
     "TripAttraction",
     "ItineraryDay",

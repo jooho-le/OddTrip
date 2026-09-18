@@ -163,6 +163,62 @@ export interface ConflictResolution {
   suggestion: string;
 }
 
+export type ConcessionChoice = 'keep' | 'flexible' | 'yield';
+export type ConcessionAnswers = Partial<Record<'pace' | 'budget' | 'food' | 'activities', ConcessionChoice>>;
+
+export interface ConcessionRecord {
+  userId: string;
+  answers: ConcessionAnswers;
+  note?: string | null;
+  status: 'draft' | 'submitted';
+  submittedAt?: string | null;
+  revealedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ConcessionState {
+  tripId: string;
+  mine?: ConcessionRecord | null;
+  counterpart?: ConcessionRecord | null;
+  mineSubmitted: boolean;
+  counterpartSubmitted: boolean;
+  bothSubmitted: boolean;
+  revealedAt?: string | null;
+}
+
+export type OddRuleProposalStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface OddRuleProposal {
+  id: string;
+  tripId: string;
+  proposedBy: string;
+  respondedBy?: string | null;
+  ruleKey: string;
+  title: string;
+  description: string;
+  status: OddRuleProposalStatus;
+  version?: number | null;
+  createdAt: string;
+  respondedAt?: string | null;
+  finalizedAt?: string | null;
+}
+
+export interface OddRuleState {
+  tripId: string;
+  current?: OddRuleProposal | null;
+  pending: OddRuleProposal[];
+  history: OddRuleProposal[];
+  proposals: OddRuleProposal[];
+  nextVersion: number;
+}
+
+export interface PasswordResetRequestResult {
+  accepted: boolean;
+  expiresInMinutes: number;
+  /** Returned only when PASSWORD_RESET_DEBUG=true on the local backend. */
+  resetToken?: string;
+}
+
 export interface Attraction {
   id: string;
   name: string;

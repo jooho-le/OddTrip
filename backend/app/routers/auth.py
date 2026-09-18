@@ -10,9 +10,17 @@ from ..config import settings
 from ..dependencies import get_current_user, get_db
 from ..models.token import RefreshToken
 from ..models.user import User
-from ..schemas.auth import AuthLoginIn, AuthOut, AuthRegisterIn, RefreshIn
+from ..schemas.auth import (
+    AuthLoginIn,
+    AuthOut,
+    AuthRegisterIn,
+    PasswordChangeIn,
+    PasswordResetConfirmIn,
+    PasswordResetRequestIn,
+    RefreshIn,
+)
 from ..schemas.user import UserOut
-from ..services import consent_service, sanction_service
+from ..services import consent_service, password_service, sanction_service
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -166,3 +174,39 @@ async def logout(body: RefreshIn, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=dict)
 async def me(user: User = Depends(get_current_user)):
     return {"data": UserOut.model_validate(user).model_dump(by_alias=True), "error": None}
+
+
+@router.post("/change-password", response_model=dict)
+async def change_password(
+    body: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await password_service.change_password(
+        db, user, body.current_password, body.new_password
+    )
+    return {"data": {"success": True, "sessionsRevoked": True}, "error": None}
+
+
+@router.post("/password-reset/request", response_model=dict)
+async def request_password_reset(
+    body: PasswordResetRequestIn,
+    db: AsyncSession = Depends(get_db),
+):
+    debug_token = await password_service.request_password_reset(db, body.email)
+    data = {
+        "accepted": True,
+        "expiresInMinutes": settings.password_reset_token_expire_minutes,
+    }
+    if settings.password_reset_debug and debug_token:
+        data["resetToken"] = debug_token
+    return {"data": data, "error": None}
+
+
+@router.post("/password-reset/confirm", response_model=dict)
+async def confirm_password_reset(
+    body: PasswordResetConfirmIn,
+    db: AsyncSession = Depends(get_db),
+):
+    await password_service.reset_password(db, body.token, body.new_password)
+    return {"data": {"success": True}, "error": None}

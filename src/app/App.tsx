@@ -38,6 +38,8 @@ import { VerificationPage } from '../pages/verification';
 import { NotificationSettingsPage } from '../pages/notification-settings';
 import { HelpPage } from '../pages/help';
 import { ScheduleMapPage } from '../pages/schedule-map';
+import { ConcessionSurveyPage, OddRulePage } from '../pages/coordination-surveys';
+import { PasswordResetPage } from '../pages/password-reset';
 import { ToastViewport } from '../shared/ui/Toast';
 import { UiNoticeDialog } from '../shared/ui/UiNoticeDialog';
 import { landingPathForRole } from './roleRoutes';
@@ -97,6 +99,7 @@ function AppRoutes() {
         <Route path="/" element={<RootRoute />} />
         <Route path="/about" element={<IntroLandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/password-reset" element={<PasswordResetPage />} />
         <Route path="/legal/:document" element={<LegalPage />} />
         {/* 링크를 받은 사람이 여는 화면. 로그인하지 않는다. */}
         <Route path="/s/:token" element={<LocationViewPage />} />
@@ -117,6 +120,8 @@ function AppRoutes() {
           <Route path="/trips/new" element={<NewTripPage />} />
           <Route path="/trips/:tripId/settings" element={<TripRouteBoundary><TripSettingsPage /></TripRouteBoundary>} />
           <Route path="/trips/:tripId/schedule/map" element={<TripRouteBoundary><ScheduleMapPage /></TripRouteBoundary>} />
+          <Route path="/trips/:tripId/survey/concession" element={<TripRouteBoundary><ConcessionSurveyPage /></TripRouteBoundary>} />
+          <Route path="/trips/:tripId/survey/rule" element={<TripRouteBoundary><OddRulePage /></TripRouteBoundary>} />
           <Route path="/trips/:tripId/survey/:key" element={<TripRouteBoundary><SurveyFormPage /></TripRouteBoundary>} />
           <Route path="/trips/:tripId/:tab" element={<TripRouteBoundary><TripWorkspacePage /></TripRouteBoundary>} />
 
@@ -129,8 +134,8 @@ function AppRoutes() {
           <Route path="/trip/places" element={<ActiveTripRedirect target="schedule" />} />
           <Route path="/survey/tti" element={<SurveyFormPage />} />
           <Route path="/survey/preference" element={<ActiveTripRedirect target="preference" />} />
-          <Route path="/survey/concession" element={<ActiveTripRedirect target="coordination" />} />
-          <Route path="/survey/rule" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/survey/concession" element={<ActiveTripRedirect target="concession" />} />
+          <Route path="/survey/rule" element={<ActiveTripRedirect target="rule" />} />
           <Route path="/survey/approval" element={<ActiveTripRedirect target="schedule" />} />
           <Route path="/settings" element={<AccountSettingsPage />} />
           <Route path="/settings/privacy" element={<PrivacySettingsPage />} />
@@ -142,8 +147,8 @@ function AppRoutes() {
           <Route path="/chat/:roomId" element={<HomePage />} />
 
           <Route path="/decision/select" element={<ActiveTripRedirect target="preference" />} />
-          <Route path="/decision/concession" element={<ActiveTripRedirect target="coordination" />} />
-          <Route path="/decision/odd-rule" element={<ActiveTripRedirect target="coordination" />} />
+          <Route path="/decision/concession" element={<ActiveTripRedirect target="concession" />} />
+          <Route path="/decision/odd-rule" element={<ActiveTripRedirect target="rule" />} />
           <Route path="/decision/*" element={<ActiveTripRedirect target="coordination" />} />
           <Route path="/proposal/*" element={<ActiveTripRedirect target="coordination" />} />
           <Route path="/attractions/*" element={<ActiveTripRedirect target="schedule" />} />

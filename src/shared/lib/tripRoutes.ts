@@ -19,3 +19,11 @@ export function tripScheduleMapPath(tripId: string) {
 export function tripPreferencePath(tripId: string, fromHome = false) {
   return `/trips/${tripSegment(tripId)}/survey/preference${fromHome ? '?from=home' : ''}`;
 }
+
+export function tripConcessionPath(tripId: string) {
+  return `/trips/${tripSegment(tripId)}/survey/concession`;
+}
+
+export function tripOddRulePath(tripId: string) {
+  return `/trips/${tripSegment(tripId)}/survey/rule`;
+}

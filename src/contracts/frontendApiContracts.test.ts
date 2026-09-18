@@ -226,6 +226,57 @@ describe('frontend API contracts', () => {
     ]);
   });
 
+  it('connects private concession submissions and the Odd Rule lifecycle', async () => {
+    const answers = {
+      pace: 'keep',
+      budget: 'flexible',
+      food: 'yield',
+      activities: 'flexible',
+    } as const;
+    await oddtripService.getConcessions('trip-1');
+    await oddtripService.saveConcessions('trip-1', answers, '예산은 조율할 수 있어요.', true);
+    await oddtripService.getOddRules('trip-1');
+    await oddtripService.proposeOddRule('trip-1', {
+      ruleKey: 'one-veto-each',
+      title: '각자 거절권 한 번',
+      description: '서로 한 번씩 선택을 제외할 수 있습니다.',
+    });
+    await oddtripService.respondOddRule('trip-1', 'rule-1', 'accept');
+    await oddtripService.respondOddRule('trip-1', 'rule-2', 'reject');
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
+      ['GET', '/api/trips/trip-1/concessions'],
+      ['PUT', '/api/trips/trip-1/concessions/me'],
+      ['GET', '/api/trips/trip-1/odd-rules'],
+      ['POST', '/api/trips/trip-1/odd-rules/proposals'],
+      ['POST', '/api/trips/trip-1/odd-rules/proposals/rule-1/accept'],
+      ['POST', '/api/trips/trip-1/odd-rules/proposals/rule-2/reject'],
+    ]);
+    expect(mocks.apiRequest.mock.calls[1][0].data).toEqual({
+      answers,
+      note: '예산은 조율할 수 있어요.',
+      submit: true,
+    });
+  });
+
+  it('connects password change and single-use reset endpoints', async () => {
+    mocks.apiRequest.mockResolvedValueOnce({ data: { success: true } });
+    await oddtripService.changePassword('old-password', 'new-password');
+    await oddtripService.requestPasswordReset('user@example.com');
+    await oddtripService.resetPassword('reset-token-value-1234567890', 'new-password');
+
+    expect(mocks.apiRequest.mock.calls.map(([config]) => [config.method, config.url])).toEqual([
+      ['POST', '/api/auth/change-password'],
+      ['POST', '/api/auth/password-reset/request'],
+      ['POST', '/api/auth/password-reset/confirm'],
+    ]);
+    expect(mocks.apiRequest.mock.calls[0][0].data).toEqual({
+      currentPassword: 'old-password',
+      newPassword: 'new-password',
+    });
+    expect(mocks.clearSession).toHaveBeenCalledOnce();
+  });
+
   it('connects admin lists, report review, and sanction requests', async () => {
     await adminService.stats();
     await adminService.users({ q: '은진', status: 'active', limit: 20, offset: 0 });

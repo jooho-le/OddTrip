@@ -1,4 +1,4 @@
-import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, PairPreferences, PreferenceProposal, SafetyAlert, TripApprovalAction, TripApprovalState, TripCancelResult, TripCreateInput, TripSummary, TripUpdateInput, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
+import type { AgentRunRequest, AgentRunResponse, ApiResponse, Attraction, AuthResponse, ConcessionAnswers, ConcessionState, ConflictResolution, ItineraryDay, JointPreference, MatchCandidate, OddRuleState, PairPreferences, PasswordResetRequestResult, PreferenceProposal, SafetyAlert, TripApprovalAction, TripApprovalState, TripCancelResult, TripCreateInput, TripSummary, TripUpdateInput, TtiAnswer, TtiQuestion, TtiResult, UserProfile } from '../../../types';
 import { apiRequest, clearSession, saveSession, SESSION_KEYS } from '../../../shared/api/client';
 import { normalizeTripSummary } from '../../../shared/lib/displayText';
 import type { ConsentDecision } from '../../consent/api/consentService';
@@ -22,6 +22,9 @@ export interface OddtripService {
   register(input: { email: string; password: string; nickname: string; homeRegion?: string; avatarUrl?: string; consents: ConsentDecision[] }): Promise<ApiResponse<AuthResponse>>;
   logout(): Promise<void>;
   withdraw(password?: string): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
+  requestPasswordReset(email: string): Promise<ApiResponse<PasswordResetRequestResult>>;
+  resetPassword(token: string, newPassword: string): Promise<void>;
   hasAuthToken(): boolean;
   getCurrentUser(): Promise<ApiResponse<UserProfile>>;
   getTtiQuestions(): Promise<ApiResponse<TtiQuestion[]>>;
@@ -41,6 +44,11 @@ export interface OddtripService {
   createPreferenceProposal(tripId: string, preferences: JointPreference): Promise<ApiResponse<PreferenceProposal>>;
   respondPreferenceProposal(tripId: string, proposalId: string, action: 'accept' | 'reject'): Promise<ApiResponse<PreferenceProposal>>;
   resolveConflict(tripId: string, conflicts: string[]): Promise<ApiResponse<ConflictResolution>>;
+  getConcessions(tripId: string): Promise<ApiResponse<ConcessionState>>;
+  saveConcessions(tripId: string, answers: ConcessionAnswers, note: string, submit: boolean): Promise<ApiResponse<ConcessionState>>;
+  getOddRules(tripId: string): Promise<ApiResponse<OddRuleState>>;
+  proposeOddRule(tripId: string, input: { ruleKey: string; title: string; description: string }): Promise<ApiResponse<OddRuleState>>;
+  respondOddRule(tripId: string, proposalId: string, action: 'accept' | 'reject'): Promise<ApiResponse<OddRuleState>>;
   getAttractions(tripId: string): Promise<ApiResponse<Attraction[]>>;
   generatePublicAttractions(tripId: string, request?: PublicAttractionRequest): Promise<ApiResponse<Attraction[]>>;
   runTravelAgent(tripId: string, request?: AgentRunRequest): Promise<ApiResponse<AgentRunResponse>>;
@@ -89,6 +97,25 @@ export const oddtripService: OddtripService = {
     // 취소되고 사용자는 그대로 화면에 남아야 하므로, 성공한 뒤에 정리합니다.
     await request('/api/users/me/withdraw', { method: 'POST', body: { password }, auth: true });
     clearSession();
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    await request('/api/auth/change-password', {
+      method: 'POST', auth: true, body: { currentPassword, newPassword }
+    });
+    clearSession();
+  },
+
+  requestPasswordReset(email) {
+    return request<PasswordResetRequestResult>('/api/auth/password-reset/request', {
+      method: 'POST', body: { email }
+    });
+  },
+
+  async resetPassword(token, newPassword) {
+    await request('/api/auth/password-reset/confirm', {
+      method: 'POST', body: { token, newPassword }
+    });
   },
 
   hasAuthToken() {
@@ -189,6 +216,32 @@ export const oddtripService: OddtripService = {
       method: 'POST',
       auth: true,
       body: { conflicts }
+    });
+  },
+
+  getConcessions(tripId) {
+    return request<ConcessionState>(`/api/trips/${tripId}/concessions`, { auth: true });
+  },
+
+  saveConcessions(tripId, answers, note, submit) {
+    return request<ConcessionState>(`/api/trips/${tripId}/concessions/me`, {
+      method: 'PUT', auth: true, body: { answers, note, submit }
+    });
+  },
+
+  getOddRules(tripId) {
+    return request<OddRuleState>(`/api/trips/${tripId}/odd-rules`, { auth: true });
+  },
+
+  proposeOddRule(tripId, input) {
+    return request<OddRuleState>(`/api/trips/${tripId}/odd-rules/proposals`, {
+      method: 'POST', auth: true, body: input
+    });
+  },
+
+  respondOddRule(tripId, proposalId, action) {
+    return request<OddRuleState>(`/api/trips/${tripId}/odd-rules/proposals/${proposalId}/${action}`, {
+      method: 'POST', auth: true
     });
   },
 

@@ -70,3 +70,43 @@ class RefreshIn(BaseModel):
     refresh_token: str
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        if not (8 <= len(value) <= 128):
+            raise ValueError("새 비밀번호는 8자 이상이어야 합니다.")
+        return value
+
+
+class PasswordResetRequestIn(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        email = value.strip().lower()
+        if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+            raise ValueError("올바른 이메일을 입력해주세요.")
+        return email
+
+
+class PasswordResetConfirmIn(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str
+
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        if not (8 <= len(value) <= 128):
+            raise ValueError("새 비밀번호는 8자 이상이어야 합니다.")
+        return value

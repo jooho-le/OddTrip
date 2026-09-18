@@ -21,6 +21,17 @@ class Settings(BaseSettings):
     # exchange a refresh token for a new one.
     auth_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 14
+    password_reset_token_expire_minutes: int = 30
+    # Raw reset tokens are returned only in an explicitly enabled local
+    # environment. Production sends the link over SMTP.
+    password_reset_debug: bool = False
+    frontend_base_url: str = "http://localhost:5173"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_starttls: bool = True
     allow_demo_user_header_auth: bool = False
     # 서버 기동 시 만들어 둘 관리자 계정. 둘 다 채워져 있을 때만 동작하고,
     # 비워두면 아무 계정도 만들지 않습니다. 관리자를 만드는 HTTP 경로가
@@ -44,7 +55,7 @@ class Settings(BaseSettings):
     tour_api_related_base_url: str = "https://apis.data.go.kr/B551011/TarRlteTarService1"
     tour_api_hub_base_url: str = "https://apis.data.go.kr/B551011/LocgoHubTarService1"
     tour_api_bigdata_base_url: str = "https://apis.data.go.kr/B551011/DataLabService"
-    tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TarCongestionService"
+    tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TatsCnctrRateService"
     google_maps_api_key: str = ""
     kma_api_key: str = ""
     mois_api_key: str = ""

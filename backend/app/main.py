@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .scheduler import run_reminder_loop
-from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, decision, itinerary, location_shares, matches, notifications, safety, trips, tti, users
+from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, coordination, decision, itinerary, location_shares, matches, notifications, safety, trips, tti, users
 from .seed import seed
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,7 @@ app.include_router(consents.router, prefix="/api/me/consents", tags=["consents"]
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(trips.router, prefix="/api/trips", tags=["trips"])
 app.include_router(decision.router, prefix="/api/trips", tags=["decision"])
+app.include_router(coordination.router, prefix="/api/trips", tags=["coordination"])
 app.include_router(attractions.router, prefix="/api/trips", tags=["attractions"])
 app.include_router(itinerary.router, prefix="/api/trips", tags=["itinerary"])
 app.include_router(approval.router, prefix="/api/trips", tags=["approval"])

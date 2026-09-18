@@ -10,7 +10,7 @@ import {
   PROFILE_FALLBACKS,
 } from '../../features/prototype/designContent';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
-import { tripPreferencePath, tripScheduleMapPath, tripSettingsPath, tripWorkspacePath } from '../../shared/lib/tripRoutes';
+import { tripConcessionPath, tripOddRulePath, tripPreferencePath, tripScheduleMapPath, tripSettingsPath, tripWorkspacePath } from '../../shared/lib/tripRoutes';
 import type { ItineraryItem, TripSummary, UserProfile } from '../../types';
 import { TripFlowGuide } from '../../widgets/trip/TripFlowGuide';
 import { coordinationFlowState, isTripPlanningReadOnly } from '../../widgets/trip/coordinationFlow';
@@ -231,6 +231,14 @@ function CoordinationTab({ trip, user, readOnly }: { trip: TripSummary; user?: U
           </div>
         </aside>
       </div>
+
+      <section className="coordination-tools">
+        <div className="section-title"><h2>둘만의 조율 문서</h2><p>각자의 양보 범위를 안전하게 공개하고, 함께 지킬 Odd Rule을 버전으로 남깁니다.</p></div>
+        <div className="settings-link-grid">
+          <button type="button" onClick={() => navigate(tripConcessionPath(trip.tripId))}><span className="eyebrow">PRIVATE · REVEAL TOGETHER</span><b>양보 범위 조사서</b><p>각자 비공개로 저장하고 두 사람 모두 제출한 뒤에만 함께 확인합니다.</p><em>작성 및 제출 →</em></button>
+          <button type="button" onClick={() => navigate(tripOddRulePath(trip.tripId))}><span className="eyebrow">PROPOSE · ACCEPT · VERSION</span><b>Odd Rule</b><p>규칙을 제안하고 상대 동의 후 최종 규칙과 변경 이력을 남깁니다.</p><em>규칙 합의하기 →</em></button>
+        </div>
+      </section>
 
       {status.aiItinerary === 'loading' ? <section className="ai-journey-panel" role="status"><span className="eyebrow">AI JOURNEY BUILD</span><h2>두 사람의 여행을 만들고 있습니다.</h2><p>제출한 선호를 합치고, 여행지와 이동 순서를 검토해 일정표로 정리합니다.</p><div className="loading-line" /></section> : null}
       {error && (status.coordination === 'error' || status.aiItinerary === 'error') ? <div className="error-strip" role="alert"><span>{error}</span>{pairPreferences?.bothSubmitted ? <button type="button" onClick={() => void generateAiItinerary()}>다시 시도</button> : null}</div> : null}

@@ -451,11 +451,11 @@ OddTrip/
 
 | 접근 | 라우트 | 현재 동작 |
 | :-- | :-- | :-- |
-| 공개 | `/`, `/about`, `/auth`, `/legal/:document` | 소개, 로그인·가입, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
-| 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈은 진행 중인 여행·최근 알림·작성할 조사서를 유지하면서 커뮤니티에서 공감이 많은 이야기를 요약한다. 매칭 후보·요청은 `/matches`, 실제 여행 목록은 `/my`에서 확인한다. 프로필·동의 조회/철회·회원 탈퇴와 `/verification`, `/settings/notifications`, `/help`의 본인확인 준비 상태·알림 설정·이용 안내를 제공한다. |
+| 공개 | `/`, `/about`, `/auth`, `/password-reset`, `/legal/:document` | 소개, 로그인·가입, 비밀번호 재설정, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
+| 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈은 진행 중인 여행·최근 알림·작성할 조사서를 유지하면서 커뮤니티에서 공감이 많은 이야기를 요약한다. 매칭 후보·요청은 `/matches`, 실제 여행 목록은 `/my`에서 확인한다. 프로필·비밀번호 변경·동의 조회/철회·회원 탈퇴와 `/verification`, `/settings/notifications`, `/help`의 본인확인 준비 상태·알림 설정·이용 안내를 제공한다. |
 | 여행 | `/trips/:tripId/:tab` | `overview`, `coordination`, `schedule` 탭. URL의 여행 ID를 조회해 새로고침·직접 접근에도 같은 여행을 복구한다. 각자 공동 선호 제출 → AI 장소·동선 분석 → 공동 일정표 순으로 연결한다. |
 | 일정 | `/trips/:tripId/schedule/map` | AI가 만든 일정 중 장소 식별자 또는 좌표가 있는 항목을 Google 지도에 방문 순서대로 표시한다. 번호 마커와 연결선은 도로 길찾기 결과가 아니라 일정 순서를 뜻한다. 일정은 읽기 전용이며 다른 의견은 채팅에서 나눈다. |
-| 조사서 | `/survey/tti`, `/trips/:tripId/survey/preference` | TTI와 각자의 공동 선호만 현재 흐름에서 제공한다. 양보 범위·Odd Rule·최종 승인 구형 URL은 해당 여행의 조율 또는 일정 탭으로 이동한다. |
+| 조사서 | `/survey/tti`, `/trips/:tripId/survey/preference`, `/trips/:tripId/survey/concession`, `/trips/:tripId/survey/rule` | TTI·독립 선호와 함께 양보 범위를 비공개로 저장·동시 공개하고, Odd Rule을 제안·상대 동의·버전 이력으로 관리한다. 구형 URL도 현재 여행의 같은 화면으로 이동한다. |
 | 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
 | 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 운영자 로그인은 `/admin`으로 바로 이동하고 일반 회원용 보호 화면 접근도 관리 콘솔로 되돌린다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
 | 관리자 준비 | `/admin/attractions`, `/admin/tti`, `/admin/operations` | 관광지 예시 목록은 검색·분류·상세 열람을 제공하고 TTI 질문 목록은 실제 질문 API를 읽어 축별로 필터링한다. 관광지 추가·편집, TTI 요약·버전·편집, 운영 상태는 진입 시 세션당 한 번 예시 데이터임을 알리며 미지원 조작은 준비 중 안내만 표시한다. |
@@ -468,7 +468,8 @@ OddTrip/
 
 | Router | 역할 |
 | :-- | :-- |
-| `/api/auth` | 회원가입(동의 포함), 로그인, refresh, logout, 내 정보 |
+| `/api/auth` | 회원가입(동의 포함), 로그인, refresh, logout, 내 정보, 비밀번호 변경·재설정 |
+| `/api/trips/{tripId}/concessions`, `/odd-rules` | 양보 범위 비공개 제출·동시 공개, Odd Rule 제안·상대 응답·버전 이력 |
 | `/api/me/consents` | 현재 동의·이력 조회, 매칭 프로필/안전수칙 동의, 마케팅 철회 |
 | `/api/users/me` | 프로필 수정, 회원 탈퇴 |
 | `/api/tti` | 질문, 계산, 저장 결과 조회 |

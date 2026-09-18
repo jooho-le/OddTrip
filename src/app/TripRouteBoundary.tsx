@@ -3,6 +3,8 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTripStore } from '../entities/trip/model/tripStore';
 import {
   tripPreferencePath,
+  tripConcessionPath,
+  tripOddRulePath,
   tripScheduleMapPath,
   tripSettingsPath,
   tripWorkspacePath,
@@ -39,7 +41,7 @@ export function TripRouteBoundary({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-type LegacyTripTarget = TripWorkspaceTab | 'settings' | 'schedule-map' | 'preference';
+type LegacyTripTarget = TripWorkspaceTab | 'settings' | 'schedule-map' | 'preference' | 'concession' | 'rule';
 
 export function ActiveTripRedirect({ target }: { target: LegacyTripTarget }) {
   const activeTripId = useTripStore((state) => state.activeTripId);
@@ -56,10 +58,12 @@ export function ActiveTripRedirect({ target }: { target: LegacyTripTarget }) {
     return <TripRouteState title="여행을 불러오고 있습니다." loading />;
   }
 
-  let destination = tripWorkspacePath(activeTripId, target === 'settings' || target === 'schedule-map' || target === 'preference' ? 'overview' : target);
+  let destination = tripWorkspacePath(activeTripId, target === 'settings' || target === 'schedule-map' || target === 'preference' || target === 'concession' || target === 'rule' ? 'overview' : target);
   if (target === 'settings') destination = tripSettingsPath(activeTripId);
   if (target === 'schedule-map') destination = tripScheduleMapPath(activeTripId);
   if (target === 'preference') destination = `${tripPreferencePath(activeTripId)}${location.search}`;
+  if (target === 'concession') destination = tripConcessionPath(activeTripId);
+  if (target === 'rule') destination = tripOddRulePath(activeTripId);
   return <Navigate to={destination} replace />;
 }
 

@@ -5,6 +5,8 @@ import { useTripStore } from '../../entities/trip/model/tripStore';
 import { useConsentStore } from '../../entities/consent/model/consentStore';
 import { decision, type ConsentType } from '../../entities/consent/api/consentService';
 import { useUiNoticeStore } from '../../shared/model/uiNoticeStore';
+import { oddtripService } from '../../entities/trip/api/oddtripService';
+import { useToast } from '../../shared/ui/Toast';
 import type { BlockedUser } from '../../types';
 import { parseServerDate } from '../../shared/lib/formatDate';
 
@@ -118,15 +120,41 @@ export function PrivacySettingsPage() {
 }
 
 function PasswordChangePanel() {
-  const showComingSoon = useUiNoticeStore((state) => state.showComingSoon);
+  const navigate = useNavigate();
+  const logout = useTripStore((state) => state.logout);
+  const show = useToast((state) => state.show);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (newPassword.length < 8) { setPasswordError('새 비밀번호는 8자 이상이어야 합니다.'); return; }
+    if (newPassword !== confirmPassword) { setPasswordError('새 비밀번호 확인이 일치하지 않습니다.'); return; }
+    setBusy(true); setPasswordError('');
+    try {
+      await oddtripService.changePassword(currentPassword, newPassword);
+      logout();
+      show('비밀번호를 변경했습니다. 새 비밀번호로 다시 로그인해 주세요.');
+      navigate('/auth', { replace: true });
+    } catch (caught) {
+      setPasswordError(caught instanceof Error ? caught.message : '비밀번호를 변경하지 못했습니다.');
+      setBusy(false);
+    }
+  };
 
   return (
     <section className="security-panel">
       <div className="section-title"><h2>비밀번호 변경</h2><p>현재 비밀번호 확인 후 새 비밀번호를 설정합니다.</p></div>
-      <div className="password-change-pending">
-        <div><strong>비밀번호 변경 API 연결 대기</strong><p>민감정보를 불필요하게 입력받지 않도록 서버 기능이 준비되기 전에는 비밀번호 입력란을 열지 않습니다.</p></div>
-        <button type="button" className="solid-btn" onClick={() => showComingSoon('비밀번호 변경', '현재 백엔드에 비밀번호 변경 API가 없어 계정 정보는 변경되지 않습니다.')}>비밀번호 변경 안내</button>
-      </div>
+      <form className="password-change-form" onSubmit={submit}>
+        <label className="field"><span>현재 비밀번호</span><input type="password" autoComplete="current-password" required maxLength={128} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+        <label className="field"><span>새 비밀번호</span><input type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label>
+        <label className="field"><span>새 비밀번호 확인</span><input type="password" autoComplete="new-password" required minLength={8} maxLength={128} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label>
+        <button className="solid-btn" disabled={busy}>{busy ? '변경 중…' : '비밀번호 변경'}</button>
+        {passwordError ? <div className="error-strip" role="alert">{passwordError}</div> : null}
+      </form>
     </section>
   );
 }

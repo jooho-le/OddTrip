@@ -35,7 +35,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
-    const isCredentialRequest = ['/api/auth/login', '/api/auth/register', '/api/auth/logout'].some((path) => original?.url?.includes(path));
+    const isCredentialRequest = ['/api/auth/login', '/api/auth/register', '/api/auth/logout', '/api/auth/password-reset'].some((path) => original?.url?.includes(path));
     if (error.response?.status !== 401 || !original || original._retried || isCredentialRequest || original.url?.includes('/api/auth/refresh')) {
       return Promise.reject(normalizeApiError(error));
     }
