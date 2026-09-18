@@ -4,6 +4,7 @@ from .community import CommunityComment, CommunityDraft, CommunityPost, Communit
 from .consent import UserConsent
 from .match import Match
 from .notification import Notification
+from .reminder import TripReminder
 from .sanction import Sanction
 from .token import RefreshToken
 from .trip import ItineraryDay, ItineraryItem, Place, SafetyAlert, Trip, TripApproval, TripAttraction, TripPreferenceProposal, TripUserPreference
@@ -25,6 +26,7 @@ __all__ = [
     "CommunityDraft",
     "UserConsent",
     "Notification",
+    "TripReminder",
     "Sanction",
     "RefreshToken",
     "TtiQuestion",

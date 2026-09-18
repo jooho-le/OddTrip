@@ -15,6 +15,7 @@ const ICONS: Record<AppNotification['type'], string> = {
   'trip.created': '🧳',
   'trip.updated': '📍',
   'trip.cancelled': '🗑️',
+  'trip.reminder_d1': '⏰',
   'itinerary.approved': '🗓️',
   'itinerary.change_requested': '✏️',
   'itinerary.confirmed': '✅',

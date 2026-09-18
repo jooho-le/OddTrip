@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 
@@ -6,6 +7,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .scheduler import run_reminder_loop
 from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, decision, itinerary, matches, notifications, safety, trips, tti, users
 from .seed import seed
 
@@ -15,7 +17,21 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await seed()
-    yield
+    stop = asyncio.Event()
+    reminders = (
+        asyncio.create_task(run_reminder_loop(stop))
+        if settings.reminder_scheduler_enabled
+        else None
+    )
+    try:
+        yield
+    finally:
+        if reminders:
+            stop.set()
+            reminders.cancel()
+            # 종료를 기다려 준다. 발송 중이었다면 그 트랜잭션은 이미 커밋됐거나
+            # 통째로 되돌아가므로 알림이 반쯤 나간 상태로 남지 않는다.
+            await asyncio.gather(reminders, return_exceptions=True)
 
 
 app = FastAPI(title="OddTrip API", version="0.1.0", lifespan=lifespan)

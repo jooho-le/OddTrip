@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # 없으므로 팀이 관리자 화면을 쓰려면 이 값이 시작점이 됩니다.
     admin_email: str = ""
     admin_password: str = ""
+    # 여행 시작 하루 전 리마인더. 보내는 시각은 한국 시간 기준이며, 서버가 그
+    # 시각에 꺼져 있었다면 그날 안에 깨어난 김에 보낸다. 외부 cron으로 돌릴
+    # 예정이라면 reminder_scheduler_enabled를 꺼서 중복 실행을 줄일 수 있다.
+    reminder_scheduler_enabled: bool = True
+    reminder_send_hour_kst: int = 9
+    reminder_check_interval_minutes: int = 15
     cors_origins: str = "http://localhost:5173"
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):\d+$"
     tour_api_service_key: str = ""
