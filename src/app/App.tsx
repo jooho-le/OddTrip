@@ -132,7 +132,7 @@ function AppRoutes() {
           <Route path="/trip/coordination" element={<ActiveTripRedirect target="coordination" />} />
           <Route path="/trip/schedule" element={<ActiveTripRedirect target="schedule" />} />
           <Route path="/trip/places" element={<ActiveTripRedirect target="schedule" />} />
-          <Route path="/survey/tti" element={<SurveyFormPage />} />
+          <Route path="/survey/tti" element={<SurveyFormPage surveyKey="tti" />} />
           <Route path="/survey/preference" element={<ActiveTripRedirect target="preference" />} />
           <Route path="/survey/concession" element={<ActiveTripRedirect target="concession" />} />
           <Route path="/survey/rule" element={<ActiveTripRedirect target="rule" />} />

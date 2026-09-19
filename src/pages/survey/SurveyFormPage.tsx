@@ -16,11 +16,16 @@ import { coordinationFlowState, isTripPlanningReadOnly } from '../../widgets/tri
 const TTI_VALUES = [-2, -1, 0, 1, 2] as const;
 const VALID_KEYS: SurveyKey[] = ['tti', 'preference'];
 
-export function SurveyFormPage() {
+type SurveyFormPageProps = {
+  surveyKey?: SurveyKey;
+};
+
+export function SurveyFormPage({ surveyKey }: SurveyFormPageProps = {}) {
   const { key } = useParams();
   const [search] = useSearchParams();
   const navigate = useNavigate();
-  const formKey = VALID_KEYS.includes(key as SurveyKey) ? key as SurveyKey : undefined;
+  const routeKey = surveyKey ?? key;
+  const formKey = VALID_KEYS.includes(routeKey as SurveyKey) ? routeKey as SurveyKey : undefined;
   const {
     user,
     questions,
