@@ -11,14 +11,39 @@ class Settings(BaseSettings):
     # missing in a deployed container the app would silently connect to the
     # wrong database instead of refusing to start.
     database_url: str
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"
+    # LLM은 OpenAI 호환 엔드포인트로 호출합니다. 공급자를 바꿀 때 코드가 아니라
+    # base_url만 갈아끼우면 되도록 SDK는 openai를 그대로 씁니다.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-3.1-flash-lite"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     auth_secret_key: str = "change-this-secret-before-deploy"
     # Access tokens cannot be revoked, so keep them short and let the client
     # exchange a refresh token for a new one.
     auth_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 14
+    password_reset_token_expire_minutes: int = 30
+    # Raw reset tokens are returned only in an explicitly enabled local
+    # environment. Production sends the link over SMTP.
+    password_reset_debug: bool = False
+    frontend_base_url: str = "http://localhost:5173"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_starttls: bool = True
     allow_demo_user_header_auth: bool = False
+    # 서버 기동 시 만들어 둘 관리자 계정. 둘 다 채워져 있을 때만 동작하고,
+    # 비워두면 아무 계정도 만들지 않습니다. 관리자를 만드는 HTTP 경로가
+    # 없으므로 팀이 관리자 화면을 쓰려면 이 값이 시작점이 됩니다.
+    admin_email: str = ""
+    admin_password: str = ""
+    # 여행 시작 하루 전 리마인더. 보내는 시각은 한국 시간 기준이며, 서버가 그
+    # 시각에 꺼져 있었다면 그날 안에 깨어난 김에 보낸다. 외부 cron으로 돌릴
+    # 예정이라면 reminder_scheduler_enabled를 꺼서 중복 실행을 줄일 수 있다.
+    reminder_scheduler_enabled: bool = True
+    reminder_send_hour_kst: int = 9
+    reminder_check_interval_minutes: int = 15
     cors_origins: str = "http://localhost:5173"
     cors_origin_regex: str = r"^https?://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+):\d+$"
     tour_api_service_key: str = ""
@@ -30,7 +55,7 @@ class Settings(BaseSettings):
     tour_api_related_base_url: str = "https://apis.data.go.kr/B551011/TarRlteTarService1"
     tour_api_hub_base_url: str = "https://apis.data.go.kr/B551011/LocgoHubTarService1"
     tour_api_bigdata_base_url: str = "https://apis.data.go.kr/B551011/DataLabService"
-    tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TarCongestionService"
+    tour_api_concentration_base_url: str = "https://apis.data.go.kr/B551011/TatsCnctrRateService"
     google_maps_api_key: str = ""
     kma_api_key: str = ""
     mois_api_key: str = ""

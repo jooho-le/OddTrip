@@ -38,6 +38,158 @@ class Trip(Base):
 
     preferences_json: Mapped[dict | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(20), default="planning")
+    # Every successful itinerary generation advances this number. Approvals are
+    # tied to one revision so a previously approved plan can never silently
+    # remain approved after its days and slots have been replaced.
+    itinerary_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime)
+    cancelled_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# One pair can keep historical trips, but only one current planning workspace.
+Index(
+    "uq_trips_active_match",
+    Trip.match_id,
+    unique=True,
+    postgresql_where=Trip.status.in_(("planning", "confirmed")),
+    sqlite_where=Trip.status.in_(("planning", "confirmed")),
+)
+
+
+class TripUserPreference(Base):
+    """One traveller's private input before the pair agrees on joint preferences."""
+
+    __tablename__ = "trip_user_preferences"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "user_id", name="uq_trip_user_preferences_trip_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    preferences_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class TripPreferenceProposal(Base):
+    """A joint-preference proposal that must be accepted by the other traveller."""
+
+    __tablename__ = "trip_preference_proposals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    proposed_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    responded_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    preferences_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class TripConcessionResponse(Base):
+    """A traveller's private concession range until both people submit."""
+
+    __tablename__ = "trip_concession_responses"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "user_id", name="uq_trip_concessions_trip_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    answers_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    note: Mapped[str | None] = mapped_column(String(500))
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # The same timestamp is written to both rows. Until then, the counterpart's
+    # answers and note never leave the server.
+    revealed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class TripOddRuleProposal(Base):
+    """One proposed Odd Rule and, after acceptance, an immutable rule version."""
+
+    __tablename__ = "trip_odd_rule_proposals"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "version", name="uq_trip_odd_rules_trip_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    proposed_by: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    responded_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    rule_key: Mapped[str] = mapped_column(String(50), nullable=False)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending")
+    version: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime)
+    finalized_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+# A traveller can replace a pending proposal, but cannot leave two active
+# proposals behind even if a future caller bypasses the service-level lock.
+Index(
+    "uq_trip_odd_rules_pending_proposer",
+    TripOddRuleProposal.trip_id,
+    TripOddRuleProposal.proposed_by,
+    unique=True,
+    postgresql_where=TripOddRuleProposal.status == "pending",
+    sqlite_where=TripOddRuleProposal.status == "pending",
+)
+
+
+class TripApproval(Base):
+    """One traveller's response to the current itinerary revision."""
+
+    __tablename__ = "trip_approvals"
+    __table_args__ = (
+        UniqueConstraint(
+            "trip_id", "user_id", "itinerary_revision",
+            name="uq_trip_approvals_trip_user_revision",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    trip_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    itinerary_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(500))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

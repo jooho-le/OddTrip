@@ -71,9 +71,14 @@ class ChatRoomOut(ChatModel):
     trip: ChatTripOut | None = None
     match_level: str
     recommendation_score: int
+    my_tti_code_snapshot: str | None = None
+    counterpart_tti_code_snapshot: str | None = None
+    differences: list[str] = Field(default_factory=list)
+    complements: list[str] = Field(default_factory=list)
     current_step: str | None = None
     last_message: ChatMessageOut | None = None
     unread_count: int = 0
+    counterpart_last_read_sequence: int = 0
     created_at: datetime
     updated_at: datetime
 

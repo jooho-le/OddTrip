@@ -4,9 +4,13 @@ from openai import AsyncOpenAI, RateLimitError
 
 from ..config import settings
 
-client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+client = (
+    AsyncOpenAI(api_key=settings.gemini_api_key, base_url=settings.gemini_base_url)
+    if settings.gemini_api_key
+    else None
+)
 
-MODEL = settings.openai_model
+MODEL = settings.gemini_model
 
 
 async def generate_attractions(

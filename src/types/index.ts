@@ -8,6 +8,7 @@ export interface UserProfile {
   nickname: string;
   avatarUrl?: string | null;
   homeRegion?: string | null;
+  role?: 'user' | 'admin' | string;
   ttiCode?: TtiCode;
 }
 
@@ -65,6 +66,45 @@ export interface MatchCandidate {
   complements: string[];
 }
 
+export type MatchRequestStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'expired';
+
+export interface MatchRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+  status: MatchRequestStatus;
+  expiresAt?: string | null;
+  respondedAt?: string | null;
+  createdAt: string;
+  requester: UserProfile;
+  receiver: UserProfile;
+  counterpart?: UserProfile | null;
+  matchLevel: '완전 반대' | '부분 반대' | '추천';
+  recommendationScore: number;
+  differences: string[];
+  complements: string[];
+}
+
+export interface MatchRequestCreate {
+  receiverId: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+  greetingMessage: string;
+}
+
+export interface MatchAcceptResult {
+  requestId: string;
+  matchId: string;
+  roomId: string;
+  tripId: string;
+  userIds: string[];
+}
+
 export interface JointPreference {
   places: string[];
   activities: string[];
@@ -75,8 +115,108 @@ export interface JointPreference {
   hiddenSpots: boolean;
 }
 
+export interface PersonalPreferenceRecord {
+  userId: string;
+  preferences: JointPreference;
+  updatedAt?: string | null;
+}
+
+export interface PreferenceListComparison {
+  common: string[];
+  onlyMine: string[];
+  onlyCounterpart: string[];
+}
+
+export interface PairPreferenceComparison {
+  places: PreferenceListComparison;
+  activities: PreferenceListComparison;
+  foods: PreferenceListComparison;
+  paceDifference: number;
+  budgetDifference: number;
+  indoorPreferredConflict: boolean;
+  hiddenSpotsConflict: boolean;
+}
+
+export interface PairPreferences {
+  tripId: string;
+  mine?: PersonalPreferenceRecord | null;
+  counterpart?: PersonalPreferenceRecord | null;
+  bothSubmitted: boolean;
+  comparison?: PairPreferenceComparison | null;
+  agreed?: JointPreference | null;
+}
+
+export type PreferenceProposalStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface PreferenceProposal {
+  id: string;
+  tripId: string;
+  proposedBy: string;
+  respondedBy?: string | null;
+  preferences: JointPreference;
+  status: PreferenceProposalStatus;
+  createdAt: string;
+  respondedAt?: string | null;
+}
+
 export interface ConflictResolution {
   suggestion: string;
+}
+
+export type ConcessionChoice = 'keep' | 'flexible' | 'yield';
+export type ConcessionAnswers = Partial<Record<'pace' | 'budget' | 'food' | 'activities', ConcessionChoice>>;
+
+export interface ConcessionRecord {
+  userId: string;
+  answers: ConcessionAnswers;
+  note?: string | null;
+  status: 'draft' | 'submitted';
+  submittedAt?: string | null;
+  revealedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ConcessionState {
+  tripId: string;
+  mine?: ConcessionRecord | null;
+  counterpart?: ConcessionRecord | null;
+  mineSubmitted: boolean;
+  counterpartSubmitted: boolean;
+  bothSubmitted: boolean;
+  revealedAt?: string | null;
+}
+
+export type OddRuleProposalStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface OddRuleProposal {
+  id: string;
+  tripId: string;
+  proposedBy: string;
+  respondedBy?: string | null;
+  ruleKey: string;
+  title: string;
+  description: string;
+  status: OddRuleProposalStatus;
+  version?: number | null;
+  createdAt: string;
+  respondedAt?: string | null;
+  finalizedAt?: string | null;
+}
+
+export interface OddRuleState {
+  tripId: string;
+  current?: OddRuleProposal | null;
+  pending: OddRuleProposal[];
+  history: OddRuleProposal[];
+  proposals: OddRuleProposal[];
+  nextVersion: number;
+}
+
+export interface PasswordResetRequestResult {
+  accepted: boolean;
+  expiresInMinutes: number;
+  /** Returned only when PASSWORD_RESET_DEBUG=true on the local backend. */
+  resetToken?: string;
 }
 
 export interface Attraction {
@@ -199,6 +339,129 @@ export interface TripSummary {
   savedCount: number;
   itineraryDayCount: number;
   createdAt?: string | null;
+  updatedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelledBy?: string | null;
+}
+
+export interface TripCreateInput {
+  matchId: string;
+  title?: string;
+  region: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface TripUpdateInput {
+  title?: string | null;
+  region?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface TripCancelResult {
+  tripId: string;
+  status: 'cancelled';
+  cancelledAt: string;
+  cancelledBy: string;
+}
+
+export type TripApprovalStatus = 'pending' | 'approved' | 'change_requested';
+export type TripApprovalAction = 'approve' | 'change_request';
+
+export interface TripApprovalParticipant {
+  userId: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  status: TripApprovalStatus;
+  comment?: string | null;
+  approvedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface TripApprovalState {
+  tripId: string;
+  itineraryRevision: number;
+  tripStatus: string;
+  allApproved: boolean;
+  mine: TripApprovalParticipant;
+  counterpart: TripApprovalParticipant;
+}
+
+export interface ChatCounterpart {
+  id: string;
+  nickname: string;
+  avatarUrl?: string | null;
+  ttiCode?: string | null;
+}
+
+export interface ChatTrip {
+  id: string;
+  title?: string | null;
+  region?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  status: string;
+}
+
+export type ChatMessageType = 'text' | 'system' | string;
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId?: string | null;
+  sequence: number;
+  clientMessageId: string;
+  type: ChatMessageType;
+  content?: string | null;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+  deletedAt?: string | null;
+  deleted: boolean;
+  displayText?: string | null;
+}
+
+export interface ChatRoom {
+  id: string;
+  matchId: string;
+  status: 'active' | 'closed' | string;
+  counterpart: ChatCounterpart;
+  trip?: ChatTrip | null;
+  matchLevel: string;
+  recommendationScore: number;
+  currentStep?: string | null;
+  lastMessage?: ChatMessage | null;
+  unreadCount: number;
+  counterpartLastReadSequence: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessagePage {
+  items: ChatMessage[];
+  nextBeforeSequence?: number | null;
+}
+
+export interface ChatRoomPage {
+  items: ChatRoom[];
+  nextBefore?: string | null;
+}
+
+export type ChatReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'sexual_content'
+  | 'hate'
+  | 'fraud'
+  | 'personal_information'
+  | 'other';
+
+export interface BlockedUser {
+  id: string;
+  blockerId: string;
+  blockedUserId: string;
+  createdAt: string;
+  user: UserProfile;
 }
 
 export interface AuthResponse {

@@ -12,8 +12,8 @@ FastAPI 기반 OddTrip 백엔드입니다.
 VITE_API_BASE_URL=http://localhost:8000
 VITE_GOOGLE_MAPS_API_KEY=
 DATABASE_URL=sqlite+aiosqlite:///./oddtrip.db
-OPENAI_API_KEY=sk-your-real-key-here
-OPENAI_MODEL=gpt-4o-mini
+GEMINI_API_KEY=your-gemini-key-here
+GEMINI_MODEL=gemini-3.1-flash-lite
 CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 ALLOW_DEMO_USER_HEADER_AUTH=false
 TOUR_API_SERVICE_KEY=
@@ -116,7 +116,7 @@ OpenAI 호출은 `backend/app/services/openai_service.py`에 모아두었습니�
 - 공동 의사결정 충돌 조정 문장 생성
 - 3일 일정 생성
 
-`OPENAI_API_KEY`가 비어 있거나 일부 호출이 실패하면 fallback 데이터를 반환하도록 되어 있습니다. 발표나 로컬 개발 중 API quota 문제로 전체 흐름이 막히지 않게 하기 위한 처리입니다. 단, 실제 추천 품질을 확인하려면 OpenAI 키와 TourAPI 키를 모두 넣어야 합니다.
+`GEMINI_API_KEY`가 비어 있거나 일부 호출이 실패하면 fallback 데이터를 반환하도록 되어 있습니다. 발표나 로컬 개발 중 API quota 문제로 전체 흐름이 막히지 않게 하기 위한 처리입니다. 단, 실제 추천 품질을 확인하려면 Gemini 키와 TourAPI 키를 모두 넣어야 합니다.
 
 ## 폴더 설명
 

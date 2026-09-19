@@ -12,7 +12,11 @@ from ..schemas.attraction import PublicAttractionGenerateRequest
 from . import attraction_service, itinerary_service
 
 
-client = AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
+client = (
+    AsyncOpenAI(api_key=settings.gemini_api_key, base_url=settings.gemini_base_url)
+    if settings.gemini_api_key
+    else None
+)
 
 
 TOOL_DEFINITIONS = [
@@ -179,7 +183,7 @@ async def _ask_model_for_tool_plan(request: AgentRunRequest) -> list[dict[str, A
     }
     try:
         response = await client.chat.completions.create(
-            model=settings.openai_model,
+            model=settings.gemini_model,
             messages=[
                 {
                     "role": "system",

@@ -23,8 +23,8 @@ class LLMNarrator:
     """일정 슬롯에 자연스러운 설명을 채워주는 컴포넌트."""
 
     def __init__(self) -> None:
-        self.api_key = settings.openai_api_key or ""
-        self.client = AsyncOpenAI(api_key=self.api_key) if self.api_key else None
+        self.api_key = settings.gemini_api_key or ""
+        self.client = AsyncOpenAI(api_key=self.api_key, base_url=settings.gemini_base_url) if self.api_key else None
 
     async def narrate(
         self, days: list[PlannedDay], traveler_context: str = ""

@@ -451,18 +451,17 @@ async def _collect_context_data(request: PublicAttractionGenerateRequest) -> tup
         except Exception:
             return []
 
-    keyword = request.keywords[0] if request.keywords else "관광"
     return await asyncio.gather(
         safe(tour_api_client.hub_attractions(area_code=request.area_code, sigungu_code=request.sigungu_code, rows=50)),
-        safe(tour_api_client.related_attractions_by_keyword(keyword=keyword, rows=50)),
-        safe(tour_api_client.visitor_trend(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
-        safe(tour_api_client.concentration_prediction(areaCd=request.area_code, signguCd=request.sigungu_code or "", numOfRows=20)),
+        safe(tour_api_client.related_attractions_by_area(area_code=request.area_code, sigungu_code=request.sigungu_code, rows=50)),
+        safe(tour_api_client.visitor_trend(area_code=request.area_code, sigungu_code=request.sigungu_code, rows=20)),
+        safe(tour_api_client.concentration_prediction(area_code=request.area_code, sigungu_code=request.sigungu_code, rows=20)),
     )
 
 
 async def _collect_context_data_fast(request: PublicAttractionGenerateRequest) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     try:
-        return await asyncio.wait_for(_collect_context_data(request), timeout=2.0)
+        return await asyncio.wait_for(_collect_context_data(request), timeout=10.0)
     except Exception:
         return [], [], [], []
 

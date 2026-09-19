@@ -5,12 +5,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from . import legal
 from .database import async_session
 from .config import settings
 from .models.match import Match
 from .models.trip import Trip
 from .models.user import User
 from .security import decode_access_token
+from .services import consent_service, sanction_service
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -35,6 +37,13 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # 제재 상태는 이미 읽어 온 이 행으로 판단한다. 여기서 sanctions 표를 한 번
+    # 더 뒤지면 모든 인증 요청에 질의가 하나씩 붙는다.
+    if sanction_service.is_suspended(user):
+        raise HTTPException(
+            status_code=403,
+            detail="이용이 정지된 계정입니다. 고객센터로 문의해주세요.",
+        )
     return user
 
 
@@ -45,6 +54,34 @@ async def get_current_admin(user: User = Depends(get_current_user)) -> User:
     """
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+    return user
+
+
+async def require_matching_consent(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Gate for the matching surface.
+
+    Disclosing a profile to candidates is what the matching consent
+    authorises, and the safety briefing is what the user is meant to have read
+    before acting on a match. Both gates are rendered client-side too, but a
+    gate that only exists in the screen is not a gate.
+
+    403 rather than 404: the caller is authenticated and the resource exists,
+    they simply have an unmet precondition they can satisfy themselves.
+    """
+    if sanction_service.is_matching_restricted(user):
+        raise HTTPException(
+            status_code=403,
+            detail="매칭 기능 이용이 제한된 상태입니다. 고객센터로 문의해주세요.",
+        )
+    for consent_type in legal.MATCHING_GATES:
+        if not await consent_service.has_accepted(db, user.id, consent_type):
+            raise HTTPException(
+                status_code=403,
+                detail="매칭 프로필 공개 동의와 안전 이용수칙 확인이 필요합니다.",
+            )
     return user
 
 

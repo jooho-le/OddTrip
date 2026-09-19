@@ -5,12 +5,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import legal
 from ..config import settings
 from ..dependencies import get_current_user, get_db
 from ..models.token import RefreshToken
 from ..models.user import User
-from ..schemas.auth import AuthLoginIn, AuthOut, AuthRegisterIn, RefreshIn
+from ..schemas.auth import (
+    AuthLoginIn,
+    AuthOut,
+    AuthRegisterIn,
+    PasswordChangeIn,
+    PasswordResetConfirmIn,
+    PasswordResetRequestIn,
+    RefreshIn,
+)
 from ..schemas.user import UserOut
+from ..services import consent_service, password_service, sanction_service
 from ..security import (
     create_access_token,
     create_refresh_token,
@@ -41,7 +51,22 @@ async def _issue_tokens(db: AsyncSession, user: User) -> AuthOut:
 
 @router.post("/register", response_model=dict)
 async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
-    existing = await db.execute(select(User).where(User.email == body.email, User.deleted_at.is_(None)))
+    # Checked before anything is written: consent is what forms the contract,
+    # so a signup missing it must not produce an account at all. The client
+    # also blocks the button, but that check lives in the browser and this one
+    # is the one that holds.
+    consent_service.validate(
+        body.consents,
+        source=legal.SOURCE_SIGNUP,
+        allowed=legal.REGISTRATION_TYPES,
+        required=legal.REGISTRATION_REQUIRED,
+    )
+
+    # deleted_at을 걸러내지 않습니다. users.email은 unique라, 이 조회가
+    # 놓친 행이 있으면 409 대신 INSERT 단계의 제약 위반으로 500이 됩니다.
+    # 탈퇴는 이메일을 NULL로 비우므로 탈퇴한 사람의 재가입은 여기서 막히지
+    # 않고, 손으로 soft delete한 행만 정확히 409로 걸립니다.
+    existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="이미 가입된 이메일입니다.")
 
@@ -56,6 +81,19 @@ async def register(body: AuthRegisterIn, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
+    # Same transaction as the account, and one timestamp for the whole screen:
+    # the user ticked these boxes in a single act.
+    accepted_at = utcnow()
+    db.add_all([
+        consent_service.build(
+            user_id=user.id,
+            decision=decision,
+            source=legal.SOURCE_SIGNUP,
+            at=accepted_at,
+        )
+        for decision in body.consents
+    ])
+
     data = await _issue_tokens(db, user)
     await db.commit()
     return {"data": data.model_dump(by_alias=True), "error": None}
@@ -67,6 +105,13 @@ async def login(body: AuthLoginIn, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
+    # 비밀번호를 맞힌 뒤에 알린다. 자격 증명 확인 전에 정지 사실을 알려주면
+    # 남의 이메일로 계정 상태를 떠볼 수 있다.
+    if sanction_service.is_suspended(user):
+        raise HTTPException(
+            status_code=403,
+            detail="이용이 정지된 계정입니다. 고객센터로 문의해주세요.",
+        )
 
     data = await _issue_tokens(db, user)
     await db.commit()
@@ -129,3 +174,39 @@ async def logout(body: RefreshIn, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=dict)
 async def me(user: User = Depends(get_current_user)):
     return {"data": UserOut.model_validate(user).model_dump(by_alias=True), "error": None}
+
+
+@router.post("/change-password", response_model=dict)
+async def change_password(
+    body: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await password_service.change_password(
+        db, user, body.current_password, body.new_password
+    )
+    return {"data": {"success": True, "sessionsRevoked": True}, "error": None}
+
+
+@router.post("/password-reset/request", response_model=dict)
+async def request_password_reset(
+    body: PasswordResetRequestIn,
+    db: AsyncSession = Depends(get_db),
+):
+    debug_token = await password_service.request_password_reset(db, body.email)
+    data = {
+        "accepted": True,
+        "expiresInMinutes": settings.password_reset_token_expire_minutes,
+    }
+    if settings.password_reset_debug and debug_token:
+        data["resetToken"] = debug_token
+    return {"data": data, "error": None}
+
+
+@router.post("/password-reset/confirm", response_model=dict)
+async def confirm_password_reset(
+    body: PasswordResetConfirmIn,
+    db: AsyncSession = Depends(get_db),
+):
+    await password_service.reset_password(db, body.token, body.new_password)
+    return {"data": {"success": True}, "error": None}

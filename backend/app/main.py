@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 
@@ -6,7 +7,8 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import agent, attractions, auth, chat, communication, decision, itinerary, matches, safety, trips, tti, users
+from .scheduler import run_reminder_loop
+from .routers import admin, agent, approval, attractions, auth, chat, communication, community, consents, coordination, decision, itinerary, location_shares, matches, notifications, safety, trips, tti, users
 from .seed import seed
 
 logger = logging.getLogger(__name__)
@@ -15,7 +17,21 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await seed()
-    yield
+    stop = asyncio.Event()
+    reminders = (
+        asyncio.create_task(run_reminder_loop(stop))
+        if settings.reminder_scheduler_enabled
+        else None
+    )
+    try:
+        yield
+    finally:
+        if reminders:
+            stop.set()
+            reminders.cancel()
+            # 종료를 기다려 준다. 발송 중이었다면 그 트랜잭션은 이미 커밋됐거나
+            # 통째로 되돌아가므로 알림이 반쯤 나간 상태로 남지 않는다.
+            await asyncio.gather(reminders, return_exceptions=True)
 
 
 app = FastAPI(title="OddTrip API", version="0.1.0", lifespan=lifespan)
@@ -36,12 +52,22 @@ app.include_router(matches.router, prefix="/api/matches", tags=["matches"])
 app.include_router(communication.match_router, prefix="/api/matches", tags=["matching-communication"])
 app.include_router(communication.request_router, prefix="/api/match-requests", tags=["match-requests"])
 app.include_router(communication.user_router, prefix="/api/users", tags=["user-safety"])
+app.include_router(communication.me_router, prefix="/api/me", tags=["matching-communication"])
 app.include_router(chat.match_router, prefix="/api/matches", tags=["chat"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(community.router, prefix="/api/community", tags=["community"])
+app.include_router(location_shares.router, prefix="/api/me/location-share", tags=["location-share"])
+# 링크를 받은 사람이 여는 자리. 로그인 없이 열리는 유일한 경로다.
+app.include_router(location_shares.public_router, prefix="/api/share", tags=["location-share"])
+app.include_router(consents.router, prefix="/api/me/consents", tags=["consents"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(trips.router, prefix="/api/trips", tags=["trips"])
 app.include_router(decision.router, prefix="/api/trips", tags=["decision"])
+app.include_router(coordination.router, prefix="/api/trips", tags=["coordination"])
 app.include_router(attractions.router, prefix="/api/trips", tags=["attractions"])
 app.include_router(itinerary.router, prefix="/api/trips", tags=["itinerary"])
+app.include_router(approval.router, prefix="/api/trips", tags=["approval"])
 app.include_router(safety.router, prefix="/api/trips", tags=["safety"])
 app.include_router(agent.router, prefix="/api/trips", tags=["agent"])
 

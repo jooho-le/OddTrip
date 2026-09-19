@@ -41,6 +41,7 @@ OddTrip은 단순히 비슷한 사람을 추천하는 앱이 아닙니다. 사�
   - [🗄️ 구현 — 데이터 모델](#️-구현--데이터-모델)
   - [🧰 구현 — 기술 스택](#-구현--기술-스택)
   - [📂 구현 — 폴더 구조](#-구현--폴더-구조)
+  - [📱 구현 — 프론트엔드 화면 구성 (매칭 후)](#-구현--프론트엔드-화면-구성-매칭-후)
   - [🔌 구현 — API 구성](#-구현--api-구성)
 
 <br/>
@@ -422,17 +423,17 @@ SQLAlchemy Async ORM으로 매핑하고, 스키마 변경은 **Alembic** 마이�
 
 ```txt
 OddTrip/
-├─ src/                  # Frontend (React + TypeScript)
+├─ src/                  # 프론트엔드(React + TypeScript)
 │  ├─ app/               앱 라우팅과 공통 레이아웃
 │  ├─ pages/             화면 단위 페이지
-│  ├─ components/        여러 화면에서 쓰는 컴포넌트
-│  ├─ entities/          Zustand 전역 상태
-│  ├─ services/          백엔드 API 호출 계층
-│  ├─ shared/            공통 UI와 유틸
+│  ├─ widgets/           전역 내비게이션과 앱 공통 위젯
+│  ├─ features/          알림과 지도 등 사용자 기능
+│  ├─ entities/          도메인 API와 Zustand 상태
+│  ├─ shared/            공통 API 클라이언트, UI, 도우미 함수
 │  ├─ styles/            전역 스타일
 │  └─ types/             도메인 타입
 │
-├─ backend/              # Backend (FastAPI)
+├─ backend/              # 백엔드(FastAPI)
 │  └─ app/
 │     ├─ routers/        FastAPI 라우터
 │     ├─ services/       비즈니스 로직
@@ -444,20 +445,47 @@ OddTrip/
 └─ tests/                플래너 단위 테스트
 ```
 
+## 📱 구현 — 프론트엔드 화면과 라우트
+
+`front`는 `0562bbe`의 문서형 설문, 여행 커버·탭, 우측 채팅 드로어를 디자인 기준으로 유지한다. 기능 계약은 `origin/dev@abd56d8`을 기준으로 연결 상태를 검증한다.
+
+| 접근 | 라우트 | 현재 동작 |
+| :-- | :-- | :-- |
+| 공개 | `/`, `/about`, `/auth`, `/password-reset`, `/legal/:document` | 소개, 로그인·가입, 비밀번호 재설정, 약관 전문. 가입 필수·선택 동의는 가입 요청 payload로 전송한다. |
+| 회원 | `/home`, `/matches`, `/matches/:id`, `/my`, `/settings` | 홈은 진행 중인 여행·최근 알림·작성할 조사서를 유지하면서 커뮤니티에서 공감이 많은 이야기를 요약한다. 매칭 후보·요청은 `/matches`, 실제 여행 목록은 `/my`에서 확인한다. 프로필·비밀번호 변경·동의 조회/철회·회원 탈퇴와 `/verification`, `/settings/notifications`, `/help`의 본인확인 준비 상태·알림 설정·이용 안내를 제공한다. |
+| 여행 | `/trips/:tripId/:tab` | `overview`, `coordination`, `schedule` 탭. URL의 여행 ID를 조회해 새로고침·직접 접근에도 같은 여행을 복구한다. 각자 공동 선호 제출 → AI 장소·동선 분석 → 공동 일정표 순으로 연결한다. |
+| 일정 | `/trips/:tripId/schedule/map` | AI가 만든 일정 중 장소 식별자 또는 좌표가 있는 항목을 Google 지도에 방문 순서대로 표시한다. 번호 마커와 연결선은 도로 길찾기 결과가 아니라 일정 순서를 뜻한다. 일정은 읽기 전용이며 다른 의견은 채팅에서 나눈다. |
+| 조사서 | `/survey/tti`, `/trips/:tripId/survey/preference`, `/trips/:tripId/survey/concession`, `/trips/:tripId/survey/rule` | TTI·독립 선호와 함께 양보 범위를 비공개로 저장·동시 공개하고, Odd Rule을 제안·상대 동의·버전 이력으로 관리한다. 구형 URL도 현재 여행의 같은 화면으로 이동한다. |
+| 채팅 | `/chat`, `/chat/:roomId` | 방 목록과 메시지 API·WebSocket을 사용한다. 방 URL은 직접 접근해도 우측 드로어로 열린다. |
+| 관리자 | `/admin`, `/admin/users`, `/admin/trips`, `/admin/reports` | `role === "admin"`만 접근한다. 운영자 로그인은 `/admin`으로 바로 이동하고 일반 회원용 보호 화면 접근도 관리 콘솔로 되돌린다. 통계·회원·여행·신고·제재를 실제 관리자 API와 연결한다. |
+| 관리자 준비 | `/admin/attractions`, `/admin/tti`, `/admin/operations` | 관광지 예시 목록은 검색·분류·상세 열람을 제공하고 TTI 질문 목록은 실제 질문 API를 읽어 축별로 필터링한다. 관광지 추가·편집, TTI 요약·버전·편집, 운영 상태는 진입 시 세션당 한 번 예시 데이터임을 알리며 미지원 조작은 준비 중 안내만 표시한다. |
+
+공통 API 상태는 로딩·빈 결과·오류·재시도로 구분한다. 액세스 토큰 만료 시 refresh를 한 번 수행하고 실패하면 세션을 비운 뒤 로그인 화면으로 이동한다. 정적/예시 화면은 상시 배지 대신 안내 팝업을 사용하며 출처를 검증할 수 없는 외부 정보는 `출처 미제공`으로 표시한다.
+
 ## 🔌 구현 — API 구성
 
-라우터별 책임을 분리해 9개 그룹으로 구성. 모든 보호 라우트는 `Bearer` 토큰 검증과 Trip 소유권 체크를 거친다.
+프론트가 현재 호출하는 주요 계약은 다음과 같다. 모든 보호 요청은 `Bearer` 액세스 토큰을 사용한다.
 
 | Router | 역할 |
 | :-- | :-- |
-| `/api/auth` | 회원가입, 로그인, 내 정보 |
-| `/api/users` | 사용자 관련 (개발용) |
-| `/api/tti` | 성향 진단 질문, 결과(4차원 벡터) 계산 |
-| `/api/matches` | 반대 성향 매칭 후보·수락 |
-| `/api/decision` | 공동 선호 조율·저장 |
-| `/api/attractions` | 관광지 조회·생성·랭킹 |
-| `/api/agent` | AI 여행 에이전트 실행 |
-| `/api/itinerary` | 일정 조회·생성(플래너 파이프라인) |
-| `/api/safety` | 날씨·재난 안전 정보 |
+| `/api/auth` | 회원가입(동의 포함), 로그인, refresh, logout, 내 정보, 비밀번호 변경·재설정 |
+| `/api/trips/{tripId}/concessions`, `/odd-rules` | 양보 범위 비공개 제출·동시 공개, Odd Rule 제안·상대 응답·버전 이력 |
+| `/api/me/consents` | 현재 동의·이력 조회, 매칭 프로필/안전수칙 동의, 마케팅 철회 |
+| `/api/users/me` | 프로필 수정, 회원 탈퇴 |
+| `/api/tti` | 질문, 계산, 저장 결과 조회 |
+| `/api/matches`, `/api/match-requests` | 후보 조회와 요청 생성·수락·거절·취소·종료·숨김 |
+| `/api/chat` | 방·메시지·읽음·신고·차단, 채팅/알림 WebSocket 이벤트 |
+| `/api/notifications` | 목록, 안 읽음 수, 개별·전체 읽음 처리 |
+| `/api/community` | 여행 후기 목록·검색·정렬·상세·작성·수정·삭제, 댓글, 공감·저장, 임시저장 |
+| `/api/me/location-share` | 위치 공유 링크 발급·연장·좌표 전송·종료 |
+| `/api/share/{token}` | 링크를 받은 사람이 보는 위치. 로그인 없이 열리는 유일한 경로 |
+| `/api/trips` | 여행 CRUD, 개인/양쪽 선호, 합의안 제안·응답, 관광지, 일정 revision·승인·수정 요청, 안전 정보 |
+| `/api/admin` | 통계, 회원·동의·제재, 여행, 신고 목록·상세·검토 |
 
-> 🔗 전체 명세는 **[Swagger API Docs](https://oddtrip.onrender.com/docs)** 에서 확인할 수 있다.
+현재 MVP 흐름은 별도 장소 투표 대신 AI가 두 사람의 공동 선호를 반영해 일정까지 생성한다. 일정 항목 개별 수정, 실제 도로 경로 계산, SMS 본인인증, 모바일 Push, 관광지·TTI 편집·운영 관리자 API는 성공 상태를 만들지 않는다. 여행 시작 하루 전의 준비 안내와 여행이 끝난 다음 날의 후기 작성 권유는 서버 스케줄러가 한국 시간 기준으로 보내며 알림함에 남는다. 여행 화면의 `위치 공유` 탭에서 가족·친구에게 보낼 위치 링크를 발급한다. 좌표는 서버 메모리에만 최신 한 점을 두고 이동 기록으로 남기지 않는다. 상세 후속 계약과 검증 조건은 [`docs/BACKEND_GAPS.md`](docs/BACKEND_GAPS.md)와 [`docs/FRONTEND_REDESIGN_TODO.md`](docs/FRONTEND_REDESIGN_TODO.md)에 정리한다.
+
+## 여행 커뮤니티
+
+`/community`에서 카테고리·검색·정렬·내 글·저장한 글을 탐색하고, 상세·글쓰기·수정·임시저장 목록을 이용할 수 있다. `/home`에서는 공감이 많은 글 두 편을 요약해 보여 주고, 글 상세와 전체 목록으로 이동한다. 네이버 블로그의 탐색·작성 흐름을 참고하되 기존 OddTrip 디자인을 유지했다.
+
+글·댓글·공감·저장·임시저장은 `/api/community`에 저장되어 다른 회원에게도 보인다. 차단한 회원의 글과 댓글은 서로 보이지 않는다. 사진 업로드 스토리지, 게시글 신고·운영 검토, 댓글 알림은 아직 없다. 구현 경로와 남은 계약은 [커뮤니티 프론트 문서](docs/COMMUNITY_FRONTEND.md)를 참고한다.

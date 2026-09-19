@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from .user import UserOut
+from .trip import validate_trip_dates
 
 
 class CommunicationModel(BaseModel):
@@ -29,8 +30,8 @@ class MatchRequestCreate(CommunicationModel):
     @classmethod
     def validate_date_range(cls, value: date, info) -> date:
         start_date = info.data.get("start_date")
-        if start_date and value < start_date:
-            raise ValueError("여행 종료일은 시작일보다 빠를 수 없습니다.")
+        if start_date:
+            validate_trip_dates(start_date, value)
         return value
 
 
@@ -46,7 +47,13 @@ class MatchRequestOut(CommunicationModel):
     expires_at: datetime | None = None
     responded_at: datetime | None = None
     created_at: datetime
+    requester: UserOut
+    receiver: UserOut
     counterpart: UserOut | None = None
+    match_level: str
+    recommendation_score: int
+    differences: list[str] = Field(default_factory=list)
+    complements: list[str] = Field(default_factory=list)
 
 
 class MatchAcceptOut(CommunicationModel):
@@ -54,6 +61,7 @@ class MatchAcceptOut(CommunicationModel):
     match_id: str
     room_id: str
     trip_id: str
+    user_ids: list[str]
 
 
 class MatchEndOut(CommunicationModel):
@@ -69,3 +77,7 @@ class BlockOut(CommunicationModel):
     blocked_user_id: str
     created_at: datetime
     released_at: datetime | None = None
+
+
+class BlockedUserOut(BlockOut):
+    user: UserOut

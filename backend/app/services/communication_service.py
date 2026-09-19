@@ -8,18 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.chat import ChatRoom, ChatRoomMember
 from ..models.communication import Block, MatchRequest, MatchUserState, Report
 from ..models.match import Match
+from ..models.notification import Notification
 from ..models.trip import Trip
 from ..models.user import User
 from ..schemas.chat import ChatReportIn, ChatReportOut
 from ..schemas.communication import (
     BlockOut,
+    BlockedUserOut,
     MatchAcceptOut,
     MatchEndOut,
     MatchRequestCreate,
     MatchRequestOut,
 )
 from ..schemas.user import UserOut
-from . import chat_service, match_service
+from . import chat_service, match_service, notification_service
 from .match_service import _calc_score, _count_opposite_axes
 
 
@@ -101,8 +103,20 @@ async def create_match_request(
         updated_at=now,
     )
     db.add(request)
+    # The receiver has no other way to learn about this: the request expires in
+    # seven days and nothing else surfaces it outside /matches?tab=received.
+    notification = notification_service.build(
+        user_id=receiver.id,
+        type=notification_service.MATCH_REQUEST_RECEIVED,
+        title=f"{requester.nickname}님이 동행을 요청했어요",
+        body=request.greeting_message,
+        link="/matches?tab=received",
+        payload={"requestId": request.id, "requesterId": requester.id},
+    )
+    db.add(notification)
     await db.commit()
-    return _request_out(request, receiver)
+    await notification_service.push([notification])
+    return _request_out(request, requester, receiver, requester.id)
 
 
 async def list_match_requests(
@@ -135,7 +149,10 @@ async def list_match_requests(
     result = []
     for request in requests:
         counterpart_id = request.requester_id if direction == "received" else request.receiver_id
-        result.append(_request_out(request, await db.get(User, counterpart_id)))
+        requester = await db.get(User, request.requester_id)
+        receiver = await db.get(User, request.receiver_id)
+        if requester and receiver:
+            result.append(_request_out(request, requester, receiver, user_id))
     return result
 
 
@@ -145,8 +162,11 @@ async def get_match_request(db: AsyncSession, request_id: str, user_id: str) -> 
         request.status = "expired"
         request.responded_at = _now()
         await db.commit()
-    counterpart_id = request.receiver_id if request.requester_id == user_id else request.requester_id
-    return _request_out(request, await db.get(User, counterpart_id))
+    requester = await db.get(User, request.requester_id)
+    receiver = await db.get(User, request.receiver_id)
+    if not requester or not receiver:
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
+    return _request_out(request, requester, receiver, user_id)
 
 
 async def accept_match_request(db: AsyncSession, request_id: str, user: User) -> tuple[MatchAcceptOut, Match]:
@@ -230,8 +250,31 @@ async def accept_match_request(db: AsyncSession, request_id: str, user: User) ->
     request.status = "accepted"
     request.responded_at = now
     request.updated_at = now
+    # Only the requester needs telling. The receiver just pressed accept and is
+    # redirected into the room by the client.
+    notification = notification_service.build(
+        user_id=requester.id,
+        type=notification_service.MATCH_REQUEST_ACCEPTED,
+        title=f"{receiver.nickname}님이 동행 요청을 수락했어요",
+        body="채팅방과 여행 공간이 함께 열렸어요.",
+        link=f"/chat/{room.id}",
+        payload={
+            "requestId": request.id,
+            "matchId": match.id,
+            "roomId": room.id,
+            "tripId": trip.id,
+        },
+    )
+    db.add(notification)
     await db.commit()
-    return MatchAcceptOut(request_id=request.id, match_id=match.id, room_id=room.id, trip_id=trip.id), match
+    await notification_service.push([notification])
+    return MatchAcceptOut(
+        request_id=request.id,
+        match_id=match.id,
+        room_id=room.id,
+        trip_id=trip.id,
+        user_ids=[requester.id, receiver.id],
+    ), match
 
 
 async def respond_to_request(db: AsyncSession, request_id: str, user: User, action: str) -> MatchRequestOut:
@@ -244,9 +287,31 @@ async def respond_to_request(db: AsyncSession, request_id: str, user: User, acti
         raise HTTPException(status_code=404, detail="매칭 요청을 찾을 수 없습니다.")
     request.status = "rejected" if action == "reject" else "cancelled"
     request.responded_at = _now()
+
+    requester = await db.get(User, request.requester_id)
+    receiver = await db.get(User, request.receiver_id)
+    if not requester or not receiver:
+        raise HTTPException(status_code=404, detail="매칭 사용자를 찾을 수 없습니다.")
+
+    # Cancelling is the requester withdrawing their own request, so there is
+    # nothing to tell them. Rejection is the one the requester is waiting on.
+    notifications: list[Notification] = []
+    if action == "reject":
+        notifications.append(
+            notification_service.build(
+                user_id=requester.id,
+                type=notification_service.MATCH_REQUEST_REJECTED,
+                title=f"{receiver.nickname}님이 동행 요청을 거절했어요",
+                body="다른 동행 후보를 찾아보세요.",
+                link="/matches?tab=sent",
+                payload={"requestId": request.id, "receiverId": receiver.id},
+            )
+        )
+        db.add_all(notifications)
+
     await db.commit()
-    counterpart_id = request.requester_id if request.receiver_id == user.id else request.receiver_id
-    return _request_out(request, await db.get(User, counterpart_id))
+    await notification_service.push(notifications)
+    return _request_out(request, requester, receiver, user.id)
 
 
 async def end_match(db: AsyncSession, match_id: str, user_id: str) -> tuple[MatchEndOut, Match]:
@@ -271,7 +336,23 @@ async def end_match(db: AsyncSession, match_id: str, user_id: str) -> tuple[Matc
     state = await db.get(MatchUserState, (match.id, user_id))
     if state:
         state.left_at = now
+
+    # The system message that goes into the room carries sender_id=NULL, so it
+    # never lands on the unread badge. Without this the other side only finds
+    # out by opening the chat list.
+    counterpart_id = match.matched_user_id if match.user_id == user_id else match.user_id
+    actor = await db.get(User, user_id)
+    notification = notification_service.build(
+        user_id=counterpart_id,
+        type=notification_service.MATCH_ENDED,
+        title="매칭이 종료되었어요",
+        body=f"{actor.nickname}님과의 매칭이 종료되었습니다." if actor else None,
+        link="/matches",
+        payload={"matchId": match.id, "roomId": room.id if room else None},
+    )
+    db.add(notification)
     await db.commit()
+    await notification_service.push([notification])
     return MatchEndOut(match_id=match.id, room_id=room.id if room else None, status="ended", ended_at=now), match
 
 
@@ -325,10 +406,43 @@ async def block_user(db: AsyncSession, blocker: User, blocked_user_id: str) -> t
         match.ended_at = now
         room = (await db.execute(select(ChatRoom).where(ChatRoom.match_id == match.id))).scalar_one_or_none()
         if room:
+            await chat_service.create_system_message(
+                db=db,
+                match_id=match.id,
+                event="match.ended",
+                content="매칭이 종료되었습니다.",
+            )
             room.status = "closed"
             room.closed_at = now
+            member = await db.get(ChatRoomMember, (room.id, blocker.id))
+            if member:
+                member.hidden_at = now
+        state = await db.get(MatchUserState, (match.id, blocker.id))
+        if not state:
+            state = MatchUserState(match_id=match.id, user_id=blocker.id, created_at=now, updated_at=now)
+            db.add(state)
+        state.hidden_at = now
+        state.left_at = now
     await db.commit()
     return BlockOut.model_validate(block), matches
+
+
+async def list_blocks(db: AsyncSession, blocker_id: str) -> list[BlockedUserOut]:
+    blocks = list((await db.execute(
+        select(Block)
+        .where(
+            Block.blocker_id == blocker_id,
+            Block.released_at.is_(None),
+            Block.deleted_at.is_(None),
+        )
+        .order_by(Block.created_at.desc())
+    )).scalars().all())
+    result = []
+    for block in blocks:
+        user = await db.get(User, block.blocked_user_id)
+        if user:
+            result.append(BlockedUserOut(**BlockOut.model_validate(block).model_dump(), user=UserOut.model_validate(user)))
+    return result
 
 
 async def unblock_user(db: AsyncSession, blocker_id: str, blocked_user_id: str) -> BlockOut:
@@ -370,7 +484,23 @@ async def report_user(
     return ChatReportOut.model_validate(report)
 
 
-def _request_out(request: MatchRequest, counterpart: User | None) -> MatchRequestOut:
+def _request_out(
+    request: MatchRequest,
+    requester: User,
+    receiver: User,
+    viewer_id: str,
+) -> MatchRequestOut:
+    count, diff_axes = _count_opposite_axes(requester.tti_code or "", receiver.tti_code or "")
+    score = _calc_score(
+        count,
+        requester.tti_scores_json or [],
+        receiver.tti_scores_json,
+    )
+    differences = [match_service.AXIS_LABELS[axis] for axis in diff_axes]
+    complements: list[str] = []
+    for axis in diff_axes:
+        complements.extend(match_service.COMPLEMENT_TEMPLATES.get(axis, []))
+    counterpart = receiver if viewer_id == requester.id else requester
     return MatchRequestOut(
         id=request.id,
         requester_id=request.requester_id,
@@ -383,5 +513,11 @@ def _request_out(request: MatchRequest, counterpart: User | None) -> MatchReques
         expires_at=request.expires_at,
         responded_at=request.responded_at,
         created_at=request.created_at,
-        counterpart=UserOut.model_validate(counterpart) if counterpart else None,
+        requester=UserOut.model_validate(requester),
+        receiver=UserOut.model_validate(receiver),
+        counterpart=UserOut.model_validate(counterpart),
+        match_level={4: "완전 반대", 3: "부분 반대"}.get(count, "추천"),
+        recommendation_score=min(score, 100),
+        differences=differences,
+        complements=complements[:4],
     )

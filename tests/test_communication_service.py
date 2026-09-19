@@ -58,6 +58,7 @@ async def _test_match_request_acceptance_provisions_chat_and_trip() -> None:
         accepted, match = await communication_service.accept_match_request(db, request.id, receiver)
 
         assert accepted.match_id == match.id
+        assert accepted.user_ids == [requester.id, receiver.id]
         assert match.status == "active"
         assert match.user_tti_code_snapshot == requester.tti_code
         assert match.matched_user_tti_code_snapshot == receiver.tti_code
@@ -168,13 +169,21 @@ async def _test_message_delete_report_hide_and_block() -> None:
         await chat_service.hide_room(db, room.id, user_a.id)
         rooms, _ = await chat_service.list_rooms(db, user_a.id, status=None, before=None, limit=20)
         assert rooms == []
+        with pytest.raises(HTTPException) as hidden_room:
+            await chat_service.get_room_detail(db, room.id, user_a.id)
+        assert hidden_room.value.status_code == 404
         other_rooms, _ = await chat_service.list_rooms(db, user_b.id, status=None, before=None, limit=20)
         assert len(other_rooms) == 1
 
         block, ended = await communication_service.block_user(db, user_b, user_a.id)
         assert block.blocked_user_id == user_a.id
         assert len(ended) == 1
+        listed_blocks = await communication_service.list_blocks(db, user_b.id)
+        assert len(listed_blocks) == 1
+        assert listed_blocks[0].user.id == user_a.id
         assert (await db.get(Match, match.id)).status == "ended"
+        blocker_rooms, _ = await chat_service.list_rooms(db, user_b.id, status=None, before=None, limit=20)
+        assert blocker_rooms == []
         with pytest.raises(HTTPException) as send_error:
             await chat_service.create_message(
                 db,
@@ -182,7 +191,7 @@ async def _test_message_delete_report_hide_and_block() -> None:
                 user_a.id,
                 ChatMessageCreate(client_message_id=str(uuid.uuid4()), content="전송 불가"),
             )
-        assert send_error.value.status_code == 409
+        assert send_error.value.status_code == 404
 
         assert (await db.execute(select(func.count(ChatMessage.id)))).scalar_one() >= 1
     await engine.dispose()
@@ -208,6 +217,19 @@ def test_communication_routes_are_registered() -> None:
     assert ("/api/match-requests", "POST") in routes
     assert ("/api/match-requests/{request_id}/accept", "POST") in routes
     assert ("/api/matches/{match_id}/end", "POST") in routes
+    assert ("/api/me/matches/{match_id}", "DELETE") in routes
     assert ("/api/users/{user_id}/block", "POST") in routes
+    assert ("/api/me/blocks", "GET") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}", "DELETE") in routes
     assert ("/api/chat/rooms/{room_id}/messages/{message_id}/reports", "POST") in routes
+
+
+def test_legacy_immediate_match_endpoint_is_disabled() -> None:
+    from backend.app.routers.matches import accept_match
+
+    async def scenario() -> None:
+        with pytest.raises(HTTPException) as error:
+            await accept_match("target", User(id="viewer", nickname="viewer"), None)
+        assert error.value.status_code == 410
+
+    asyncio.run(scenario())

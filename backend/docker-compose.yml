@@ -13,7 +13,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
-      - .env              # DATABASE_URL, AUTH_SECRET_KEY, CORS_ORIGINS, OPENAI_API_KEY 등
+      - .env              # DATABASE_URL, AUTH_SECRET_KEY, CORS_ORIGINS, GEMINI_API_KEY 등
     expose:
       - "8000"            # 컨테이너 내부 네트워크에만 노출 (Caddy가 접근)
 
